@@ -1,0 +1,65 @@
+NOVA FOR iPHONE - HOW TO INSTALL
+================================
+
+Nova needs a home on the internet (a free web address) so your iPhone can
+install her. GitHub Pages hosts her for free. You can do all of this on
+your iPhone in about 10 minutes.
+
+STEP 1 - Unzip Nova
+  Tap Nova-iPhone.zip in the Files app. It turns into a folder called
+  "Nova-iPhone" with 7 files inside.
+
+STEP 2 - Make a free GitHub account
+  Go to github.com in Safari and sign up (free). Remember your username.
+
+STEP 3 - Make a home for Nova
+  1. Tap the + at the top, then "New repository".
+  2. Name it:  nova
+  3. Choose Public, and tick "Add a README file".
+  4. Tap "Create repository".
+
+STEP 4 - Upload Nova
+  1. In your new "nova" repository, tap "Add file", then "Upload files".
+  2. Tap "choose your files", open the Nova-iPhone folder, select ALL the
+     files inside it (index.html, sw.js, manifest.webmanifest, the 3 icons,
+     and this guide), and upload them.
+     Upload the files themselves, not the folder.
+  3. Tap "Commit changes".
+
+STEP 5 - Turn on the web address
+  1. In the repository, open Settings, then "Pages" (in the menu).
+  2. Under "Branch", pick "main" and "/ (root)", then tap Save.
+  3. Wait 1-2 minutes. Your address will be:
+        https://YOUR-USERNAME.github.io/nova/
+
+STEP 6 - Put Nova on your home screen
+  1. Open that address in Safari.
+  2. Tap the Share button (square with an arrow), then "Add to Home Screen",
+     then "Add".
+  3. Open Nova from her new icon. From now on, always open her from the icon.
+
+STEP 7 - Give Nova her brain (one time)
+  1. Nova shows a setup screen. Tap the aistudio.google.com/apikey link.
+  2. Sign in with Google, tap "Create API key", and copy it.
+  3. Go back to Nova, paste the key, add your name, and tap "Wake Nova up".
+
+That's it. Nova is her own app now. She doesn't need Claude or your PC.
+
+
+GOOD TO KNOW
+  - Your key, tasks and chats are stored only on your phone. The GitHub page
+    is public, but it only holds Nova's app files, never your key or data.
+  - Reminders pop up while Nova is open. Tap the calendar button on any task
+    to add it to your iPhone Calendar, so you get a real alert every day even
+    when she's closed.
+  - Voice: in the You tab, turn on "Speak replies out loud". Tap the
+    microphone (or the glowing orb) to talk to her.
+  - The free Google brain has a daily limit. If she says she's hit it, she's
+    back after midnight Pacific time. Your tasks still work.
+  - Back up your stuff now and then: You tab, then "Back up".
+  - Deleting Nova from your home screen deletes her data too, so back up
+    first.
+
+UPDATING NOVA LATER
+  Upload the new index.html to the same GitHub repository (Add file, then
+  Upload files, then Commit). Close and reopen Nova twice to pick it up.
