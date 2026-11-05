@@ -206,6 +206,8 @@ nav button svg{position:relative}
 .msg.draft .dm{font-size:13px;color:var(--muted);margin-bottom:8px}
 .msg.draft .db{font-size:14px;line-height:1.45;margin-bottom:10px}
 .msg.draft a.btn{display:inline-flex;align-items:center;text-decoration:none}
+#sendBtn.stop svg{display:none}
+#sendBtn.stop::after{content:"";width:12px;height:12px;border-radius:3px;background:#03111a}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -681,7 +683,7 @@ async function getWeather(place){
 async function fetchWeather(place){
   let lat, lon, label;
   if(place){
-    const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(place))).json();
+    const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(place), {signal:timed(15000).signal})).json();
     if(!g.results || !g.results.length) throw new Error('Couldn\'t find that place');
     ({latitude:lat, longitude:lon} = g.results[0]); label = g.results[0].name + (g.results[0].admin1?', '+g.results[0].admin1:'');
   } else {
@@ -691,7 +693,7 @@ async function fetchWeather(place){
   }
   const fahrenheit = /US|LR|MM/.test((navigator.language||'en-US').split('-')[1]||'US');
   const u = fahrenheit ? '&temperature_unit=fahrenheit&wind_speed_unit=mph' : '';
-  const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&forecast_days=3&timezone=auto${u}`)).json();
+  const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&forecast_days=3&timezone=auto${u}`, {signal:timed(15000).signal})).json();
   const codes = {0:'clear',1:'mostly clear',2:'partly cloudy',3:'overcast',45:'fog',48:'fog',51:'light drizzle',53:'drizzle',55:'heavy drizzle',61:'light rain',63:'rain',65:'heavy rain',66:'freezing rain',67:'freezing rain',71:'light snow',73:'snow',75:'heavy snow',77:'snow grains',80:'showers',81:'showers',82:'heavy showers',85:'snow showers',86:'snow showers',95:'thunderstorms',96:'thunderstorms with hail',99:'thunderstorms with hail'};
   return { place:label, units: fahrenheit?'F, mph':'C, km/h', now:{temp:w.current.temperature_2m, feels_like:w.current.apparent_temperature, sky:codes[w.current.weather_code]||'', wind:w.current.wind_speed_10m, humidity:w.current.relative_humidity_2m},
     days: w.daily.time.map((t,i)=>({date:t, high:w.daily.temperature_2m_max[i], low:w.daily.temperature_2m_min[i], rain_chance:w.daily.precipitation_probability_max[i], sky:codes[w.daily.weather_code[i]]||''})) };
@@ -824,8 +826,16 @@ If a tool errors, say so plainly with a light touch.`;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let lastError = '';
+let stopCtl = null; // aborts everything for the current message (Stop button / watchdog)
+function timed(ms){
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  const outer = stopCtl, onStop = () => { c.stopped = true; c.abort(); };
+  if(outer) outer.signal.addEventListener('abort', onStop);
+  return { signal:c.signal, ctl:c, done:() => { clearTimeout(t); if(outer) outer.signal.removeEventListener('abort', onStop); } };
+}
+const brainLimit = () => D.think ? 60000 : 20000;
 function speedConfig(model){
-  if(D.think) return null; // think harder: let the model use its full reasoning
+  if(D.think){ if(D.noThink && D.noThink[model]) return null; return /gemini-2\./i.test(model) ? {thinkingBudget:4096} : {thinkingLevel:'medium'}; } // smarter, still bounded
   if(D.noThink && D.noThink[model]) return null;
   if(/gemini-2\./i.test(model)) return {thinkingBudget:0};
   return {thinkingLevel:'minimal'};
@@ -834,10 +844,16 @@ async function callModel(model, body, onText){
   const tc = speedConfig(model);
   const b = tc ? Object.assign({}, body, {generationConfig:Object.assign({}, body.generationConfig||{}, {thinkingConfig:tc})}) : body;
   const url = onText ? `${API}/models/${model}:streamGenerateContent?alt=sse` : `${API}/models/${model}:generateContent`;
+  const T = timed(brainLimit());
+  const aborted = () => T.ctl.stopped ? {status:-1, msg:'stopped'} : {status:0, msg:'timeout'};
+  try{ return await callModelInner(model, body, onText, tc, b, url, T, aborted); }
+  finally{ T.done(); }
+}
+async function callModelInner(model, body, onText, tc, b, url, T, aborted){
   let r;
   try{
-    r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify(b) });
-  }catch(e){ return {status:0, msg:'network: '+(e && e.message || e)}; }
+    r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify(b), signal:T.signal });
+  }catch(e){ return T.signal.aborted ? aborted() : {status:0, msg:'network: '+(e && e.message || e)}; }
   if(!r.ok){
     const j = await r.json().catch(()=>({}));
     const msg = (j.error && j.error.message) || ('HTTP '+r.status);
@@ -872,7 +888,7 @@ async function callModel(model, body, onText){
     }
     if(buf.trim().startsWith('data:')){ try{ take(JSON.parse(buf.trim().slice(5))); }catch(e){} }
     else if(!parts.length && buf.trim()){ try{ const j = JSON.parse(buf.trim()); (Array.isArray(j) ? j : [j]).forEach(take); }catch(e){} } // plain JSON reply
-  }catch(e){ if(!parts.length) return {status:0, msg:'network: '+(e && e.message || e)}; }
+  }catch(e){ if(T.signal.aborted && (T.ctl.stopped || !text)) return aborted(); if(!parts.length) return {status:0, msg:'network: '+(e && e.message || e)}; }
   return {status:200, data:{candidates: parts.length || finishReason ? [{content:{role:'model', parts}, finishReason}] : [], promptFeedback}};
 }
 async function gemini(body, onText){
@@ -880,22 +896,26 @@ async function gemini(body, onText){
   if(!D.models || !D.models.length){ try{ await chooseModel(); }catch(e){} }
   const order = [D.model, ...(D.models||[]).filter(m => m !== D.model)].filter(Boolean);
   if(!order.length) order.push('gemini-flash-latest');
-  let last = null;
+  let last = null, timeouts = 0;
   for(let i=0; i<order.length && i<5; i++){
     const model = order[i];
     let res = await callModel(model, body, onText);
-    if(res.status===0 || res.status>=500){ await sleep(800); res = await callModel(model, body, onText); } // one quick retry
+    if(res.status===-1) throw {friendly:'Stopped.', stopped:true};
+    if((res.status===0 && res.msg!=='timeout') || res.status>=500){ await sleep(800); res = await callModel(model, body, onText); } // one quick retry
+    if(res.status===-1) throw {friendly:'Stopped.', stopped:true};
     if(res.status===200){
       if(D.model !== model){ D.model = model; save(); renderMe(); }
       lastError = ''; return res.data;
     }
     last = res; lastError = model+' → '+res.status+' '+res.msg;
     if(res.status===403 || (res.status===400 && /API key/i.test(res.msg))) throw {friendly:'My brain key isn\'t working anymore. Tap "Change API key" in the You tab.'};
-    if(res.status===0) break; // no internet: other models won't help
+    if(res.status===0 && res.msg==='timeout' && ++timeouts >= (D.groqKey ? 1 : 2)) break; // two slow brains in a row: give up
+    if(res.status===0 && res.msg!=='timeout') break; // no internet: other models won't help
     if(res.status===400 && !/model|not supported|not found/i.test(res.msg)) break; // a real request problem, other models won't help
     // 0, 404, 429, 5xx, model problems: try the next free model
   }
   if(!last) throw {friendly:'My brain hiccuped. Try again?'};
+  if(last.status===0 && last.msg==='timeout') throw {friendly:'Google is taking forever to answer right now. Try again in a moment'+(D.think ? ', or turn off Think harder for quicker replies.' : '.')};
   if(last.status===0) throw {friendly:'I can\'t reach Google from here. Check your internet, or turn off any VPN or ad-blocker, then try again.'};
   if(last.status===429) throw {friendly:'I\'ve used up today\'s free brainpower with Google. I\'ll be back after midnight Pacific time. Your tasks and schedule still work.'};
   if(last.status>=500) throw {friendly:'Google\'s servers are struggling right now (I tried several of my brains). Give it a minute and try again.\n\nDetails: '+last.msg.slice(0,160)};
@@ -954,11 +974,12 @@ async function groqCall(messages){
   if(!D.groqModels || !D.groqModels.length){ D.groqModels = await groqModels(D.groqKey); save(); }
   let last = '';
   for(const model of D.groqModels){
-    let r;
+    let r; const T = timed(D.think ? 60000 : 25000);
     try{
-      r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+      r = await fetch(GROQ + '/chat/completions', { method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
         body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens: D.think ? 2000 : 700 }, D.think && /gpt-oss/.test(model) ? {reasoning_effort:'high'} : {})) });
-    }catch(e){ last = 'network'; continue; }
+    }catch(e){ T.done(); if(T.ctl.stopped) throw {friendly:'Stopped.', stopped:true}; last = T.signal.aborted ? 'timeout' : 'network'; continue; }
+    T.done();
     const j = await r.json().catch(()=>({}));
     if(r.ok) return j;
     last = r.status + ' ' + ((j.error && j.error.message) || '');
@@ -1058,7 +1079,10 @@ async function send(given, opts={}){
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   pendingDrafts = [];
-  busy = true; $('orb').classList.add('busy'); $('sendBtn').disabled = true;
+  busy = true; $('orb').classList.add('busy'); $('sendBtn').classList.add('stop'); $('sendBtn').setAttribute('aria-label','Stop');
+  stopCtl = new AbortController(); const myStop = stopCtl;
+  const watchdog = setTimeout(() => myStop.abort(), (D.think ? 130 : 50) * 1000);
+  const slowNote = setTimeout(() => { if(busy && t.querySelector('.typing') && !t.querySelector('.slow')) t.insertAdjacentHTML('beforeend', ' <span class="muted slow" style="font-size:13px">'+pick(['Still thinking… (■ to stop)','Hmm, give me a sec… (■ to stop)','The hamster is running… (■ to stop)'])+'</span>'); }, 8000);
   try{
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
     const live = txt => { t.textContent = txt.replace(/\*\*/g,''); log.scrollTop = log.scrollHeight; };
@@ -1068,6 +1092,7 @@ async function send(given, opts={}){
     } else if((D.fast || !D.key) && D.groqKey){
       try{ r = await thinkGroq(text, step); }
       catch(e){ history.pop(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null;
+        if(e && e.stopped) throw e;
         if(!r && !D.key) throw (e && e.friendly ? e : {friendly:'Groq isn\'t answering right now. Try again in a minute, or add a Google key in the You tab as a backup.'}); }
     }
     if(!r) try{ r = await think(text, step, live); }
@@ -1076,7 +1101,7 @@ async function send(given, opts={}){
         history.pop(); saveChat();
         r = {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions};
       } else {
-      if(!D.groqKey || !e || !e.friendly || /key first|key isn/.test(e.friendly)) throw e;
+      if(!D.groqKey || !e || !e.friendly || e.stopped || /key first|key isn/.test(e.friendly)) throw e;
       history.pop(); r = await thinkGroq(text, step); r.backup = true;
       }
     }
@@ -1092,10 +1117,11 @@ async function send(given, opts={}){
     if(!opts.silent) speak(r.reply);
     return r.reply;
   }catch(e){
+    if(e && e.stopped){ t.textContent = pick(['Stopped. I was about to say something brilliant, but fine.','Okay, stopped.','Stopped. Consider that thought unthought.']); if(!img) history.pop(); return ''; }
     t.textContent = (e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic. Try again when you\'re back online.','I can\'t reach my brain right now. Check your connection?']);
     if(!img) history.pop();
     return t.textContent;
-  }finally{ busy=false; $('orb').classList.remove('busy'); $('sendBtn').disabled=false; log.scrollTop=log.scrollHeight; if(!convo) resumeWake(); }
+  }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); log.scrollTop=log.scrollHeight; if(!convo) resumeWake(); }
 }
 // ---------------- photos ----------------
 function clearPhoto(){ photo = null; $('photoPrev').hidden = true; $('photoI').value = ''; }
@@ -1149,7 +1175,7 @@ function grow(){ const t=$('inp'); t.style.height='auto'; t.style.height=Math.mi
 $('inp').addEventListener('input', grow);
 $('inp').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 $('inp').addEventListener('focus', stopWake); $('inp').addEventListener('blur', () => setTimeout(resumeWake, 300));
-$('sendBtn').onclick = () => send();
+$('sendBtn').onclick = () => { if(busy){ if(stopCtl) stopCtl.abort(); return; } send(); };
 document.querySelectorAll('#chips .chip').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
 
 // ---------------- tabs & screens ----------------
@@ -1355,7 +1381,7 @@ setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 1
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
 
 // ---------------- boot ----------------
-const VERSION = '4.1';
+const VERSION = '4.2';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
