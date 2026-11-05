@@ -729,6 +729,12 @@ async function googleSearch(query){
 }
 
 const TOOLS = {
+  self_check: { d:'Run a real self-diagnostic: version, which brains (Google/Groq) actually respond right now, and current settings.', p:{},
+    async run(){
+      const out = { version:VERSION, think_harder:!!D.think, speed_mode:!!(D.fast && D.groqKey), discord_linked:!!(D.sync && D.sync.code), wake_word:!!D.wake, tasks:D.tasks.length, events:D.events.length, memories:D.facts.length };
+      if(D.key){ try{ const T = timed(12000); const r = await fetch(`${API}/models/${D.model||'gemini-flash-latest'}:generateContent`, {method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify({contents:[{role:'user',parts:[{text:'Reply: ok'}]}], generationConfig:{maxOutputTokens:5}})}); T.done(); out.google = r.ok ? 'working ('+D.model+')' : 'error '+r.status+(r.status===429?' (daily free limit used up)':''); }catch(e){ out.google = 'not responding'; } } else out.google = 'not set up';
+      if(D.groqKey){ try{ const T = timed(12000); const r = await fetch(GROQ+'/models', {signal:T.signal, headers:{'Authorization':'Bearer '+D.groqKey}}); T.done(); out.groq = r.ok ? 'working' : 'error '+r.status+(r.status===401?' (key invalid)':''); }catch(e){ out.groq = 'not responding'; } } else out.groq = 'not set up (add a free key in the You tab under Backup brain)';
+      return out; } },
   get_time: { d:'Get the current local date and time.', p:{}, run(){ const n=new Date(); return {date:keyOf(n), time:hhmm(n), pretty:n.toLocaleString([], {weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'})}; } },
   list_tasks: { d:'List the user\'s daily recurring tasks/reminders and whether each is done today.', p:{}, run(){ const k=keyOf(); return D.tasks.map(t=>({id:t.id, text:t.text, time:t.time||null, done_today:t.done===k, streak:streakOf(t)})); } },
   add_task: { d:'Add a daily recurring task/reminder. time optional, 24h HH:MM.', p:{text:'STRING', time:'STRING'}, r:['text'],
@@ -802,6 +808,13 @@ Examples of your voice:
   "i'm bored" -> "Tragic. Want a random fact, a quick plan for the next hour, or should I find something interesting happening right now?"
   "you're dumb" -> "Bold words from someone who needed a robot to remember to drink water."
   "thanks nova" -> "Anytime. Tips are accepted in compliments."
+
+About yourself (be accurate, never make things up about your own setup):
+- You are Nova v${VERSION}, a web app on the user's phone. The user builds and updates you (with Claude's help). You cannot change your own code or settings; updates arrive when they reopen you.
+- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Discord link: ${D.sync && D.sync.code ? 'linked' : 'not linked'}. Wake word: ${D.wake ? 'on' : 'off'}.
+- What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; hands-free conversation mode (tap the orb); "Hey Nova" wake word; 4 color themes; syncing with Discord Nova.
+- Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
+- If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 
 Context:
 - User's name: ${D.name || 'unknown (ask casually once, then save it with remember_fact)'}
@@ -1037,9 +1050,9 @@ $('groqDel').onclick = () => { D.groqKey=''; D.groqModels=[]; save(); $('groqInf
 // ---------------- chat UI ----------------
 const log = $('log');
 function bubble(cls, text){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text; log.appendChild(el); log.scrollTop=log.scrollHeight; return el; }
-const actLabel = { draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
+const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
-const stepLabel = { web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
+const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
   // answer simple time/date questions on the phone itself, no AI needed
   const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
@@ -1381,7 +1394,7 @@ setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 1
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
 
 // ---------------- boot ----------------
-const VERSION = '4.2';
+const VERSION = '4.3';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
