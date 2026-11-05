@@ -124,6 +124,7 @@ ol.steps{padding-left:20px;margin:8px 0;line-height:1.7;font-size:15px}
     <input id="keyI" placeholder="Paste your key (starts with AIza…)" autocomplete="off" autocapitalize="off" spellcheck="false">
     <input id="nameSetup" placeholder="Your name (optional)" style="margin-top:8px">
     <button class="btn wide" id="keyBtn">Wake Nova up</button>
+    <button class="btn ghost wide" id="keyCancel" hidden>Cancel</button>
     <p class="muted" id="keyMsg" style="margin-top:10px"></p>
   </div>
   <p class="muted" style="font-size:12px">Your key is saved only on this phone. Nova talks straight to Google; there's no other server.</p>
@@ -198,7 +199,14 @@ ol.steps{padding-left:20px;margin:8px 0;line-height:1.7;font-size:15px}
         <div id="facts"></div>
         <div class="sec">Brain</div>
         <div class="card muted" id="brainInfo"></div>
+        <button class="btn ghost wide" id="testBrain">Test my brain</button>
         <button class="btn ghost wide" id="changeKey">Change API key</button>
+        <div class="sec">Backup brain (Groq, optional)</div>
+        <div class="card muted">If Google ever acts up, Nova quietly switches to Groq. Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> (sign in → Create API Key), then paste it here.
+          <input id="groqI" placeholder="Paste Groq key (starts with gsk_…)" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-top:10px">
+          <div class="row" style="margin-top:8px"><button class="btn sm" id="groqSave">Save & test</button><button class="btn sm ghost" id="groqDel">Remove</button></div>
+          <div id="groqInfo" style="margin-top:8px"></div>
+        </div>
         <div class="sec">Your data</div>
         <div class="card muted">Everything lives on this phone. Make a backup now and then.</div>
         <div class="row"><button class="btn ghost" style="flex:1" id="backupBtn">Back up</button><button class="btn ghost" style="flex:1" id="restoreBtn">Restore</button></div>
@@ -238,7 +246,7 @@ function save(){ store.set('nova', D); }
 function saveChat(){ store.set('nova_chat', history.slice(-30)); }
 
 // ---------------- setup / key ----------------
-function showSetup(msg){ $('setup').classList.add('show'); $('keyMsg').textContent = msg||''; $('nameSetup').value = D.name||''; }
+function showSetup(msg){ $('keyCancel').hidden = !D.key; $('setup').classList.add('show'); $('keyMsg').textContent = msg||''; $('nameSetup').value = D.name||''; }
 async function listModels(key){
   const r = await fetch(API + '/models?pageSize=200', { headers:{'x-goog-api-key': key} });
   const j = await r.json().catch(()=>({}));
@@ -247,34 +255,48 @@ async function listModels(key){
     .map(m => m.name.replace(/^models\//,''))
     .filter(n => /flash/i.test(n) && !/(image|tts|live|audio|embed|thinking|exp|vision|8b|native)/i.test(n));
   const ver = n => { const m = n.match(/(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
-  const score = n => ver(n)*10 - (/lite/i.test(n)?3:0) - (/preview/i.test(n)?2:0) - (/\d{3,}/.test(n.replace(/^gemini-\d+(\.\d+)?/,''))?1:0);
+  const score = n => (/preview/i.test(n)?-100:0) + (/latest/i.test(n)?-50:0) + ver(n)*10 - (/lite/i.test(n)?3:0) - (/\d{3,}/.test(n.replace(/^gemini-\d+(\.\d+)?/,''))?1:0);
   ms.sort((a,b) => score(b)-score(a));
   return ms;
 }
 async function chooseModel(){
   const ms = await listModels(D.key);
-  if(!ms.length) throw new Error('No free chat models found on this key.');
-  D.models = ms.slice(0,6); D.model = ms[0]; save();
+  if(!ms.length) ms.push('gemini-flash-latest');
+  D.models = ms.slice(0,10); D.model = ms[0]; save();
 }
 $('keyBtn').onclick = async () => {
   const k = $('keyI').value.trim();
   if(!k) return;
   $('keyBtn').disabled = true; $('keyMsg').textContent = 'Checking…';
+  const oldKey = D.key, oldModels = D.models, oldModel = D.model;
   try{
     D.key = k; await chooseModel();
     const n = $('nameSetup').value.trim(); if(n) D.name = n;
     save(); $('setup').classList.remove('show');
     $('log').innerHTML=''; bubble('nova', (D.name? 'Hello, '+D.name+'. ' : 'Hello. ') + 'I\'m awake, caffeinated in spirit, and ready. Ask me anything, or tell me what to remember.');
     renderAll();
-  }catch(e){ D.key=''; $('keyMsg').innerHTML = '<span class="bad">That key didn\'t work:</span> '+esc(e.message); }
+  }catch(e){ D.key=oldKey; D.models=oldModels; D.model=oldModel; $('keyMsg').innerHTML = '<span class="bad">That key didn\'t work:</span> '+esc(e.message); }
   $('keyBtn').disabled = false;
 };
+$('keyCancel').onclick = () => $('setup').classList.remove('show');
 $('changeKey').onclick = () => { $('keyI').value=''; showSetup(); };
+$('testBrain').onclick = async () => {
+  const b = $('testBrain'); b.disabled = true; b.textContent = 'Testing…';
+  try{
+    await chooseModel();
+    const j = await gemini({contents:[{role:'user', parts:[{text:'Reply with exactly: Brain online.'}]}]});
+    const t = ((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
+    $('brainInfo').innerHTML = '<span class="ok">Working ✓</span> using '+esc(D.model)+'<br>Reply: '+esc(t||'(empty)');
+  }catch(e){
+    $('brainInfo').innerHTML = '<span class="bad">Not working.</span> '+esc((e && (e.friendly||e.message)) || e)+(lastError?'<br><small>'+esc(lastError)+'</small>':'');
+  }
+  b.disabled = false; b.textContent = 'Test my brain';
+};
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ---------------- clock & reminders ----------------
-const greetSets = { night:['Burning the midnight oil','Still up, I see','Night owl mode'], morning:['Good morning','Morning','Rise and shine'],
-  afternoon:['Good afternoon','Afternoon','Hey there'], evening:['Good evening','Evening','Winding down?'] };
+const greetSets = { night:['Burning the midnight oil','Up late','Night owl mode'], morning:['Good morning','Morning','Rise and shine'],
+  afternoon:['Good afternoon','Afternoon','Hey there'], evening:['Good evening','Evening','Hello again'] };
 const gi = Math.floor(Math.random()*3);
 function tick(){
   const d = new Date();
@@ -286,19 +308,23 @@ function tick(){
 }
 let queue = [];
 function checkReminders(d){
-  const k = keyOf(d), now = hhmm(d), early = hhmm(new Date(d - 15*60000));
+  const k = keyOf(d), nowMin = d.getHours()*60 + d.getMinutes();
+  const inWindow = t => { const [h,m] = t.split(':').map(Number); const diff = nowMin - (h*60+m); return diff >= 0 && diff <= 15; };
   let changed = false;
   const fire = (id, kind, text) => { if(D.fired[id]===k) return; D.fired[id]=k; queue.push({id, kind, text}); changed = true; };
-  D.tasks.forEach(t => { if(t.time && t.time<=now && t.time>=early && t.done!==k) fire(t.id,'task',t.text); });
-  D.events.forEach(e => { if(e.date===k && e.time && e.time<=now && e.time>=early) fire(e.id,'event',e.title+' ('+fmt12(e.time)+')'); });
+  D.tasks.forEach(t => { if(t.time && inWindow(t.time) && t.done!==k) fire(t.id,'task',t.text); });
+  D.events.forEach(e => { if(e.date===k && e.time && inWindow(e.time)) fire(e.id,'event',e.title+' ('+fmt12(e.time)+')'); });
   const due = D.timers.filter(x => x.at <= Date.now());
   if(due.length){ D.timers = D.timers.filter(x => x.at > Date.now()); due.forEach(x => fire(x.id,'timer','Time\'s up: '+x.label)); renderTasks(); }
-  for(const id in D.fired) if(D.fired[id]!==k && !id.startsWith('t_')) delete D.fired[id];
+  for(const id in D.fired) if(D.fired[id]!==k) delete D.fired[id];
   if(changed){ save(); showBanner(); }
 }
+let audioCtx = null;
+function audio(){ try{ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} return audioCtx; }
+document.addEventListener('touchend', audio, {once:true}); document.addEventListener('click', audio, {once:true});
 function beep(){
   if(!D.sound) return;
-  try{ const a=new (window.AudioContext||window.webkitAudioContext)(); [0,.22,.44].forEach(t=>{ const o=a.createOscillator(), g=a.createGain();
+  try{ const a=audio(); if(!a) return; [0,.22,.44].forEach(t=>{ const o=a.createOscillator(), g=a.createGain();
     o.frequency.value=880; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(.0001,a.currentTime+t);
     g.gain.exponentialRampToValueAtTime(.3,a.currentTime+t+.02); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+t+.18);
     o.start(a.currentTime+t); o.stop(a.currentTime+t+.2); }); }catch(e){}
@@ -342,7 +368,7 @@ function icsEscape(s){ return String(s).replace(/([,;\\])/g,'\\$1').replace(/\n/
 function makeIcs({title, start, daily}){
   const end = new Date(start.getTime() + (daily?15:60)*60000);
   const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Nova//EN','BEGIN:VEVENT',
-    'UID:'+uid()+'@nova','DTSTAMP:'+icsDate(new Date()),'DTSTART:'+icsDate(start),'DTEND:'+icsDate(end),
+    'UID:'+uid()+'@nova','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''),'DTSTART:'+icsDate(start),'DTEND:'+icsDate(end),
     'SUMMARY:'+icsEscape(title)];
   if(daily) lines.push('RRULE:FREQ=DAILY');
   lines.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(title),'TRIGGER:PT0M','END:VALARM','END:VEVENT','END:VCALENDAR');
@@ -390,7 +416,7 @@ async function webSearch(query){
   const c = j.candidates && j.candidates[0];
   const text = ((c && c.content && c.content.parts)||[]).map(p=>p.text||'').join('').trim();
   const chunks = (c && c.groundingMetadata && c.groundingMetadata.groundingChunks) || [];
-  const srcs = chunks.map(x=>x.web).filter(Boolean).slice(0,4).map(w=>({title:w.title||w.uri, url:w.uri}));
+  const srcs = chunks.map(x=>x.web).filter(w => w && /^https?:\/\//i.test(w.uri||'')).slice(0,4).map(w=>({title:w.title||w.uri, url:w.uri}));
   lastSources.push(...srcs);
   return { answer: text || 'No results.', sources: srcs.map(s=>s.title) };
 }
@@ -464,20 +490,42 @@ Use tools whenever they help; never invent results:
 If a tool errors, say so plainly with a light touch.`;
 }
 
-async function gemini(body, attempt=0){
-  if(!D.key) { showSetup(); throw {friendly:'I need my brain key first.'}; }
-  const model = D.model || 'gemini-flash-latest';
-  const r = await fetch(`${API}/models/${model}:generateContent`, { method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify(body) });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let lastError = '';
+async function callModel(model, body){
+  let r;
+  try{
+    r = await fetch(`${API}/models/${model}:generateContent`, { method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify(body) });
+  }catch(e){ return {status:0, msg:'network: '+(e && e.message || e)}; }
   const j = await r.json().catch(()=>({}));
-  if(r.ok) return j;
-  const msg = (j.error && j.error.message) || ('HTTP '+r.status);
-  if((r.status===404 || r.status===400 && /model/i.test(msg)) && attempt<1){ try{ await chooseModel(); return gemini(body, attempt+1); }catch(e){} }
-  if(r.status===429 && D.models && attempt<2){ const i=D.models.indexOf(model); if(i>=0 && i<D.models.length-1){ D.model=D.models[i+1]; save(); return gemini(body, attempt+1); } }
-  if(r.status===400 && /API key/i.test(msg) || r.status===403){ throw {friendly:'My brain key isn\'t working anymore. Tap "Change API key" in the You tab.'}; }
-  if(r.status===429) throw {friendly:'I\'ve hit today\'s free limit with Google. I\'ll be back to full strength after midnight Pacific time. Your tasks and schedule still work.'};
-  if(r.status>=500) throw {friendly:'Google\'s end is having a moment. Try again in a few seconds.'};
-  throw {friendly:'My brain hiccuped: '+msg};
+  return r.ok ? {status:200, data:j} : {status:r.status, msg:(j.error && j.error.message) || ('HTTP '+r.status)};
+}
+async function gemini(body){
+  if(!D.key) { showSetup(); throw {friendly:'I need my brain key first.'}; }
+  if(!D.models || !D.models.length){ try{ await chooseModel(); }catch(e){} }
+  const order = [D.model, ...(D.models||[]).filter(m => m !== D.model)].filter(Boolean);
+  if(!order.length) order.push('gemini-flash-latest');
+  let last = null;
+  for(let i=0; i<order.length && i<5; i++){
+    const model = order[i];
+    let res = await callModel(model, body);
+    if(res.status===0 || res.status>=500){ await sleep(1200); res = await callModel(model, body); } // one quick retry
+    if(res.status===200){
+      if(D.model !== model){ D.model = model; save(); renderMe(); }
+      lastError = ''; return res.data;
+    }
+    last = res; lastError = model+' → '+res.status+' '+res.msg;
+    if(res.status===403 || (res.status===400 && /API key/i.test(res.msg))) throw {friendly:'My brain key isn\'t working anymore. Tap "Change API key" in the You tab.'};
+    if(res.status===0) break; // no internet: other models won't help
+    if(res.status===400 && !/model|not supported|not found/i.test(res.msg)) break; // a real request problem, other models won't help
+    // 0, 404, 429, 5xx, model problems: try the next free model
+  }
+  if(!last) throw {friendly:'My brain hiccuped. Try again?'};
+  if(last.status===0) throw {friendly:'I can\'t reach Google from here. Check your internet, or turn off any VPN or ad-blocker, then try again.'};
+  if(last.status===429) throw {friendly:'I\'ve used up today\'s free brainpower with Google. I\'ll be back after midnight Pacific time. Your tasks and schedule still work.'};
+  if(last.status>=500) throw {friendly:'Google\'s servers are struggling right now (I tried several of my brains). Give it a minute and try again.\n\nDetails: '+last.msg.slice(0,160)};
+  throw {friendly:'My brain hiccuped: '+last.msg.slice(0,200)};
 }
 
 async function think(text, onStep){
@@ -487,7 +535,9 @@ async function think(text, onStep){
   const contents = history.slice();
   const actions = []; lastSources = [];
   for(let round=0; round<6; round++){
-    const j = await gemini({ systemInstruction:{parts:[{text:persona()}]}, contents, tools:toolDecls(), generationConfig:{temperature:0.8} });
+    let j;
+    try{ j = await gemini({ systemInstruction:{parts:[{text:persona()}]}, contents, tools:toolDecls(), generationConfig:{temperature:0.8} }); }
+    catch(e){ if(e && typeof e==='object') e.actions = actions; throw e; }
     const c = j.candidates && j.candidates[0];
     if(!c || !c.content){ const why = (j.promptFeedback && j.promptFeedback.blockReason) || (c && c.finishReason) || 'empty';
       history.pop(); return {reply: why==='SAFETY' ? 'I\'d rather not touch that one. Ask me something else?' : 'I drew a blank there. Try saying it another way?', actions}; }
@@ -514,6 +564,80 @@ async function think(text, onStep){
   return {reply:'I got a bit tangled on that one. Could you say it a different way?', actions};
 }
 
+// ---------------- backup brain: Groq ----------------
+const GROQ = (window.NOVA_GROQ_BASE || 'https://api.groq.com/openai/v1');
+async function groqModels(key){
+  const r = await fetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+key} });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error((j.error && j.error.message) || ('HTTP '+r.status));
+  const ids = (j.data||[]).filter(m => m.active !== false).map(m => m.id)
+    .filter(id => !/(whisper|tts|guard|playai|orpheus|compound|distil|vision|embed)/i.test(id));
+  const pref = [/gpt-oss-120b/i, /llama-4-maverick/i, /llama-3\.3-70b/i, /qwen/i, /kimi/i, /llama-4-scout/i, /gpt-oss-20b/i, /llama/i];
+  const rank = id => { const i = pref.findIndex(rx => rx.test(id)); return i < 0 ? 99 : i; };
+  return ids.sort((a,b) => rank(a)-rank(b)).slice(0,4);
+}
+async function groqCall(messages){
+  if(!D.groqModels || !D.groqModels.length){ D.groqModels = await groqModels(D.groqKey); save(); }
+  let last = '';
+  for(const model of D.groqModels){
+    let r;
+    try{
+      r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+        body: JSON.stringify({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens:700 }) });
+    }catch(e){ last = 'network'; continue; }
+    const j = await r.json().catch(()=>({}));
+    if(r.ok) return j;
+    last = r.status + ' ' + ((j.error && j.error.message) || '');
+    if(r.status===401) throw {friendly:'My backup brain key (Groq) isn\'t working. Check it in the You tab.'};
+  }
+  throw {friendly:'Both my brains are down right now, which is impressively bad luck. Try again in a minute.', detail:last};
+}
+function groqTools(){
+  return Object.entries(TOOLS).map(([name,t]) => ({ type:'function', function:{ name, description:t.d,
+    parameters:{ type:'object', properties:Object.fromEntries(Object.entries(t.p).map(([k,v])=>[k,{type:v.toLowerCase()}])), required:t.r||[] } } }));
+}
+async function thinkGroq(text, onStep){
+  history.push({role:'user', parts:[{text}]});
+  history = history.slice(-24);
+  const msgs = [{role:'system', content:persona()}].concat(history.map(h => ({role: h.role==='model'?'assistant':'user', content: h.parts[0].text})));
+  const actions = []; lastSources = [];
+  for(let round=0; round<6; round++){
+    const j = await groqCall(msgs);
+    const m = j.choices && j.choices[0] && j.choices[0].message;
+    if(!m) break;
+    const calls = m.tool_calls || [];
+    if(!calls.length){
+      const reply = String(m.content||'').replace(/\*\*/g,'').trim() || 'Done.';
+      history.push({role:'model', parts:[{text:reply}]}); saveChat();
+      return {reply, actions};
+    }
+    msgs.push({role:'assistant', content:m.content||null, tool_calls:calls});
+    for(const c of calls){
+      const name = c.function && c.function.name; let args = {}, result;
+      try{ args = JSON.parse(c.function.arguments || '{}'); }catch(e){}
+      onStep && onStep(name);
+      try{ if(!TOOLS[name]) throw new Error('unknown tool'); result = await TOOLS[name].run(args||{}); }
+      catch(e){ result = {error: (e && (e.friendly||e.message)) || String(e)}; }
+      actions.push({name, result});
+      msgs.push({role:'tool', tool_call_id:c.id, content:JSON.stringify(result).slice(0,6000)});
+    }
+  }
+  history.pop();
+  return {reply:'I got a bit tangled on that one. Could you say it a different way?', actions};
+}
+$('groqSave').onclick = async () => {
+  const k = $('groqI').value.trim() || D.groqKey; if(!k) return;
+  $('groqInfo').textContent = 'Testing…';
+  try{
+    const ms = await groqModels(k); if(!ms.length) throw new Error('no chat models found');
+    D.groqKey = k; D.groqModels = ms; save();
+    const j = await groqCall([{role:'user', content:'Reply with exactly: Backup online.'}]);
+    $('groqInfo').innerHTML = '<span class="ok">Backup ready ✓</span> ('+esc(ms[0])+') '+esc((j.choices[0].message.content||'').slice(0,60));
+    $('groqI').value=''; renderMe();
+  }catch(e){ $('groqInfo').innerHTML = '<span class="bad">Didn\'t work:</span> '+esc((e && (e.friendly||e.message)) || e); }
+};
+$('groqDel').onclick = () => { D.groqKey=''; D.groqModels=[]; save(); $('groqInfo').textContent='Backup removed.'; renderMe(); };
+
 // ---------------- chat UI ----------------
 const log = $('log');
 function bubble(cls, text){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text; log.appendChild(el); log.scrollTop=log.scrollHeight; return el; }
@@ -529,7 +653,18 @@ async function send(){
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   busy = true; $('orb').classList.add('busy'); $('sendBtn').disabled = true;
   try{
-    const r = await think(text, name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; });
+    const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
+    let r;
+    try{ r = await think(text, step); }
+    catch(e){
+      if(e && e.actions && e.actions.length){ // something was already done; don't redo it with the backup
+        history.pop(); saveChat();
+        r = {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions};
+      } else {
+      if(!D.groqKey || !e || !e.friendly || /key first|key isn/.test(e.friendly)) throw e;
+      history.pop(); r = await thinkGroq(text, step); r.backup = true;
+      }
+    }
     t.textContent = r.reply;
     let after = t;
     r.actions.forEach(a => { if(!actLabel[a.name]) return; const n=document.createElement('div'); n.className='act';
@@ -537,6 +672,7 @@ async function send(){
     if(lastSources.length){ const s=document.createElement('div'); s.className='src';
       const seen = new Set(); lastSources.forEach(x => { if(seen.has(x.title)) return; seen.add(x.title); const a=document.createElement('a'); a.href=x.url; a.target='_blank'; a.rel='noopener'; a.textContent='↗ '+x.title; s.appendChild(a); });
       after.after(s); }
+    if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
     speak(r.reply);
   }catch(e){
     t.textContent = (e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic. Try again when you\'re back online.','I can\'t reach my brain right now. Check your connection?']);
@@ -620,7 +756,8 @@ function renderMe(){
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
     el.querySelector('b').textContent=x.text; el.querySelector('.del').onclick=()=>{ D.facts=D.facts.filter(y=>y.id!==x.id); save(); renderMe(); }; f.appendChild(el); });
-  $('brainInfo').innerHTML = D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : '<span class="bad">No key yet.</span>';
+  $('brainInfo').innerHTML = (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : '<span class="bad">No key yet.</span>')
+    + '<br>Backup: ' + (D.groqKey ? '<span class="ok">Groq ready</span>' : 'none');
 }
 $('nameI').addEventListener('change', () => { D.name = $('nameI').value.trim().slice(0,40); save(); tick(); });
 $('voiceT').onchange = e => { D.voice = e.target.checked; save(); if(D.voice) speak('Voice on. Try not to get too attached.'); };
@@ -628,7 +765,7 @@ $('soundT').onchange = e => { D.sound = e.target.checked; save(); if(D.sound) be
 $('locT').onchange = e => { D.useLoc = e.target.checked; save(); };
 $('resetBtn').onclick = () => { history = []; saveChat(); log.innerHTML=''; bubble('nova', pick(['Clean slate. What are we doing?','Fresh start. I kept the important stuff, just dropped the small talk.','Conversation wiped. Your secrets are safe. Mostly because I forgot them.'])); };
 $('backupBtn').onclick = async () => {
-  const copy = Object.assign({}, D, {key:undefined});
+  const copy = Object.assign({}, D, {key:undefined, groqKey:undefined});
   const file = new File([JSON.stringify(copy, null, 2)], 'nova-backup-'+keyOf()+'.json', {type:'application/json'});
   try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); return; } }catch(e){ if(e && e.name==='AbortError') return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=file.name; a.click();
@@ -643,7 +780,7 @@ $('restoreF').onchange = async e => {
 };
 
 // ---------------- boot ----------------
-if(D.models && D.models.length && D.modelDay !== keyOf()){ D.model = D.models[0]; D.modelDay = keyOf(); save(); } // back to the best brain each day
+if(D.key && (D.modelDay !== keyOf() || D.modelsVer !== 2)){ D.modelDay = keyOf(); D.modelsVer = 2; save(); chooseModel().then(renderMe).catch(()=>{}); } // refresh the brain list daily
 renderAll();
 setInterval(tick, 10000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) renderAll(); });
