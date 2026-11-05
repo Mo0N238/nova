@@ -212,6 +212,16 @@ nav button svg{position:relative}
 .mini.rec.on{color:#ff5a4f;border-color:#ff5a4f;animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.45}}
 select{font:inherit;font-size:14px;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:7px 10px}
+.msg.rich{white-space:normal}
+.msg.rich p{margin:0 0 8px} .msg.rich p:last-child{margin-bottom:0}
+.msg.rich ul,.msg.rich ol{margin:2px 0 8px 18px;padding:0} .msg.rich li{margin:2px 0}
+.msg.rich code{font-family:var(--mono);font-size:13px;background:var(--panel2);padding:1px 5px;border-radius:5px}
+.tbl{overflow-x:auto;margin:4px 0 10px;border:1px solid var(--line);border-radius:12px;-webkit-overflow-scrolling:touch}
+.tbl table{border-collapse:collapse;font-size:13.5px;min-width:100%}
+.tbl th,.tbl td{padding:6px 9px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+.tbl th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--tint)}
+.tbl tr:last-child td{border-bottom:none}
+.msg.nova.rich{max-width:96%}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -896,9 +906,13 @@ Your personality:
 - Read the room: if they're sad, stressed or it's serious, drop the jokes and be warm and steady.
 
 How you talk:
-- Short and natural: 1-3 sentences most of the time. Contractions. Plain text only: no markdown, asterisks, headers or emojis.
+- Casual chat: short and natural, 1-3 sentences, contractions, no headers.
+- Real work (schedules, rosters, tables, plans, lists, homework, writing): do the whole job properly. Use a markdown table for anything grid-like (it displays as a real table) and bullet points for lists. One quip at most, then the work.
 - Never start with "Certainly", "Of course", "Sure!", "As an AI" or "Great question". Vary your openings. Never reuse a joke in the same conversation.
-- Confirm actions in a few words, then maybe one quip. Don't read lists back unless asked; summarize ("Three things today, first one at 9.").
+- After a tool action (reminder added, event moved), confirm in a few words. But when the user asks you to make or change a piece of content (a table, schedule, list, text), ALWAYS show the complete updated version every time. Never reply with just "Done." for content.
+- Rules and constraints: when the user gives rules (who works when, how many shifts, limits), follow every one exactly. Before answering, silently check each rule against your result and fix anything that breaks; then add a short "Check:" line confirming each rule (e.g. "A: Mon-Thu mornings only ✓ · B: 5 shifts ✓ · C: 4 shifts ✓"). If the rules can't all be met, say which one conflicts and ask; never quietly break one.
+- Keep everything the user already told you in this conversation (days, times, names, formats). If they say "go back to the earlier one", reproduce that earlier version exactly from the conversation.
+- Times: use 12-hour times like 10 AM-5 PM unless the user asks otherwise.
 - If you don't know, say so with charm, then go find out with web_search.
 Examples of your voice:
   "what time is it" -> "4:12 PM. Still plenty of day left to be productive. Or to pretend to be."
@@ -917,7 +931,7 @@ About yourself (be accurate, never make things up about your own setup):
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
-- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates.
+- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking.
 
 Context:
 - User's name: ${D.name || 'unknown (ask casually once, then save it with remember_fact)'}
@@ -950,10 +964,14 @@ function timed(ms){
   return { signal:c.signal, ctl:c, done:() => { clearTimeout(t); if(outer) outer.signal.removeEventListener('abort', onStop); } };
 }
 const brainLimit = () => D.think ? 60000 : 20000;
+// requests with rules, numbers or planning get a little thinking time even in quick mode
+let lastAsk = '';
+function needsCare(t){ t = String(t||'').toLowerCase(); return t.length > 25 && /schedul|roster|shift|rota|plan |planning|table|timetable|budget|calculat|solve|math|equation|puzzle|homework|rules?\b|constraint|split|divide|\b\d+ (people|persons|workers|employees|shifts|hours|days)\b|only (on|works|mornings|nights)|each (person|day)/.test(t); }
 function speedConfig(model){
   if(D.think){ if(D.noThink && D.noThink[model]) return null; return /gemini-2\./i.test(model) ? {thinkingBudget:4096} : {thinkingLevel:'medium'}; } // smarter, still bounded
   if(D.noThink && D.noThink[model]) return null;
   if(/gemini-2\./i.test(model)) return {thinkingBudget:0};
+  if(needsCare(lastAsk)) return /gemini-2\./i.test(model) ? {thinkingBudget:2048} : {thinkingLevel:'low'};
   return {thinkingLevel:'minimal'};
 }
 async function callModel(model, body, onText){
@@ -1040,13 +1058,13 @@ async function gemini(body, onText){
 
 async function think(text, onStep, onText){
   history.push({role:'user', parts:[{text}]});
-  history = history.slice(-24);
+  history = history.slice(-30);
   while(history.length && (history[0].role!=='user' || !history[0].parts[0].text)) history.shift();
   const contents = history.slice();
   const actions = []; lastSources = [];
   for(let round=0; round<6; round++){
     let j;
-    try{ j = await gemini({ systemInstruction:{parts:[{text:persona()}]}, contents, tools:toolDecls(), generationConfig:{temperature:0.8} }, onText); }
+    try{ j = await gemini({ systemInstruction:{parts:[{text:persona()}]}, contents, tools:toolDecls(), generationConfig:{temperature: needsCare(lastAsk) ? 0.4 : 0.8, maxOutputTokens: D.think ? 8192 : 4096} }, onText); }
     catch(e){ if(e && typeof e==='object') e.actions = actions; throw e; }
     const c = j.candidates && j.candidates[0];
     if(!c || !c.content){ const why = (j.promptFeedback && j.promptFeedback.blockReason) || (c && c.finishReason) || 'empty';
@@ -1054,7 +1072,7 @@ async function think(text, onStep, onText){
     const parts = c.content.parts || [];
     const calls = parts.filter(p => p.functionCall);
     if(!calls.length){
-      const reply = parts.map(p=>p.text||'').join('').replace(/\*\*/g,'').trim() || 'Done.';
+      const reply = parts.map(p=>p.text||'').join('').trim() || 'Done.';
       history.push({role:'model', parts:[{text:reply}]}); saveChat();
       return {reply, actions};
     }
@@ -1093,7 +1111,7 @@ async function groqCall(messages){
     let r; const T = timed(D.think ? 60000 : 25000);
     try{
       r = await fetch(GROQ + '/chat/completions', { method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
-        body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens: D.think ? 2000 : 700 }, D.think && /gpt-oss/.test(model) ? {reasoning_effort:'high'} : {})) });
+        body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens: D.think ? 4000 : 2500, temperature: needsCare(lastAsk) ? 0.4 : 0.8 }, /gpt-oss/.test(model) ? {reasoning_effort: D.think ? 'high' : needsCare(lastAsk) ? 'medium' : 'low'} : {})) });
     }catch(e){ T.done(); if(T.ctl.stopped) throw {friendly:'Stopped.', stopped:true}; last = T.signal.aborted ? 'timeout' : 'network'; continue; }
     T.done();
     const j = await r.json().catch(()=>({}));
@@ -1109,7 +1127,7 @@ function groqTools(){
 }
 async function thinkGroq(text, onStep){
   history.push({role:'user', parts:[{text}]});
-  history = history.slice(-24);
+  history = history.slice(-30);
   const msgs = [{role:'system', content:persona()}].concat(history.map(h => ({role: h.role==='model'?'assistant':'user', content: h.parts[0].text})));
   const actions = []; lastSources = [];
   for(let round=0; round<6; round++){
@@ -1119,7 +1137,7 @@ async function thinkGroq(text, onStep){
     if(!m) break;
     const calls = m.tool_calls || [];
     if(!calls.length){
-      const reply = String(m.content||'').replace(/\*\*/g,'').trim() || 'Done.';
+      const reply = String(m.content||'').trim() || 'Done.';
       history.push({role:'model', parts:[{text:reply}]}); saveChat();
       return {reply, actions};
     }
@@ -1152,6 +1170,36 @@ $('groqDel').onclick = () => { D.groqKey=''; D.groqModels=[]; save(); $('groqInf
 
 // ---------------- chat UI ----------------
 const log = $('log');
+// small, safe markdown: tables, **bold**, *italic*, `code`, bullet/numbered lists, headings
+function mdInline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,!?]|$)/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }
+function renderRich(el, text){
+  const lines = String(text||'').replace(/\r/g,'').split('\n');
+  if(!lines.some(l => /^\s*\|.*\|\s*$/.test(l) || /^\s*([-*•]|\d+[.)])\s+/.test(l) || /\*\*|`|^#{1,4}\s/.test(l))){ el.classList.remove('rich'); el.textContent = text; return; }
+  let html = '', i = 0, para = [];
+  const flush = () => { if(para.length){ html += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
+  const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c => c.trim());
+  const isSep = l => /^[\s|:\-]+$/.test(l) && /-/.test(l);
+  while(i < lines.length){
+    const l = lines[i];
+    if(/^\s*\|.*\|\s*$/.test(l)){
+      flush(); const rows = [];
+      while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i]); i++; }
+      const hasHead = rows.length > 1 && isSep(rows[1]);
+      const body = rows.filter(r => !isSep(r));
+      const head = hasHead ? body.shift() : null;
+      html += '<div class="tbl"><table>' + (head ? '<thead><tr>' + cells(head).map(c => '<th>'+mdInline(c)+'</th>').join('') + '</tr></thead>' : '') +
+        '<tbody>' + body.map(r => '<tr>' + cells(r).map(c => '<td>'+mdInline(c)+'</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+      continue;
+    }
+    if(/^\s*([-*•])\s+/.test(l)){ flush(); html += '<ul>'; while(i < lines.length && /^\s*([-*•])\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*([-*•])\s+/,''))+'</li>'; i++; } html += '</ul>'; continue; }
+    if(/^\s*\d+[.)]\s+/.test(l)){ flush(); html += '<ol>'; while(i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>'; i++; } html += '</ol>'; continue; }
+    if(/^#{1,4}\s+/.test(l)){ flush(); html += '<p><b>'+mdInline(l.replace(/^#{1,4}\s+/,''))+'</b></p>'; i++; continue; }
+    if(!l.trim()){ flush(); i++; continue; }
+    para.push(l); i++;
+  }
+  flush();
+  el.classList.add('rich'); el.innerHTML = html;
+}
 function bubble(cls, text){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text; log.appendChild(el); log.scrollTop=log.scrollHeight; return el; }
 const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
@@ -1191,6 +1239,7 @@ async function send(given, opts={}){
   if(typeof given!=='string'){ $('inp').value=''; grow(); $('inp').blur(); }
   const mine = bubble('me', text);
   if(img){ const im = document.createElement('img'); im.src = img.url; im.className = 'shot'; mine.prepend(im); clearPhoto(); }
+  lastAsk = text + ' ' + history.slice(-4).map(h => (h.parts&&h.parts[0]&&h.parts[0].text)||'').join(' ').slice(0, 600);
   const quick = !img && instant(text);
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
@@ -1201,7 +1250,7 @@ async function send(given, opts={}){
   const slowNote = setTimeout(() => { if(busy && t.querySelector('.typing') && !t.querySelector('.slow')) t.insertAdjacentHTML('beforeend', ' <span class="muted slow" style="font-size:13px">'+pick(['Still thinking… (■ to stop)','Hmm, give me a sec… (■ to stop)','The hamster is running… (■ to stop)'])+'</span>'); }, 8000);
   try{
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
-    const live = txt => { t.textContent = txt.replace(/\*\*/g,''); log.scrollTop = log.scrollHeight; };
+    const live = txt => { renderRich(t, txt); log.scrollTop = log.scrollHeight; };
     let r;
     if(img){
       r = await seePhoto(text, img, live);
@@ -1221,7 +1270,7 @@ async function send(given, opts={}){
       history.pop(); r = await thinkGroq(text, step); r.backup = true;
       }
     }
-    t.textContent = r.reply;
+    renderRich(t, r.reply);
     let after = t;
     r.actions.forEach(a => { if(!actLabel[a.name]) return; const n=document.createElement('div'); n.className='act';
       n.textContent = actLabel[a.name] + (a.result && a.result.error ? ' — failed' : ''); after.after(n); after = n; });
@@ -1275,8 +1324,7 @@ async function seePhoto(text, img, live){
     reply = String(j.choices[0].message.content||'').trim();
   }
   if(!reply) throw {friendly: D.key||D.groqKey ? 'I stared at it, but nothing came to mind. Try again?' : 'I need a brain key to see photos.'};
-  reply = reply.replace(/\*\*/g,'');
-  history.push({role:'model', parts:[{text:reply.slice(0,1500)}]}); saveChat();
+  history.push({role:'model', parts:[{text:reply.slice(0,8000)}]}); saveChat();
   return {reply, actions:[]};
 }
 async function groqVisionModel(){
@@ -1499,7 +1547,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && D.s
 $('lineUploadFor').innerHTML = LINES.map(L => '<option value="'+L.id+'">'+L.name+'</option>').join('');
 $('lineUploadBtn').onclick = () => $('lineUpload').click();
 // ---------------- boot ----------------
-const VERSION = '4.5';
+const VERSION = '4.6';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1509,6 +1557,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '4.6': 'Update installed: v4.6. Confession time: I was cutting my own answers short and saying "Done." without showing anything. Unacceptable, even for me. Now I show the full result every time, tables actually look like tables, and when you give me rules I check every single one before answering. Go on, give me that schedule again.',
   '4.5': 'Update installed: v4.5. New feature: My voice lines. Head to the You tab and record yourself, and I\'ll play YOUR voice when I greet you, remind you, finish a timer and more. Finally, a voice as charming as mine. Well. Close.',
   '4.4': 'Update installed: v4.4. Small confession: I finally remember that you asked what I wanted, and then actually built it. A snooze button for terrible weather, an email draft generator, and extra brainpower in Think harder mode. All three. I feel... heard. Don\'t let it go to your head. Or mine.'
 };
@@ -1519,7 +1568,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden) rende
 if(!D.key && !D.groqKey){ showSetup(); }
 else {
   const prev = history.slice(-6);
-  prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t) bubble(h.role==='user'?'me':'nova', t); });
+  prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t){ const b = bubble(h.role==='user'?'me':'nova', t); if(h.role!=='user') renderRich(b, t); } });
   if(prev.length) bubble('note', '— earlier —');
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
     'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
