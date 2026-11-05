@@ -261,7 +261,10 @@ input[type=time]{min-height:38px}
       <li>Tap <b>Create API key</b> (free, no card needed).</li>
       <li>Copy the key and paste it here.</li>
     </ol>
-    <input id="keyI" placeholder="Paste your key (starts with AIza…)" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p class="muted" style="font-size:12px;margin:-2px 0 8px">Already have a Groq key (starts with gsk_)? That works too: paste it instead.</p>
+    <ol class="steps" hidden>
+    </ol>
+    <input id="keyI" placeholder="Paste your key (AIza… or gsk_…)" autocomplete="off" autocapitalize="off" spellcheck="false">
     <input id="nameSetup" placeholder="Your name (optional)" style="margin-top:8px">
     <button class="btn wide" id="keyBtn">Wake Nova up</button>
     <button class="btn ghost wide" id="keyCancel" hidden>Cancel</button>
@@ -420,12 +423,19 @@ async function chooseModel(){
   D.models = ms.slice(0,10); D.model = ms[0]; save();
 }
 $('keyBtn').onclick = async () => {
-  const k = $('keyI').value.trim();
+  const k = $('keyI').value.replace(/\s+/g,'');
   if(!k) return;
   $('keyBtn').disabled = true; $('keyMsg').textContent = 'Checking…';
   const oldKey = D.key, oldModels = D.models, oldModel = D.model;
+  if(!/^(AIza|gsk_)/.test(k)){
+    $('keyMsg').innerHTML = '<span class="bad">That doesn\'t look like a key.</span> Google keys start with <b>AIza</b>, Groq keys with <b>gsk_</b>. Make sure you copied the whole thing.';
+    $('keyBtn').disabled = false; return;
+  }
   try{
-    D.key = k; await chooseModel();
+    if(k.startsWith('gsk_')){ // Groq key: use Groq as Nova's brain
+      const ms = await groqModels(k); if(!ms.length) throw new Error('no chat models on this Groq key');
+      D.groqKey = k; D.groqModels = ms; D.fast = true;
+    } else { D.key = k; await chooseModel(); }
     const n = $('nameSetup').value.trim(); if(n) D.name = n;
     save(); $('setup').classList.remove('show');
     $('log').innerHTML=''; bubble('nova', (D.name? 'Hello, '+D.name+'. ' : 'Hello. ') + 'I\'m awake, caffeinated in spirit, and ready. Ask me anything, or tell me what to remember.');
@@ -438,10 +448,19 @@ $('changeKey').onclick = () => { $('keyI').value=''; showSetup(); };
 $('testBrain').onclick = async () => {
   const b = $('testBrain'); b.disabled = true; b.textContent = 'Testing…';
   try{
-    await chooseModel();
-    const j = await gemini({contents:[{role:'user', parts:[{text:'Reply with exactly: Brain online.'}]}]});
-    const t = ((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('').trim();
-    $('brainInfo').innerHTML = '<span class="ok">Working ✓</span> using '+esc(D.model)+'<br>Reply: '+esc(t||'(empty)');
+    let out = '';
+    if(D.key){
+      try{ await chooseModel();
+        const j = await gemini({contents:[{role:'user', parts:[{text:'Reply with exactly: Brain online.'}]}]});
+        out += '<span class="ok">Google ✓</span> '+esc(D.model)+'<br>';
+      }catch(e){ out += '<span class="bad">Google ✗</span> '+esc((e && (e.friendly||e.message)) || e)+(lastError?' <small>'+esc(lastError)+'</small>':'')+'<br>'; }
+    }
+    if(D.groqKey){
+      try{ await groqCall([{role:'user', content:'Reply with exactly: Brain online.'}]); out += '<span class="ok">Groq ✓</span> '+esc((D.groqModels||[])[0]||'')+'<br>'; }
+      catch(e){ out += '<span class="bad">Groq ✗</span> '+esc((e && (e.friendly||e.message)) || e)+'<br>'; }
+    }
+    if(!out) out = '<span class="bad">No key yet.</span> Tap "Change API key".';
+    $('brainInfo').innerHTML = out;
   }catch(e){
     $('brainInfo').innerHTML = '<span class="bad">Not working.</span> '+esc((e && (e.friendly||e.message)) || e)+(lastError?'<br><small>'+esc(lastError)+'</small>':'');
   }
@@ -741,7 +760,7 @@ async function callModel(model, body, onText){
   return {status:200, data:{candidates: parts.length || finishReason ? [{content:{role:'model', parts}, finishReason}] : [], promptFeedback}};
 }
 async function gemini(body, onText){
-  if(!D.key) { showSetup(); throw {friendly:'I need my brain key first.'}; }
+  if(!D.key) { if(!D.groqKey) showSetup(); throw {friendly: D.groqKey ? 'No Google key set (using Groq only).' : 'I need my brain key first.'}; }
   if(!D.models || !D.models.length){ try{ await chooseModel(); }catch(e){} }
   const order = [D.model, ...(D.models||[]).filter(m => m !== D.model)].filter(Boolean);
   if(!order.length) order.push('gemini-flash-latest');
@@ -912,9 +931,10 @@ async function send(){
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
     const live = txt => { t.textContent = txt.replace(/\*\*/g,''); log.scrollTop = log.scrollHeight; };
     let r;
-    if(D.fast && D.groqKey){
+    if((D.fast || !D.key) && D.groqKey){
       try{ r = await thinkGroq(text, step); }
-      catch(e){ history.pop(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null; }
+      catch(e){ history.pop(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null;
+        if(!r && !D.key) throw (e && e.friendly ? e : {friendly:'Groq isn\'t answering right now. Try again in a minute, or add a Google key in the You tab as a backup.'}); }
     }
     if(!r) try{ r = await think(text, step, live); }
     catch(e){
@@ -1040,7 +1060,7 @@ function renderMe(){
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
     el.querySelector('b').textContent=x.text; el.querySelector('.del').onclick=()=>{ D.facts=D.facts.filter(y=>y.id!==x.id); save(); renderMe(); }; f.appendChild(el); });
-  $('brainInfo').innerHTML = (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : '<span class="bad">No key yet.</span>')
+  $('brainInfo').innerHTML = (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : (D.groqKey ? 'Google: not set (Groq is doing the thinking)' : '<span class="bad">No key yet.</span>'))
     + '<br>Backup: ' + (D.groqKey ? '<span class="ok">Groq ready</span>' : 'none');
 }
 $('nameI').addEventListener('change', () => { D.name = $('nameI').value.trim().slice(0,40); save(); tick(); });
@@ -1065,7 +1085,7 @@ $('restoreF').onchange = async e => {
 };
 
 // ---------------- boot ----------------
-const VERSION = '3.1';
+const VERSION = '3.2';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1078,7 +1098,7 @@ if(D.key && (D.modelDay !== keyOf() || D.modelsVer !== 2)){ D.modelDay = keyOf()
 renderAll();
 setInterval(tick, 10000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) renderAll(); });
-if(!D.key){ showSetup(); }
+if(!D.key && !D.groqKey){ showSetup(); }
 else {
   const prev = history.slice(-6);
   prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t) bubble(h.role==='user'?'me':'nova', t); });
