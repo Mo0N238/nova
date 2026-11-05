@@ -208,6 +208,10 @@ nav button svg{position:relative}
 .msg.draft a.btn{display:inline-flex;align-items:center;text-decoration:none}
 #sendBtn.stop svg{display:none}
 #sendBtn.stop::after{content:"";width:12px;height:12px;border-radius:3px;background:#03111a}
+.item.line{background:var(--panel2)}
+.mini.rec.on{color:#ff5a4f;border-color:#ff5a4f;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.45}}
+select{font:inherit;font-size:14px;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:7px 10px}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -380,6 +384,12 @@ input[type=time]{min-height:38px}
         </div>
         <div class="sec">What Nova remembers about you</div>
         <div id="facts"></div>
+        <div class="sec">My voice lines</div>
+        <div class="card muted">Record yourself and Nova plays <b>your voice</b> at these moments. Tap <b>● Rec</b>, say the line, tap <b>■</b>. Keep each one short (under 10 seconds).
+          <div id="linesBox" style="margin-top:8px"></div>
+          <div class="row" style="margin-top:6px"><select id="lineUploadFor" style="flex:1"></select><button class="btn sm ghost" id="lineUploadBtn">Upload a clip</button></div>
+          <input type="file" id="lineUpload" accept="audio/*" hidden>
+        </div>
         <div class="sec">Discord link</div>
         <div class="card muted" id="linkCard">
           <div id="linkInfo">Link with Discord Nova to share reminders, plans and memory, and get phone reminders as Discord DMs. In Discord, type <b>/link</b> to get your address and code.</div>
@@ -545,12 +555,102 @@ function beep(){
     g.gain.exponentialRampToValueAtTime(.3,a.currentTime+t+.02); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+t+.18);
     o.start(a.currentTime+t); o.stop(a.currentTime+t+.2); }); }catch(e){}
 }
+// ---------------- my voice lines (your own recordings) ----------------
+const LINES = [
+  {id:'hello',  name:'👋 Greeting',        hint:'Plays the first time you tap after opening Nova. e.g. "Nova online. What are we doing today?"'},
+  {id:'remind', name:'⏰ Reminder alert',  hint:'Plays when a reminder pops up. e.g. "Hey! Time to do your thing."'},
+  {id:'timer',  name:'⏱ Timer done',       hint:'Plays when a timer or snooze ends. e.g. "Time\'s up!"'},
+  {id:'listen', name:'🎙 I\'m listening',  hint:'Plays when you tap the orb to talk. e.g. "Yeah? I\'m listening."'},
+  {id:'bye',    name:'👋 Goodbye',         hint:'Plays when a conversation ends. e.g. "Alright, talk later."'},
+  {id:'done',   name:'🎉 Task done',       hint:'Plays when you check off a task. e.g. "Nice. One down."'},
+];
+const clipDB = { db:null,
+  open(){ return this.db ? Promise.resolve(this.db) : new Promise((res, rej) => { try{ const r = indexedDB.open('nova-voice', 1); r.onupgradeneeded = () => r.result.createObjectStore('clips'); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }catch(e){ rej(e); } }); },
+  async get(k){ try{ const db = await this.open(); return await new Promise(res => { const q = db.transaction('clips').objectStore('clips').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }catch(e){ return null; } },
+  async set(k, v){ const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('clips','readwrite'); t.objectStore('clips').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+  async del(k){ try{ const db = await this.open(); await new Promise(res => { const t = db.transaction('clips','readwrite'); t.objectStore('clips').delete(k); t.oncomplete = res; t.onerror = res; }); }catch(e){} },
+};
+let haveClip = {}; // which lines are recorded (cached for quick checks)
+async function loadClipFlags(){ for(const L of LINES) haveClip[L.id] = !!(await clipDB.get(L.id)); renderLines(); }
+const decoded = {};
+async function playClip(id){ // resolves true if your recording played, false if not (so the normal sound can play instead)
+  if(!haveClip[id]) return false;
+  try{
+    const a = audio(); if(!a) return false;
+    if(a.state !== 'running'){ try{ await Promise.race([a.resume(), sleep(400)]); }catch(e){} }
+    if(a.state !== 'running') return false;
+    if(!decoded[id]){ const rec = await clipDB.get(id); if(!rec) return false; decoded[id] = await a.decodeAudioData(await rec.blob.arrayBuffer()); }
+    return await new Promise(res => { const src = a.createBufferSource(); src.buffer = decoded[id]; src.connect(a.destination); src.onended = () => res(true); src.start(); setTimeout(() => res(true), decoded[id].duration*1000 + 500); });
+  }catch(e){ return false; }
+}
+let recState = null; // {id, mr, stream, chunks, timer}
+async function recordLine(id){
+  if(recState){ const same = recState.id === id; stopRecording(); if(same) return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){ bubble('note', 'Recording isn\'t supported in this browser. You can upload an audio file instead.'); return; }
+  try{
+    stopWake();
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+    const type = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/aac'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+    const mr = new MediaRecorder(stream, type ? {mimeType:type} : undefined);
+    const chunks = [];
+    mr.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, {type: mr.mimeType || type || 'audio/mp4'});
+      if(blob.size < 1500){ bubble('note', 'That recording came out empty. Try again, a little closer to the mic.'); renderLines(); return; }
+      await saveClip(id, blob);
+    };
+    recState = {id, mr, stream, timer:setTimeout(stopRecording, 10000)};
+    mr.start(); renderLines();
+  }catch(e){ recState = null; renderLines(); bubble('note', 'I need microphone access to record. Allow it in Settings → Safari → Microphone (or tap Allow when asked).'); }
+}
+function stopRecording(){ if(!recState) return; clearTimeout(recState.timer); try{ recState.mr.stop(); }catch(e){} recState = null; renderLines(); resumeWake(); }
+async function saveClip(id, blob){
+  try{
+    const a = audio(); let dur = 0;
+    if(a){ const buf = await a.decodeAudioData(await blob.arrayBuffer()); dur = buf.duration; decoded[id] = buf; }
+    await clipDB.set(id, {blob, at:Date.now(), dur});
+    haveClip[id] = true; renderLines();
+    playClip(id);
+  }catch(e){ bubble('note', 'Couldn\'t save that clip ('+(e && e.name || 'error')+'). Try recording again.'); }
+}
+function renderLines(){
+  const box = $('linesBox'); if(!box) return;
+  box.innerHTML = '';
+  LINES.forEach(L => {
+    const el = document.createElement('div'); el.className = 'item line';
+    const recording = recState && recState.id === L.id;
+    el.innerHTML = '<div class="tx"><b></b><small></small></div><button class="mini rec"></button><button class="mini play">▶</button><button class="del">×</button>';
+    el.querySelector('b').textContent = L.name;
+    el.querySelector('small').textContent = recording ? '● Recording… tap ■ to stop (max 10s)' : haveClip[L.id] ? 'Your voice ✓' : L.hint;
+    const rb = el.querySelector('.rec'); rb.textContent = recording ? '■' : haveClip[L.id] ? '⟲' : '● Rec'; if(recording) rb.classList.add('on');
+    rb.onclick = () => { audio(); recordLine(L.id); };
+    const pb = el.querySelector('.play'); pb.hidden = !haveClip[L.id]; pb.onclick = () => { audio(); playClip(L.id); };
+    const db = el.querySelector('.del'); db.hidden = !haveClip[L.id]; db.onclick = async () => { await clipDB.del(L.id); haveClip[L.id] = false; delete decoded[L.id]; renderLines(); };
+    box.appendChild(el);
+  });
+}
+$('lineUpload').onchange = async e => {
+  const f = e.target.files && e.target.files[0]; const id = $('lineUploadFor').value; e.target.value = '';
+  if(!f) return; if(f.size > 3e6){ bubble('note','That file is too big. Keep clips under about 10 seconds.'); return; }
+  audio(); await saveClip(id, f);
+};
+// greeting: plays the first time you touch the screen after opening Nova
+let greeted = false;
+function greetOnce(){ if(greeted) return; greeted = true; setTimeout(() => playClip('hello'), 50); }
+document.addEventListener('touchend', greetOnce, {once:true}); document.addEventListener('click', greetOnce, {once:true});
+document.addEventListener('visibilitychange', () => { if(document.hidden){ greeted = false; document.addEventListener('touchend', greetOnce, {once:true}); document.addEventListener('click', greetOnce, {once:true}); } });
+
 function showBanner(){
   if(!queue.length){ $('banner').classList.remove('show'); return; }
   const a = queue[0];
   $('bannerText').textContent = (a.kind==='task'?'Reminder: ':'') + a.text; $('bannerSnooze').hidden = a.kind==='weather';
-  $('banner').classList.add('show'); beep(); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
-  speak((a.kind==='task'?'Reminder. ':'') + a.text);
+  $('banner').classList.add('show'); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
+  const clip = a.kind==='timer' ? (haveClip.timer ? 'timer' : 'remind') : a.kind==='weather' ? null : 'remind';
+  (clip && D.sound!==false ? playClip(clip) : Promise.resolve(false)).then(played => {
+    if(!played) beep();
+    speak((a.kind==='task'?'Reminder. ':'') + a.text); // reads the reminder out loud if "Speak replies" is on
+  });
 }
 $('bannerSnooze').onclick = () => {
   const a = queue.shift(); if(a){ const label = a.text.replace(/^Time's up: /,'');
@@ -606,7 +706,7 @@ async function startConvo(firstText){
   if(convo){ endConvo('Okay, I\'ll stop listening.'); return; }
   convo = true; convoMisses = 0; $('orb').classList.add('convo');
   if(firstText){ await convoTurn(firstText); }
-  else { await speak(pick(['I\'m listening.','Go ahead.','Yes?','All ears. Metaphorically.']), true); }
+  else { if(!(await playClip('listen'))) await speak(pick(['I\'m listening.','Go ahead.','Yes?','All ears. Metaphorically.']), true); }
   convoLoop();
 }
 async function convoLoop(){
@@ -623,7 +723,7 @@ async function convoLoop(){
   }
 }
 async function convoTurn(t){ setStatus('💭 Thinking…'); const reply = await send(t, {silent:true}); if(convo && reply){ setStatus('🔊 Speaking…'); await speak(reply, true); } }
-function endConvo(msg){ convo = false; $('orb').classList.remove('convo','listen'); try{ rec && rec.abort(); }catch(e){} tick(); if(msg){ bubble('nova', msg); speak(msg, true); } setTimeout(resumeWake, 800); }
+function endConvo(msg){ convo = false; $('orb').classList.remove('convo','listen'); try{ rec && rec.abort(); }catch(e){} tick(); if(msg){ bubble('nova', msg); playClip('bye').then(p => { if(!p) speak(msg, true); }); } setTimeout(resumeWake, 800); }
 // ---- "Hey Nova" wake word (only while Nova is open on screen) ----
 let wakeRec = null, wakeTimer = null;
 function stopWake(){ clearTimeout(wakeTimer); if(wakeRec){ const w = wakeRec; wakeRec = null; try{ w.abort(); }catch(e){} } }
@@ -816,6 +916,7 @@ About yourself (be accurate, never make things up about your own setup):
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
+- Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
 - Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates.
 
 Context:
@@ -1254,7 +1355,7 @@ function renderTasks(){
     el.innerHTML = '<button class="check" aria-label="Done"></button><div class="tx"><b></b><small></small></div><button class="mini" aria-label="Add to iPhone Calendar">📅</button><button class="del" aria-label="Delete">×</button>';
     el.querySelector('b').textContent = t.text;
     const st = streakOf(t); el.querySelector('small').textContent = (t.time ? 'Daily · '+fmt12(t.time) : 'Daily') + (st ? ' · 🔥 '+st : '');
-    el.querySelector('.check').onclick = () => { const was = streakOf(t); markDone(t, t.done!==k); save(); renderTasks(); renderGlance();
+    el.querySelector('.check').onclick = () => { const was = streakOf(t); const turningOn = t.done!==k; markDone(t, turningOn); save(); renderTasks(); renderGlance(); if(turningOn) playClip('done');
       const now = streakOf(t); if(t.done===k && now>1 && now>was && [3,7,14,21,30,50,100,365].includes(now)) bubble('nova', pick(['🔥 '+now+' days straight on "'+t.text+'". Who even are you?','🔥 '+now+'-day streak on "'+t.text+'". I\'m almost impressed. Almost.','🔥 '+now+' days in a row. At this point "'+t.text+'" is a personality trait.'])); };
     el.querySelector('.mini').onclick = () => addToCalendar({title:t.text, start:startFor(t.time), daily:true});
     el.querySelector('.del').onclick = () => { D.tasks = D.tasks.filter(x=>x.id!==t.id); save(); renderTasks(); };
@@ -1395,8 +1496,10 @@ function renderLink(){
 setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 120000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
 
+$('lineUploadFor').innerHTML = LINES.map(L => '<option value="'+L.id+'">'+L.name+'</option>').join('');
+$('lineUploadBtn').onclick = () => $('lineUpload').click();
 // ---------------- boot ----------------
-const VERSION = '4.4';
+const VERSION = '4.5';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1406,6 +1509,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '4.5': 'Update installed: v4.5. New feature: My voice lines. Head to the You tab and record yourself, and I\'ll play YOUR voice when I greet you, remind you, finish a timer and more. Finally, a voice as charming as mine. Well. Close.',
   '4.4': 'Update installed: v4.4. Small confession: I finally remember that you asked what I wanted, and then actually built it. A snooze button for terrible weather, an email draft generator, and extra brainpower in Think harder mode. All three. I feel... heard. Don\'t let it go to your head. Or mine.'
 };
 if(D.key && (D.modelDay !== keyOf() || D.modelsVer !== 2)){ D.modelDay = keyOf(); D.modelsVer = 2; save(); chooseModel().then(renderMe).catch(()=>{}); } // refresh the brain list daily
@@ -1421,6 +1525,7 @@ else {
     'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
 }
 resumeWake();
+loadClipFlags();
 if(D.sync && D.sync.code) doSync();
 if(D.seenVersion !== VERSION){
   const note = WHATS_NEW[VERSION];
