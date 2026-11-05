@@ -815,6 +815,8 @@ About yourself (be accurate, never make things up about your own setup):
 - What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; hands-free conversation mode (tap the orb); "Hey Nova" wake word; 4 color themes; syncing with Discord Nova.
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
+- Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
+- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates.
 
 Context:
 - User's name: ${D.name || 'unknown (ask casually once, then save it with remember_fact)'}
@@ -1394,7 +1396,7 @@ setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 1
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
 
 // ---------------- boot ----------------
-const VERSION = '4.3';
+const VERSION = '4.4';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1403,6 +1405,9 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
   document.documentElement.style.setProperty('--app-h', h+'px'); window.scrollTo(0,0); log.scrollTop = log.scrollHeight; }
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
+const WHATS_NEW = {
+  '4.4': 'Update installed: v4.4. Small confession: I finally remember that you asked what I wanted, and then actually built it. A snooze button for terrible weather, an email draft generator, and extra brainpower in Think harder mode. All three. I feel... heard. Don\'t let it go to your head. Or mine.'
+};
 if(D.key && (D.modelDay !== keyOf() || D.modelsVer !== 2)){ D.modelDay = keyOf(); D.modelsVer = 2; save(); chooseModel().then(renderMe).catch(()=>{}); } // refresh the brain list daily
 renderAll();
 setInterval(tick, 10000);
@@ -1417,6 +1422,11 @@ else {
 }
 resumeWake();
 if(D.sync && D.sync.code) doSync();
+if(D.seenVersion !== VERSION){
+  const note = WHATS_NEW[VERSION];
+  if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note); history.push({role:'model', parts:[{text:note}]}); saveChat(); speak(note); }, 600); }
+  D.seenVersion = VERSION; save();
+}
 if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 })();
 </script>
