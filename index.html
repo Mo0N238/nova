@@ -193,6 +193,14 @@ nav button.on::before{content:"";position:absolute;top:5px;width:46px;height:30p
 nav button svg{position:relative}
 .view.on{animation:fade .22s ease-out}
 @keyframes fade{from{opacity:0;transform:translateY(4px)}}
+/* voice + photo */
+.orb.speak::after{animation:breathe .45s ease-in-out infinite}
+.orb.convo{box-shadow:0 0 0 2px var(--accent),0 0 30px var(--glow)}
+.photoPrev{display:flex;align-items:center;gap:10px;margin:0 12px 6px;padding:6px 8px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.photoPrev img{width:40px;height:40px;object-fit:cover;border-radius:9px}
+.photoPrev span{flex:1}
+.photoPrev button{background:none;border:none;color:var(--muted);font-size:20px}
+.msg .shot{display:block;max-width:100%;max-height:220px;border-radius:12px;margin-bottom:6px}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -298,9 +306,17 @@ input[type=time]{min-height:38px}
         <button class="chip">Weather</button>
         <button class="chip">Top news right now</button>
         <button class="chip">Set a 10 minute timer</button>
-        <button class="chip">Tell me something interesting</button>
+        <button class="chip" data-q="Let's play trivia! Ask me one question with 4 options (A-D).">🎲 Trivia</button>
+        <button class="chip" data-q="Tell me a joke. A good one, please.">😂 Joke</button>
+        <button class="chip" data-q="Give me a mind-blowing fun fact.">🧠 Fun fact</button>
+        <button class="chip" data-q="Would you rather? Give me a good one.">🤔 Would you rather</button>
+        <button class="chip" data-q="Give me a riddle. Don't tell me the answer until I give up.">🧩 Riddle</button>
+        <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
       </div>
+      <div class="photoPrev" id="photoPrev" hidden><img id="photoThumb" alt=""><span>Photo attached. Ask about it, or just send.</span><button id="photoX" aria-label="Remove photo">×</button></div>
+      <input type="file" id="photoI" accept="image/*" hidden>
       <div class="composer">
+        <button class="btn ghost icon" id="camBtn" aria-label="Photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
         <button class="btn ghost icon" id="micBtn" aria-label="Speak" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <textarea id="inp" rows="1" placeholder="Talk to Nova…"></textarea>
         <button class="btn icon" id="sendBtn" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
@@ -348,11 +364,22 @@ input[type=time]{min-height:38px}
         <div class="card">
           <div class="toggle"><span>Your name</span><input id="nameI" placeholder="What should she call you?" style="width:58%"></div>
           <div class="toggle"><span>Speak replies out loud</span><input type="checkbox" id="voiceT"></div>
+          <div class="toggle"><span>"Hey Nova" wake word<br><small class="muted" style="font-size:11px">Listens only while Nova is open on screen</small></span><input type="checkbox" id="wakeT"></div>
           <div class="toggle"><span>Reminder sound</span><input type="checkbox" id="soundT"></div>
           <div class="toggle"><span>Use my location for weather</span><input type="checkbox" id="locT"></div>
         </div>
         <div class="sec">What Nova remembers about you</div>
         <div id="facts"></div>
+        <div class="sec">Discord link</div>
+        <div class="card muted" id="linkCard">
+          <div id="linkInfo">Link with Discord Nova to share reminders, plans and memory, and get phone reminders as Discord DMs. In Discord, type <b>/link</b> to get your address and code.</div>
+          <div id="linkForm">
+            <input id="linkUrl" placeholder="Address, e.g. https://nova-bot.you.workers.dev" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:8px">
+            <input id="linkCode" placeholder="Code, e.g. NOVA-ABCD2345" autocapitalize="characters" autocomplete="off" spellcheck="false" style="margin-top:6px">
+            <button class="btn wide" id="linkBtn">Link Discord</button>
+          </div>
+          <div class="row" id="linkedRow" hidden style="margin-top:8px"><button class="btn sm ghost" id="syncNow">Sync now</button><button class="btn sm ghost" id="unlinkBtn">Unlink</button></div>
+        </div>
         <div class="sec">Brain</div>
         <div class="card muted" id="brainInfo"></div>
         <button class="btn ghost wide" id="testBrain">Test my brain</button>
@@ -400,7 +427,12 @@ const API = (window.NOVA_API_BASE || 'https://generativelanguage.googleapis.com/
 // ---------------- data ----------------
 let D = Object.assign({ tasks:[], events:[], facts:[], timers:[], fired:{}, name:'', voice:false, sound:true, useLoc:true, loc:null, model:'', key:'' }, store.get('nova', {}));
 let history = store.get('nova_chat', []);
-function save(){ store.set('nova', D); }
+function save(){ store.set('nova', D); if(typeof queueSync==='function') queueSync(); }
+// ---- habit streaks ----
+function dayShift(k, n){ const d = new Date(k+'T12:00'); d.setDate(d.getDate()+n); return keyOf(d); }
+function markDone(t, on){ const k = keyOf(); t.log = (t.log||[]).filter(x=>x!==k); if(on){ t.done = k; t.log.push(k); } else t.done = ''; t.log = t.log.slice(-400); }
+function streakOf(t){ const set = new Set(t.log||[]); let k = keyOf(); if(!set.has(k)) k = dayShift(k,-1); let n = 0; while(set.has(k)){ n++; k = dayShift(k,-1); } return n; }
+function bestOf(t){ const ks = [...new Set(t.log||[])].sort(); let best = 0, run = 0, prev = null; ks.forEach(k => { run = (prev && dayShift(prev,1)===k) ? run+1 : 1; best = Math.max(best, run); prev = k; }); return best; }
 function saveChat(){ store.set('nova_chat', history.slice(-30)); }
 
 // ---------------- setup / key ----------------
@@ -477,7 +509,7 @@ function tick(){
   $('clk').textContent = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
   $('dte').textContent = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
   const h = d.getHours();
-  $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
+  if(!convo && !wakeRec) $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
   checkReminders(d);
 }
 let queue = [];
@@ -510,31 +542,94 @@ function showBanner(){
   $('banner').classList.add('show'); beep(); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
   speak((a.kind==='task'?'Reminder. ':'') + a.text);
 }
-$('bannerOk').onclick = () => { const a = queue.shift(); if(a && a.kind==='task'){ const t=D.tasks.find(t=>t.id===a.id); if(t){ t.done=keyOf(); save(); renderTasks(); } } showBanner(); };
+$('bannerOk').onclick = () => { const a = queue.shift(); if(a && a.kind==='task'){ const t=D.tasks.find(t=>t.id===a.id); if(t){ markDone(t, true); save(); renderTasks(); } } showBanner(); };
 
 // ---------------- voice ----------------
 let voices = [];
 try{ speechSynthesis.onvoiceschanged = () => { voices = speechSynthesis.getVoices(); }; voices = speechSynthesis.getVoices(); }catch(e){}
-function speak(text){
-  if(!D.voice) return;
-  try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).slice(0,700));
-    const v = voices.find(v=>/^(Samantha|Serena|Kate|Martha|Karen|Moira|Ava)/i.test(v.name) && /^en/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang));
-    if(v) u.voice = v; u.rate = 1.03; speechSynthesis.speak(u); }catch(e){}
+function pickVoice(){ return voices.find(v=>/^(Samantha|Serena|Kate|Martha|Karen|Moira|Ava)/i.test(v.name) && /^en/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang)); }
+function speak(text, force){
+  return new Promise(done => {
+    if(!(D.voice || force) || !window.speechSynthesis){ done(); return; }
+    try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).replace(/https?:\/\/\S+/g,'').slice(0,700));
+      const v = pickVoice(); if(v) u.voice = v; u.rate = 1.04;
+      let fin = false; const end = () => { if(!fin){ fin = true; $('orb').classList.remove('speak'); done(); } };
+      u.onend = end; u.onerror = end; setTimeout(end, 4000 + String(text).length*90); // safety net
+      $('orb').classList.add('speak'); speechSynthesis.speak(u);
+    }catch(e){ done(); }
+  });
 }
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;
-function listen(){
-  try{
-    if(rec){ rec.stop(); return; }
-    rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true;
-    $('orb').classList.add('listen');
-    rec.onresult = ev => { $('inp').value = Array.from(ev.results).map(r=>r[0].transcript).join(''); };
-    rec.onend = () => { rec=null; $('orb').classList.remove('listen'); if($('inp').value.trim()) send(); };
-    rec.onerror = () => { rec=null; $('orb').classList.remove('listen'); };
-    rec.start();
-  }catch(e){ rec=null; $('orb').classList.remove('listen'); }
+function hearOnce(onInterim){ // one utterance -> text ('' if nothing)
+  return new Promise(resolve => {
+    if(!SR){ resolve(null); return; }
+    let text = '', settled = false; const fin = v => { if(!settled){ settled = true; rec = null; $('orb').classList.remove('listen'); resolve(v); } };
+    try{
+      stopWake(); if(rec) try{ rec.abort(); }catch(e){}
+      rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true; rec.continuous = false;
+      rec.onresult = ev => { text = Array.from(ev.results).map(r=>r[0].transcript).join(''); onInterim && onInterim(text); };
+      rec.onend = () => fin(text.trim());
+      rec.onerror = ev => fin(ev && (ev.error==='not-allowed' || ev.error==='service-not-allowed') ? null : text.trim());
+      $('orb').classList.add('listen'); rec.start();
+    }catch(e){ fin(null); }
+  });
 }
-if(SR){ $('micBtn').hidden = false; $('micBtn').onclick = listen; $('orb').onclick = listen; }
+async function listen(){ // mic button: one message
+  if(rec){ try{ rec.stop(); }catch(e){} return; }
+  const t = await hearOnce(x => { $('inp').value = x; });
+  if(t === null){ bubble('note', 'Microphone isn\'t available here. Check Settings → Safari → Microphone, or just type.'); return; }
+  if(t) await send(t); else $('inp').value = '';
+  resumeWake();
+}
+// ---- conversation mode: talk back and forth hands-free ----
+let convo = false, convoMisses = 0;
+const STOP = /^(stop|bye|goodbye|bye nova|good ?night|that'?s (all|it)|that is all|never ?mind|end( conversation)?|cancel|shut up|i'?m done)[.! ]*$/i;
+function setStatus(t){ $('greet').textContent = t; }
+async function startConvo(firstText){
+  if(!SR){ bubble('note', 'Hands-free talking needs speech recognition, which this browser doesn\'t support. Try Safari or Chrome.'); return; }
+  if(convo){ endConvo('Okay, I\'ll stop listening.'); return; }
+  convo = true; convoMisses = 0; $('orb').classList.add('convo');
+  if(firstText){ await convoTurn(firstText); }
+  else { await speak(pick(['I\'m listening.','Go ahead.','Yes?','All ears. Metaphorically.']), true); }
+  convoLoop();
+}
+async function convoLoop(){
+  while(convo){
+    setStatus('🎙 Listening… (say "bye" to stop)');
+    const t = await hearOnce(x => { $('inp').value = x; });
+    $('inp').value = '';
+    if(!convo) break;
+    if(t === null){ endConvo(); bubble('note','Microphone access was blocked. Allow it in Settings → Safari → Microphone.'); break; }
+    if(!t){ if(++convoMisses >= 2){ endConvo(pick(['I\'ll be here if you need me.','Going quiet. Tap me when you need me.'])); break; } continue; }
+    convoMisses = 0;
+    if(STOP.test(t.trim())){ endConvo(pick(['Talk soon.','Signing off. Try not to miss me.','Later. I\'ll be here, being brilliant.'])); break; }
+    await convoTurn(t);
+  }
+}
+async function convoTurn(t){ setStatus('💭 Thinking…'); const reply = await send(t, {silent:true}); if(convo && reply){ setStatus('🔊 Speaking…'); await speak(reply, true); } }
+function endConvo(msg){ convo = false; $('orb').classList.remove('convo','listen'); try{ rec && rec.abort(); }catch(e){} tick(); if(msg){ bubble('nova', msg); speak(msg, true); } setTimeout(resumeWake, 800); }
+// ---- "Hey Nova" wake word (only while Nova is open on screen) ----
+let wakeRec = null, wakeTimer = null;
+function stopWake(){ clearTimeout(wakeTimer); if(wakeRec){ const w = wakeRec; wakeRec = null; try{ w.abort(); }catch(e){} } }
+function resumeWake(){ clearTimeout(wakeTimer); if(D.wake && SR && !convo && !rec && !busy && !document.hidden) wakeTimer = setTimeout(startWake, 400); }
+function startWake(){
+  if(wakeRec || convo || rec || busy || document.hidden || !D.wake) return;
+  try{
+    const w = new SR(); wakeRec = w; w.lang = navigator.language || 'en-US'; w.continuous = true; w.interimResults = true;
+    w.onresult = ev => {
+      const said = Array.from(ev.results).slice(ev.resultIndex).map(r=>r[0].transcript).join(' ').toLowerCase();
+      const m = said.match(/\b(?:hey|hi|okay|ok|yo|hello)?,?\s*nova\b[,.!?]*\s*(.*)$/);
+      if(m && wakeRec===w){ const rest = (ev.results[ev.results.length-1].isFinal ? m[1] : '').trim(); stopWake(); startConvo(rest.length > 3 ? rest : ''); }
+    };
+    w.onerror = ev => { if(ev && (ev.error==='not-allowed' || ev.error==='service-not-allowed')){ D.wake = false; save(); renderMe(); bubble('note','"Hey Nova" needs microphone access. Allow it in Settings → Safari → Microphone.'); } };
+    w.onend = () => { if(wakeRec===w){ wakeRec = null; resumeWake(); } };
+    w.start(); setStatus('👂 Say "Hey Nova"…');
+  }catch(e){ wakeRec = null; }
+}
+document.addEventListener('visibilitychange', () => { if(document.hidden){ stopWake(); if(convo) endConvo(); } else resumeWake(); });
+if(SR){ $('micBtn').hidden = false; $('micBtn').onclick = listen; }
+$('orb').onclick = () => startConvo();
 
 // ---------------- iPhone Calendar (.ics) ----------------
 function icsDate(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00'; }
@@ -620,12 +715,13 @@ async function googleSearch(query){
 
 const TOOLS = {
   get_time: { d:'Get the current local date and time.', p:{}, run(){ const n=new Date(); return {date:keyOf(n), time:hhmm(n), pretty:n.toLocaleString([], {weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'})}; } },
-  list_tasks: { d:'List the user\'s daily recurring tasks/reminders and whether each is done today.', p:{}, run(){ const k=keyOf(); return D.tasks.map(t=>({id:t.id, text:t.text, time:t.time||null, done_today:t.done===k})); } },
+  list_tasks: { d:'List the user\'s daily recurring tasks/reminders and whether each is done today.', p:{}, run(){ const k=keyOf(); return D.tasks.map(t=>({id:t.id, text:t.text, time:t.time||null, done_today:t.done===k, streak:streakOf(t)})); } },
   add_task: { d:'Add a daily recurring task/reminder. time optional, 24h HH:MM.', p:{text:'STRING', time:'STRING'}, r:['text'],
     run(a){ const t={id:uid(), text:String(a.text).slice(0,140), time:vTime(a.time), done:''}; D.tasks.push(t); D.calTips=(D.calTips||0)+1; save(); renderTasks();
       return D.calTips<=2 ? {added:t, tip:'Mention briefly: tapping the calendar button on the task gives a real iPhone alert even when Nova is closed.'} : {added:t}; } },
   complete_task: { d:'Mark a daily task done for today (id or exact text).', p:{id:'STRING'}, r:['id'],
-    run(a){ const t=D.tasks.find(t=>t.id===a.id || t.text.toLowerCase()===String(a.id).toLowerCase()); if(!t) throw new Error('no task like that'); t.done=keyOf(); save(); renderTasks(); return {ok:true}; } },
+    run(a){ const t=D.tasks.find(t=>t.id===a.id || t.text.toLowerCase()===String(a.id).toLowerCase()); if(!t) throw new Error('no task like that'); markDone(t, true); save(); renderTasks(); renderGlance(); return {ok:true, streak_days:streakOf(t)}; } },
+  get_streaks: { d:'Habit streaks: for each daily task, current streak (days in a row done) and best streak ever.', p:{}, run(){ return D.tasks.map(t=>({task:t.text, current_streak:streakOf(t), best_streak:bestOf(t), done_today:t.done===keyOf()})); } },
   delete_task: { d:'Delete a daily task (id or exact text).', p:{id:'STRING'}, r:['id'],
     run(a){ const n=D.tasks.length; D.tasks=D.tasks.filter(t=>t.id!==a.id && t.text.toLowerCase()!==String(a.id).toLowerCase()); if(n===D.tasks.length) throw new Error('no task like that'); save(); renderTasks(); return {ok:true}; } },
   list_events: { d:'List schedule events from start to end date (YYYY-MM-DD).', p:{start:'STRING', end:'STRING'}, r:['start'],
@@ -703,6 +799,8 @@ Use tools whenever they help; never invent results:
 - planning a day -> list_events first, add sensible time blocks with add_event, then sum it up in a sentence or two.
 - current events, news, scores, prices, anything that may have changed -> web_search. Mention the source name briefly.
 - weather -> get_weather.
+- habits: "how are my streaks" -> get_streaks; celebrate streaks with a quip, gently roast broken ones.
+- games: trivia = one question at a time with options A-D, wait for their answer, say right/wrong with flair, keep score in the chat, offer another. Riddles: never reveal the answer until they give up. Would-you-rather: give two fun options, then react to their pick. Jokes and facts: original, clever, clean.${convo ? '\n- RIGHT NOW you are in a spoken, hands-free conversation: answer in 1-2 short sentences, no lists, no links, no emojis, and sound natural out loud. End with a question only when it keeps the conversation going.' : ''}
 - "remember..." or personal details worth keeping -> remember_fact. "forget..." -> forget_fact.
 If a tool errors, say so plainly with a light touch.`;
 }
@@ -918,20 +1016,26 @@ function instant(q){
   return null;
 }
 let busy = false;
-async function send(){
-  const text = $('inp').value.trim();
-  if(busy || !text) return;
-  $('inp').value=''; grow(); $('inp').blur();
-  bubble('me', text);
-  const quick = instant(text);
-  if(quick){ bubble('nova', quick); speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return; }
+let photo = null; // {data: base64 jpeg, url: dataURL}
+async function send(given, opts={}){
+  let text = (typeof given==='string' ? given : $('inp').value).trim();
+  const img = photo;
+  if(busy || (!text && !img)) return '';
+  if(!text) text = 'What do you see in this photo?';
+  if(typeof given!=='string'){ $('inp').value=''; grow(); $('inp').blur(); }
+  const mine = bubble('me', text);
+  if(img){ const im = document.createElement('img'); im.src = img.url; im.className = 'shot'; mine.prepend(im); clearPhoto(); }
+  const quick = !img && instant(text);
+  if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   busy = true; $('orb').classList.add('busy'); $('sendBtn').disabled = true;
   try{
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
     const live = txt => { t.textContent = txt.replace(/\*\*/g,''); log.scrollTop = log.scrollHeight; };
     let r;
-    if((D.fast || !D.key) && D.groqKey){
+    if(img){
+      r = await seePhoto(text, img, live);
+    } else if((D.fast || !D.key) && D.groqKey){
       try{ r = await thinkGroq(text, step); }
       catch(e){ history.pop(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null;
         if(!r && !D.key) throw (e && e.friendly ? e : {friendly:'Groq isn\'t answering right now. Try again in a minute, or add a Google key in the You tab as a backup.'}); }
@@ -954,17 +1058,68 @@ async function send(){
       const seen = new Set(); lastSources.forEach(x => { if(seen.has(x.title)) return; seen.add(x.title); const a=document.createElement('a'); a.href=x.url; a.target='_blank'; a.rel='noopener'; a.textContent='↗ '+x.title; s.appendChild(a); });
       after.after(s); }
     if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
-    speak(r.reply);
+    if(!opts.silent) speak(r.reply);
+    return r.reply;
   }catch(e){
     t.textContent = (e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic. Try again when you\'re back online.','I can\'t reach my brain right now. Check your connection?']);
-    history.pop();
-  }finally{ busy=false; $('orb').classList.remove('busy'); $('sendBtn').disabled=false; log.scrollTop=log.scrollHeight; }
+    if(!img) history.pop();
+    return t.textContent;
+  }finally{ busy=false; $('orb').classList.remove('busy'); $('sendBtn').disabled=false; log.scrollTop=log.scrollHeight; if(!convo) resumeWake(); }
+}
+// ---------------- photos ----------------
+function clearPhoto(){ photo = null; $('photoPrev').hidden = true; $('photoI').value = ''; }
+$('camBtn').onclick = () => $('photoI').click();
+$('photoX').onclick = clearPhoto;
+$('photoI').onchange = async e => {
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    const bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(f); });
+    const scale = Math.min(1, 1280 / Math.max(bmp.naturalWidth, bmp.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.naturalWidth*scale); c.height = Math.round(bmp.naturalHeight*scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', 0.82);
+    photo = { url, data: url.split(',')[1] };
+    $('photoThumb').src = url; $('photoPrev').hidden = false; $('inp').focus();
+  }catch(err){ bubble('note', 'Couldn\'t open that picture. Try another one?'); }
+};
+async function seePhoto(text, img, live){
+  history.push({role:'user', parts:[{text:'[sent a photo] '+text}]}); saveChat();
+  const ask = 'The user sent a photo with this message: "'+text+'". Look carefully and answer helpfully in your usual voice. If it is homework or a problem, explain the steps clearly (you may use a short list here). Read any text in the image if relevant.';
+  let reply = '';
+  if(D.key){
+    try{
+      const j = await gemini({ systemInstruction:{parts:[{text:persona()}]}, contents:[...history.slice(-8,-1).filter((h,i,a)=>!(i===0 && h.role!=='user')), {role:'user', parts:[{text:ask},{inline_data:{mime_type:'image/jpeg', data:img.data}}]}], generationConfig:{temperature:0.7} }, live);
+      reply = (((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join('').trim();
+    }catch(e){ if(!D.groqKey) throw e; }
+  }
+  if(!reply && D.groqKey){
+    const vm = await groqVisionModel();
+    if(!vm) throw {friendly:'My eyes need a Google key (Groq\'s free plan doesn\'t have a vision model I can use right now). Add one in the You tab.'};
+    const r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+      body: JSON.stringify({ model:vm, temperature:0.7, max_tokens:700, messages:[{role:'system', content:persona()}, {role:'user', content:[{type:'text', text:ask},{type:'image_url', image_url:{url:img.url}}]}] }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw {friendly:'I couldn\'t look at that one ('+((j.error&&j.error.message)||r.status)+').'};
+    reply = String(j.choices[0].message.content||'').trim();
+  }
+  if(!reply) throw {friendly: D.key||D.groqKey ? 'I stared at it, but nothing came to mind. Try again?' : 'I need a brain key to see photos.'};
+  reply = reply.replace(/\*\*/g,'');
+  history.push({role:'model', parts:[{text:reply.slice(0,1500)}]}); saveChat();
+  return {reply, actions:[]};
+}
+async function groqVisionModel(){
+  if(D.groqVision !== undefined && D.groqVisionAt > Date.now()-86400000) return D.groqVision;
+  try{ const r = await fetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+D.groqKey} }); const j = await r.json();
+    const ids = (j.data||[]).filter(m=>m.active!==false).map(m=>m.id);
+    D.groqVision = ids.find(i=>/llama-4-scout/i.test(i)) || ids.find(i=>/llama-4-maverick/i.test(i)) || ids.find(i=>/vision|vl\b/i.test(i)) || null; D.groqVisionAt = Date.now(); save();
+  }catch(e){ D.groqVision = null; }
+  return D.groqVision;
 }
 function grow(){ const t=$('inp'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,120)+'px'; }
 $('inp').addEventListener('input', grow);
 $('inp').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
-$('sendBtn').onclick = send;
-document.querySelectorAll('#chips .chip').forEach(c => c.onclick = () => { $('inp').value = c.dataset.q || c.textContent; send(); });
+$('inp').addEventListener('focus', stopWake); $('inp').addEventListener('blur', () => setTimeout(resumeWake, 300));
+$('sendBtn').onclick = () => send();
+document.querySelectorAll('#chips .chip').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
 
 // ---------------- tabs & screens ----------------
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -979,7 +1134,8 @@ document.querySelectorAll('.sw').forEach(b => b.onclick = () => { D.theme = b.da
 function renderGlance(){
   const k = keyOf(), now = hhmm();
   const done = D.tasks.filter(t=>t.done===k).length;
-  $('gtT').textContent = done + '/' + D.tasks.length; $('gtS').textContent = D.tasks.length ? (done===D.tasks.length ? 'all done 🎉' : 'tasks done') : 'no tasks yet';
+  const topStreak = Math.max(0, ...D.tasks.map(streakOf));
+  $('gtT').textContent = done + '/' + D.tasks.length; $('gtS').textContent = D.tasks.length ? (topStreak>1 ? '🔥 '+topStreak+'-day streak' : done===D.tasks.length ? 'all done 🎉' : 'tasks done') : 'no tasks yet';
   const up = [...D.tasks.filter(t=>t.time && t.done!==k && t.time>=now).map(t=>({time:t.time, title:t.text})),
               ...D.events.filter(e=>e.date===k && e.time && e.time>=now).map(e=>({time:e.time, title:e.title}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
   $('gnT').textContent = up ? fmt12(up.time) : '—'; $('gnS').textContent = up ? up.title : 'Nothing planned';
@@ -1008,8 +1164,9 @@ function renderTasks(){
     const el = document.createElement('div'); el.className = 'item'+(t.done===k?' done':'');
     el.innerHTML = '<button class="check" aria-label="Done"></button><div class="tx"><b></b><small></small></div><button class="mini" aria-label="Add to iPhone Calendar">📅</button><button class="del" aria-label="Delete">×</button>';
     el.querySelector('b').textContent = t.text;
-    el.querySelector('small').textContent = t.time ? 'Daily · '+fmt12(t.time) : 'Daily';
-    el.querySelector('.check').onclick = () => { t.done = t.done===k ? '' : k; save(); renderTasks(); };
+    const st = streakOf(t); el.querySelector('small').textContent = (t.time ? 'Daily · '+fmt12(t.time) : 'Daily') + (st ? ' · 🔥 '+st : '');
+    el.querySelector('.check').onclick = () => { const was = streakOf(t); markDone(t, t.done!==k); save(); renderTasks(); renderGlance();
+      const now = streakOf(t); if(t.done===k && now>1 && now>was && [3,7,14,21,30,50,100,365].includes(now)) bubble('nova', pick(['🔥 '+now+' days straight on "'+t.text+'". Who even are you?','🔥 '+now+'-day streak on "'+t.text+'". I\'m almost impressed. Almost.','🔥 '+now+' days in a row. At this point "'+t.text+'" is a personality trait.'])); };
     el.querySelector('.mini').onclick = () => addToCalendar({title:t.text, start:startFor(t.time), daily:true});
     el.querySelector('.del').onclick = () => { D.tasks = D.tasks.filter(x=>x.id!==t.id); save(); renderTasks(); };
     list.appendChild(el);
@@ -1054,8 +1211,9 @@ $('planBtn').onclick = () => {
 };
 
 function renderMe(){
+  try{ renderLink(); }catch(e){}
   if(document.activeElement!==$('nameI')) $('nameI').value = D.name||'';
-  $('voiceT').checked = !!D.voice; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
+  $('voiceT').checked = !!D.voice; $('wakeT').checked = !!D.wake; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
   const f=$('facts'); f.innerHTML='';
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
@@ -1065,12 +1223,14 @@ function renderMe(){
 }
 $('nameI').addEventListener('change', () => { D.name = $('nameI').value.trim().slice(0,40); save(); tick(); });
 $('voiceT').onchange = e => { D.voice = e.target.checked; save(); if(D.voice) speak('Voice on. Try not to get too attached.'); };
+$('wakeT').onchange = e => { if(e.target.checked && !SR){ e.target.checked = false; bubble('note','This browser can\'t listen for a wake word. Try Chrome or Edge on a computer.'); return; }
+  D.wake = e.target.checked; save(); if(D.wake) resumeWake(); else { stopWake(); tick(); } };
 $('soundT').onchange = e => { D.sound = e.target.checked; save(); if(D.sound) beep(); };
 $('locT').onchange = e => { D.useLoc = e.target.checked; save(); };
 $('fastT').onchange = e => { if(e.target.checked && !D.groqKey){ e.target.checked=false; $('groqInfo').innerHTML='<span class="bad">Add a Groq key first.</span>'; return; } D.fast = e.target.checked; save(); };
 $('resetBtn').onclick = () => { history = []; saveChat(); log.innerHTML=''; bubble('nova', pick(['Clean slate. What are we doing?','Fresh start. I kept the important stuff, just dropped the small talk.','Conversation wiped. Your secrets are safe. Mostly because I forgot them.'])); };
 $('backupBtn').onclick = async () => {
-  const copy = Object.assign({}, D, {key:undefined, groqKey:undefined});
+  const copy = Object.assign({}, D, {key:undefined, groqKey:undefined, sync:undefined});
   const file = new File([JSON.stringify(copy, null, 2)], 'nova-backup-'+keyOf()+'.json', {type:'application/json'});
   try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file]}); return; } }catch(e){ if(e && e.name==='AbortError') return; }
   const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=file.name; a.click();
@@ -1084,8 +1244,68 @@ $('restoreF').onchange = async e => {
   e.target.value='';
 };
 
+// ---------------- Discord sync ----------------
+const itemHash = it => [it.kind, it.text, it.time||'', it.date||''].join('|');
+function localItems(){
+  return [...D.tasks.map(t => ({uid:t.id, kind:'task', text:t.text, time:t.time||''})),
+          ...D.events.map(e => ({uid:e.id, kind:'event', text:e.title, time:e.time||'', date:e.date}))];
+}
+let syncTimer = null, syncing = false;
+function queueSync(){ if(!D.sync || !D.sync.code || syncing) return; clearTimeout(syncTimer); syncTimer = setTimeout(doSync, 1500); }
+async function doSync(manual){
+  const S = D.sync; if(!S || !S.code || syncing) return;
+  syncing = true;
+  try{
+    const snap = S.snap || {}, snapFacts = S.snapFacts || [];
+    const items = localItems(), now = new Set(items.map(i=>i.uid));
+    const changed = items.filter(i => snap[i.uid] !== itemHash(i));
+    const deleted = Object.keys(snap).filter(u => !now.has(u));
+    const facts = D.facts.map(f=>f.text);
+    const factsAdd = facts.filter(f => !snapFacts.includes(f)), factsDel = snapFacts.filter(f => !facts.includes(f));
+    const r = await fetch(S.url.replace(/\/+$/,'') + '/api/sync', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code:S.code, tz:Intl.DateTimeFormat().resolvedOptions().timeZone, name:D.name||'', changed, deleted, factsAdd, factsDel }) });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+    // rebuild local lists from the shared copy, keeping phone-only details (done today, streak history)
+    const oldT = Object.fromEntries(D.tasks.map(t=>[t.id,t])), oldE = Object.fromEntries(D.events.map(e=>[e.id,e]));
+    D.tasks = j.items.filter(i=>i.kind==='task').map(i => Object.assign({}, oldT[i.uid]||{done:'', log:[]}, {id:i.uid, text:i.text, time:i.time||''}));
+    D.events = j.items.filter(i=>i.kind==='event' && i.date).map(i => Object.assign({}, oldE[i.uid]||{}, {id:i.uid, title:i.text, time:i.time||'', date:i.date}));
+    const oldF = Object.fromEntries(D.facts.map(f=>[f.text,f]));
+    D.facts = j.facts.map(t => oldF[t] || {id:uid(), text:t});
+    if(j.name && !D.name) D.name = j.name;
+    S.snap = Object.fromEntries(localItems().map(i=>[i.uid, itemHash(i)])); S.snapFacts = D.facts.map(f=>f.text);
+    S.last = Date.now(); S.err = '';
+    store.set('nova', D); renderAll();
+    if(manual) bubble('note', 'Synced with Discord ✓');
+  }catch(e){
+    S.err = String(e.message||e).slice(0,140); store.set('nova', D); renderMe();
+    if(manual) bubble('note', 'Sync failed: '+S.err);
+  }finally{ syncing = false; }
+}
+$('linkBtn').onclick = async () => {
+  let url = $('linkUrl').value.trim(), code = $('linkCode').value.replace(/\s+/g,'').toUpperCase();
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if(!url || code.length < 10){ $('linkInfo').innerHTML = '<span class="bad">Enter the address and code that /link gave you in Discord.</span>'; return; }
+  $('linkBtn').disabled = true; $('linkBtn').textContent = 'Linking…';
+  // first link: everything on this phone counts as new, so it gets uploaded
+  D.sync = { url, code, snap:{}, snapFacts:[], last:0 };
+  await doSync();
+  $('linkBtn').disabled = false; $('linkBtn').textContent = 'Link Discord';
+  if(D.sync.err){ const err = D.sync.err; D.sync = null; save(); renderMe(); $('linkInfo').innerHTML = '<span class="bad">Couldn\'t link:</span> '+esc(err); }
+  else bubble('nova', pick(['Linked with Discord. Now I can nag you on two platforms. Efficiency.','Discord link established. Your reminders now follow you everywhere. Like me, but helpful.']));
+};
+$('syncNow').onclick = () => doSync(true);
+$('unlinkBtn').onclick = () => { D.sync = null; save(); renderMe(); bubble('note','Unlinked from Discord. Everything stays on this phone.'); };
+function renderLink(){
+  const S = D.sync, linked = !!(S && S.code);
+  $('linkForm').hidden = linked; $('linkedRow').hidden = !linked;
+  if(linked) $('linkInfo').innerHTML = '<span class="ok">Linked ✓</span> '+esc(S.url.replace(/^https?:\/\//,''))+'<br>'+(S.err ? '<span class="bad">Last sync failed: '+esc(S.err)+'</span>' : S.last ? 'Last synced '+new Date(S.last).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : 'Not synced yet');
+}
+setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 120000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
+
 // ---------------- boot ----------------
-const VERSION = '3.2';
+const VERSION = '4.0';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1106,6 +1326,8 @@ else {
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
     'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
 }
+resumeWake();
+if(D.sync && D.sync.code) doSync();
 if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 })();
 </script>
