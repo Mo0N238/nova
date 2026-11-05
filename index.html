@@ -729,13 +729,17 @@ const actLabel = { add_task:'✓ added daily task', complete_task:'✓ marked do
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
-  const s = q.toLowerCase().replace(/[?!.]/g,'').trim(), n = new Date();
+  // answer simple time/date questions on the phone itself, no AI needed
+  const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
+  if(s.length > 45 || /\b(in|at|for|until|till|tomorrow|yesterday|ago|from|when|birthday|meeting|remind|timer|set)\b/.test(s)) return null;
+  const n = new Date();
   const time = n.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
   const date = n.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
-  if(/^(what('?s| is) the )?time( is it)?( now| right now)?$|^what time is it( now| right now)?$|^time$/.test(s))
-    return pick([time+'. Plenty of day left to be productive. Or to pretend to be.', 'It\'s '+time+'.', time+' on the dot. Well, roughly.', time+'. Time flies when you\'re talking to me.']);
-  if(/^(what('?s| is) )?(today'?s )?(the )?date( today)?$|^what day is (it|today)$|^what'?s today$/.test(s))
-    return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
+  const isTime = /\b(what ?time|the time|time is it|current time|time now|time rn|time please|^ time $)\b/.test(s) || s === ' time ';
+  const isDate = /\b(today'?s date|the date|what date|what day|which day|day is it|day today|date today|what'?s today|what is today|todays date|^ date $)\b/.test(s) || s === ' date ';
+  if(isTime && isDate) return 'It\'s '+time+' on '+date+'.';
+  if(isTime) return pick([time+'. Plenty of day left to be productive. Or to pretend to be.', 'It\'s '+time+'.', time+' on the dot. Well, roughly.', time+'. Time flies when you\'re talking to me.']);
+  if(isDate) return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
   return null;
 }
 let busy = false;
@@ -882,7 +886,7 @@ $('restoreF').onchange = async e => {
 };
 
 // ---------------- boot ----------------
-const VERSION = '2.0';
+const VERSION = '2.1';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
