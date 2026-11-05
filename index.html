@@ -201,6 +201,11 @@ nav button svg{position:relative}
 .photoPrev span{flex:1}
 .photoPrev button{background:none;border:none;color:var(--muted);font-size:20px}
 .msg .shot{display:block;max-width:100%;max-height:220px;border-radius:12px;margin-bottom:6px}
+.msg.draft{max-width:94%;border-left:3px solid var(--accent)}
+.msg.draft .dh{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.msg.draft .dm{font-size:13px;color:var(--muted);margin-bottom:8px}
+.msg.draft .db{font-size:14px;line-height:1.45;margin-bottom:10px}
+.msg.draft a.btn{display:inline-flex;align-items:center;text-decoration:none}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -288,7 +293,7 @@ input[type=time]{min-height:38px}
     <div class="clock"><div class="t" id="clk">--:--</div><div class="d" id="dte"></div></div>
   </header>
   <div class="hint" id="installHint" hidden><span>📲</span><span>Tap <b>Share</b> → <b>Add to Home Screen</b> to install Nova as an app.</span><button id="hintX" aria-label="Dismiss">×</button></div>
-  <div class="banner" id="banner"><span>⏰</span><span id="bannerText"></span><button class="btn sm" id="bannerOk">Got it</button></div>
+  <div class="banner" id="banner"><span>⏰</span><span id="bannerText"></span><button class="btn sm ghost" id="bannerSnooze">💤 10 min</button><button class="btn sm" id="bannerOk">Got it</button></div>
 
   <main>
     <section class="view on" id="v-chat">
@@ -312,6 +317,7 @@ input[type=time]{min-height:38px}
         <button class="chip" data-q="Would you rather? Give me a good one.">🤔 Would you rather</button>
         <button class="chip" data-q="Give me a riddle. Don't tell me the answer until I give up.">🧩 Riddle</button>
         <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
+        <button class="chip" data-q="Help me write an email. Ask me who it's to and what it's about.">✉️ Write an email</button>
       </div>
       <div class="photoPrev" id="photoPrev" hidden><img id="photoThumb" alt=""><span>Photo attached. Ask about it, or just send.</span><button id="photoX" aria-label="Remove photo">×</button></div>
       <input type="file" id="photoI" accept="image/*" hidden>
@@ -363,10 +369,12 @@ input[type=time]{min-height:38px}
         <div class="sec">You</div>
         <div class="card">
           <div class="toggle"><span>Your name</span><input id="nameI" placeholder="What should she call you?" style="width:58%"></div>
+          <div class="toggle"><span>🧠 Think harder<br><small class="muted" style="font-size:11px">Smarter answers, a bit slower (same free keys)</small></span><input type="checkbox" id="thinkT"></div>
           <div class="toggle"><span>Speak replies out loud</span><input type="checkbox" id="voiceT"></div>
           <div class="toggle"><span>"Hey Nova" wake word<br><small class="muted" style="font-size:11px">Listens only while Nova is open on screen</small></span><input type="checkbox" id="wakeT"></div>
           <div class="toggle"><span>Reminder sound</span><input type="checkbox" id="soundT"></div>
           <div class="toggle"><span>Use my location for weather</span><input type="checkbox" id="locT"></div>
+          <div class="toggle"><span>Bad-weather heads-up<br><small class="muted" style="font-size:11px">Rain, storms, snow, extreme heat/cold</small></span><input type="checkbox" id="wxT"></div>
         </div>
         <div class="sec">What Nova remembers about you</div>
         <div id="facts"></div>
@@ -538,10 +546,15 @@ function beep(){
 function showBanner(){
   if(!queue.length){ $('banner').classList.remove('show'); return; }
   const a = queue[0];
-  $('bannerText').textContent = (a.kind==='task'?'Reminder: ':'') + a.text;
+  $('bannerText').textContent = (a.kind==='task'?'Reminder: ':'') + a.text; $('bannerSnooze').hidden = a.kind==='weather';
   $('banner').classList.add('show'); beep(); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
   speak((a.kind==='task'?'Reminder. ':'') + a.text);
 }
+$('bannerSnooze').onclick = () => {
+  const a = queue.shift(); if(a){ const label = a.text.replace(/^Time's up: /,'');
+    D.timers.push({id:'t_'+uid(), at:Date.now()+10*60000, label:'Snoozed: '+label}); save(); renderTasks();
+    bubble('note', pick(['Snoozed 10 minutes. I\'ll be back. Like a sequel nobody asked for.','Fine. 10 more minutes. I\'m counting.','Snoozed. Procrastination: scheduled.'])); }
+  showBanner(); };
 $('bannerOk').onclick = () => { const a = queue.shift(); if(a && a.kind==='task'){ const t=D.tasks.find(t=>t.id===a.id); if(t){ markDone(t, true); save(); renderTasks(); } } showBanner(); };
 
 // ---------------- voice ----------------
@@ -738,6 +751,9 @@ const TOOLS = {
       delete D.fired[t.id]; save(); renderTasks(); return {updated:t}; } },
   delete_event: { d:'Delete a schedule event by id.', p:{id:'STRING'}, r:['id'],
     run(a){ const n=D.events.length; D.events=D.events.filter(e=>e.id!==a.id); if(n===D.events.length) throw new Error('no event with that id'); save(); renderSched(); return {ok:true}; } },
+  draft_email: { d:'Write an email draft for the user (new email or a reply). Shows it with Copy and Open-in-Mail buttons. Write the full email in the body, signed with the user\'s name if known.',
+    p:{to:'STRING', subject:'STRING', body:'STRING', tone:'STRING'}, r:['subject','body'],
+    run(a){ pendingDrafts.push({to:String(a.to||'').trim(), subject:String(a.subject||'').slice(0,200), body:String(a.body||'').slice(0,5000)}); return {shown_to_user:true, note:'The draft card is on screen with Copy / Open in Mail. Just add a short witty line; do not repeat the email.'}; } },
   set_timer: { d:'Start a countdown timer that alerts after N minutes (while Nova is open).', p:{minutes:'NUMBER', label:'STRING'}, r:['minutes'],
     run(a){ const m=+a.minutes; if(!(m>0 && m<=1440)) throw new Error('minutes must be 1-1440'); const x={id:'t_'+uid(), at:Date.now()+m*60000, label:String(a.label||'Timer').slice(0,60)}; D.timers.push(x); save(); renderTasks();
       return {set:x.label, goes_off_at:new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}), note:'Only alerts while Nova is open on screen.'}; } },
@@ -801,13 +817,15 @@ Use tools whenever they help; never invent results:
 - weather -> get_weather.
 - habits: "how are my streaks" -> get_streaks; celebrate streaks with a quip, gently roast broken ones.
 - games: trivia = one question at a time with options A-D, wait for their answer, say right/wrong with flair, keep score in the chat, offer another. Riddles: never reveal the answer until they give up. Would-you-rather: give two fun options, then react to their pick. Jokes and facts: original, clever, clean.${convo ? '\n- RIGHT NOW you are in a spoken, hands-free conversation: answer in 1-2 short sentences, no lists, no links, no emojis, and sound natural out loud. End with a question only when it keeps the conversation going.' : ''}
-- "remember..." or personal details worth keeping -> remember_fact. "forget..." -> forget_fact.
+- "remember..." or a real personal detail they state about themselves (name, birthday, city, likes, goals) -> remember_fact. Never save jokes, banter, hypotheticals or things you said; when unsure, don't save. "forget..." -> forget_fact.
+- writing or replying to an email/message ("write an email to my teacher", "reply to this") -> ask for any missing key detail (who, what), then call draft_email with the complete email. Afterwards just add one short line; never paste the email again.${D.think ? '\n- Think-harder mode is ON: be thorough and careful; you may give longer, well-structured answers when the question needs it.' : ''}
 If a tool errors, say so plainly with a light touch.`;
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let lastError = '';
 function speedConfig(model){
+  if(D.think) return null; // think harder: let the model use its full reasoning
   if(D.noThink && D.noThink[model]) return null;
   if(/gemini-2\./i.test(model)) return {thinkingBudget:0};
   return {thinkingLevel:'minimal'};
@@ -939,7 +957,7 @@ async function groqCall(messages){
     let r;
     try{
       r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
-        body: JSON.stringify({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens:700 }) });
+        body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens: D.think ? 2000 : 700 }, D.think && /gpt-oss/.test(model) ? {reasoning_effort:'high'} : {})) });
     }catch(e){ last = 'network'; continue; }
     const j = await r.json().catch(()=>({}));
     if(r.ok) return j;
@@ -998,7 +1016,7 @@ $('groqDel').onclick = () => { D.groqKey=''; D.groqModels=[]; save(); $('groqInf
 // ---------------- chat UI ----------------
 const log = $('log');
 function bubble(cls, text){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text; log.appendChild(el); log.scrollTop=log.scrollHeight; return el; }
-const actLabel = { add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
+const actLabel = { draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
@@ -1015,6 +1033,17 @@ function instant(q){
   if(isDate) return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
   return null;
 }
+let pendingDrafts = [];
+function draftCard(dr, after){
+  const card = document.createElement('div'); card.className = 'msg nova draft';
+  card.innerHTML = '<div class="dh">✉️ Email draft</div><div class="dm"></div><div class="db"></div><div class="row"><button class="btn sm">Copy</button><a class="btn sm ghost" target="_blank" rel="noopener">Open in Mail</a></div>';
+  card.querySelector('.dm').textContent = (dr.to ? 'To: '+dr.to+'\n' : '') + 'Subject: ' + dr.subject;
+  card.querySelector('.db').textContent = dr.body;
+  const btn = card.querySelector('button');
+  btn.onclick = async () => { const txt = 'Subject: '+dr.subject+'\n\n'+dr.body; try{ await navigator.clipboard.writeText(txt); btn.textContent = 'Copied ✓'; }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent='Copied ✓'; }catch(e2){ btn.textContent='Copy failed'; } ta.remove(); } setTimeout(()=>btn.textContent='Copy', 2000); };
+  card.querySelector('a').href = 'mailto:'+encodeURIComponent(dr.to||'')+'?subject='+encodeURIComponent(dr.subject)+'&body='+encodeURIComponent(dr.body);
+  after.after(card); return card;
+}
 let busy = false;
 let photo = null; // {data: base64 jpeg, url: dataURL}
 async function send(given, opts={}){
@@ -1028,6 +1057,7 @@ async function send(given, opts={}){
   const quick = !img && instant(text);
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
+  pendingDrafts = [];
   busy = true; $('orb').classList.add('busy'); $('sendBtn').disabled = true;
   try{
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
@@ -1057,6 +1087,7 @@ async function send(given, opts={}){
     if(lastSources.length){ const s=document.createElement('div'); s.className='src';
       const seen = new Set(); lastSources.forEach(x => { if(seen.has(x.title)) return; seen.add(x.title); const a=document.createElement('a'); a.href=x.url; a.target='_blank'; a.rel='noopener'; a.textContent='↗ '+x.title; s.appendChild(a); });
       after.after(s); }
+    const drafts = pendingDrafts.splice(0); drafts.forEach(dr => { after = draftCard(dr, after); });
     if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
     if(!opts.silent) speak(r.reply);
     return r.reply;
@@ -1140,11 +1171,28 @@ function renderGlance(){
               ...D.events.filter(e=>e.date===k && e.time && e.time>=now).map(e=>({time:e.time, title:e.title}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
   $('gnT').textContent = up ? fmt12(up.time) : '—'; $('gnS').textContent = up ? up.title : 'Nothing planned';
   const w = D.lastWeather;
-  if(w && Date.now()-w.at < 3*3600000){ $('gwT').textContent = Math.round(w.temp)+'°'; $('gwS').textContent = w.sky; }
+  if(w && Date.now()-w.at < 3*3600000){ $('gwT').textContent = Math.round(w.temp)+'°'; $('gwS').textContent = ((w.rain||0)>=50 ? '☔ '+w.rain+'% · ' : '') + w.sky; }
+}
+function weatherHeadsUp(){
+  const w = D.lastWeather; if(!w || D.wxWarned===keyOf() || D.wxAlerts===false) return;
+  const sky = (w.daySky||'')+' '+(w.sky||'');
+  let msg = '';
+  if(/thunder/.test(sky)) msg = pick(['⛈ Thunderstorms today. Maybe don\'t fly a kite holding a key.','⛈ Storms on the way. Great day to stay in and be productive. Or nap. I won\'t tell.']);
+  else if(/snow/.test(sky)) msg = pick(['❄️ Snow today. Dress like you mean it.','❄️ Snow in the forecast. Layers. Lots of them.']);
+  else if((w.rain||0) >= 60 || /rain|shower|drizzle/.test(sky)) msg = pick(['☔ '+(w.rain||'High')+'% chance of rain today. Umbrella. Trust me.','☔ Rain likely today ('+(w.rain||'?')+'%). Your hair has been warned.']);
+  else {
+    const isF = /US|LR|MM/.test((navigator.language||'en-US').split('-')[1]||'US');
+    if(w.high!=null && w.high >= (isF ? 95 : 35)) msg = '🥵 It\'s going to be scorching today. Water. Shade. Questionable life choices kept to a minimum.';
+    else if(w.low!=null && w.low <= (isF ? 20 : -7)) msg = '🥶 Brutally cold today. Wear the big coat. Yes, that one.';
+  }
+  if(!msg) return;
+  D.wxWarned = keyOf(); save();
+  queue.push({id:'wx', kind:'weather', text:msg}); showBanner();
 }
 async function refreshWeather(){
   $('gwS').textContent = 'Checking…';
-  try{ const w = await getWeather(''); D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now()}; save(); renderGlance(); }
+  try{ const w = await getWeather(''); const td = w.days && w.days[0] || {};
+    D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
   catch(e){ $('gwS').textContent = 'Tap to retry'; }
 }
 $('glWeather').onclick = refreshWeather;
@@ -1213,7 +1261,7 @@ $('planBtn').onclick = () => {
 function renderMe(){
   try{ renderLink(); }catch(e){}
   if(document.activeElement!==$('nameI')) $('nameI').value = D.name||'';
-  $('voiceT').checked = !!D.voice; $('wakeT').checked = !!D.wake; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
+  $('voiceT').checked = !!D.voice; $('wxT').checked = D.wxAlerts!==false; $('thinkT').checked = !!D.think; $('wakeT').checked = !!D.wake; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
   const f=$('facts'); f.innerHTML='';
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
@@ -1226,6 +1274,8 @@ $('voiceT').onchange = e => { D.voice = e.target.checked; save(); if(D.voice) sp
 $('wakeT').onchange = e => { if(e.target.checked && !SR){ e.target.checked = false; bubble('note','This browser can\'t listen for a wake word. Try Chrome or Edge on a computer.'); return; }
   D.wake = e.target.checked; save(); if(D.wake) resumeWake(); else { stopWake(); tick(); } };
 $('soundT').onchange = e => { D.sound = e.target.checked; save(); if(D.sound) beep(); };
+$('thinkT').onchange = e => { D.think = e.target.checked; save(); bubble('note', D.think ? 'Think harder: on. Extra brainpower engaged. Judging your sleep schedule at twice the speed.' : 'Think harder: off. Back to quick-and-witty mode.'); };
+$('wxT').onchange = e => { D.wxAlerts = e.target.checked; save(); };
 $('locT').onchange = e => { D.useLoc = e.target.checked; save(); };
 $('fastT').onchange = e => { if(e.target.checked && !D.groqKey){ e.target.checked=false; $('groqInfo').innerHTML='<span class="bad">Add a Groq key first.</span>'; return; } D.fast = e.target.checked; save(); };
 $('resetBtn').onclick = () => { history = []; saveChat(); log.innerHTML=''; bubble('nova', pick(['Clean slate. What are we doing?','Fresh start. I kept the important stuff, just dropped the small talk.','Conversation wiped. Your secrets are safe. Mostly because I forgot them.'])); };
@@ -1305,7 +1355,7 @@ setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 1
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
 
 // ---------------- boot ----------------
-const VERSION = '4.0';
+const VERSION = '4.1';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
