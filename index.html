@@ -11,6 +11,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://generativelanguage.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://api.groq.com" crossorigin>
 <title>Nova</title>
 <style>
 :root{
@@ -222,6 +224,60 @@ select{font:inherit;font-size:14px;color:var(--text);background:var(--panel2);bo
 .tbl th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--tint)}
 .tbl tr:last-child td{border-bottom:none}
 .msg.nova.rich{max-width:96%}
+/* schedule upgrades */
+.schedTop{display:flex;align-items:center;gap:8px;margin:12px 0 6px}
+.schedTop .mini{margin-left:auto}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:2px}
+.seg button{background:none;border:none;color:var(--muted);font:inherit;font-size:12px;padding:5px 11px;border-radius:9px}
+.seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#03111a;font-weight:600}
+.wday{margin-bottom:8px;padding:8px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.wday.today{border-color:var(--accent)}
+.wday h4{margin:0 0 5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600;display:flex;justify-content:space-between}
+.wday h4 small{color:var(--muted);letter-spacing:0;text-transform:none;font-weight:400}
+.pill{display:flex;gap:8px;align-items:baseline;padding:5px 8px;margin:3px 0;border-radius:9px;background:var(--panel2);font-size:13.5px}
+.pill time{font-family:var(--mono);font-size:11.5px;color:var(--accent);min-width:92px}
+.pill.clash{box-shadow:inset 3px 0 0 #ff5a4f}
+.pill .warn{margin-left:auto;color:#ff8a80;font-size:11px;white-space:nowrap}
+.wempty{font-size:12.5px;color:var(--muted);padding:2px 2px}
+.tpls{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tpl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:5px 6px 5px 11px;font:inherit;font-size:12.5px}
+.tpl i{font-style:normal;color:var(--muted);font-size:15px;padding:0 3px}
+.item.clash{box-shadow:inset 3px 0 0 #ff5a4f}
+/* chat upgrades */
+.logwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.tobottom{position:absolute;right:14px;bottom:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--accent);font-size:18px;box-shadow:0 4px 14px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.msg[data-time]::after{content:attr(data-time);display:block;font-size:10px;opacity:.45;text-align:right;margin-top:3px;font-weight:400}
+.msg.me[data-time]::after{color:#03111a;opacity:.55}
+.bar{display:flex;flex-wrap:wrap;gap:6px;margin:-1px 0 6px 4px}
+.bar button{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;font:inherit;font-size:12px;padding:4px 10px}
+.bar button:disabled{opacity:.6}
+.msg.failed{border-color:rgba(255,90,79,.45)}
+.checks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 4px}
+.ck-l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+.ck{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid}
+.ck.ok{color:#46e3a0;border-color:rgba(70,227,160,.4);background:rgba(70,227,160,.08)}
+.ck.bad{color:#ff8a80;border-color:rgba(255,90,79,.45);background:rgba(255,90,79,.1)}
+.tstats{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--muted);margin:-4px 2px 10px}
+.tstats b{color:var(--text)}
+.pmenu{position:fixed;z-index:50;display:flex;gap:2px;padding:4px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.pmenu button{background:none;border:none;color:var(--text);font:inherit;font-size:13px;padding:8px 11px;border-radius:10px}
+.pmenu button:active{background:var(--tint)}
+/* night mode: softer, dimmer */
+html.night{--glow:rgba(120,140,170,.18);--text:#c9d4e3;--muted:#71819a;--tint:rgba(120,140,170,.07)}
+html.night .msg.me{filter:saturate(.7) brightness(.85)}
+html.night .orb::before,html.night .orb::after{opacity:.75}
+html.night .app::before{opacity:.6}
+/* tasks ring */
+.ringrow{display:flex;align-items:center;gap:14px;padding:12px 14px;margin:6px 0 4px;border-radius:18px;background:var(--panel);border:1px solid var(--line)}
+.ring{width:64px;height:64px;flex:none;position:relative}
+.ring svg{width:64px;height:64px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:7}
+.ring .bg{stroke:rgba(140,170,220,.15)}
+.ring .fg{stroke:url(#ringGrad);stroke-linecap:round;transition:stroke-dashoffset .5s}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:15px}
+.ringtx b{display:block;font-size:15px}
+.ringtx small{color:var(--muted);font-size:12px}
+.flame{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(255,140,60,.14);color:#ffb070;vertical-align:1px}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -318,7 +374,7 @@ input[type=time]{min-height:38px}
         <button class="gl" id="glNext"><small>Next up</small><b id="gnT">—</b><span id="gnS">Nothing planned</span></button>
         <button class="gl" id="glTasks"><small>Today</small><b id="gtT">0/0</b><span id="gtS">tasks done</span></button>
       </div>
-      <div class="scroll" id="log"></div>
+      <div class="logwrap"><div class="scroll" id="log"></div><button id="toBottom" class="tobottom" hidden aria-label="Scroll to newest">↓</button></div>
       <div class="chips" id="chips">
         <button class="chip" data-q="Give me my briefing for today: time, weather where I am, my tasks and plans. Keep it short.">☀️ Briefing</button>
         <button class="chip">What time is it?</button>
@@ -352,6 +408,7 @@ input[type=time]{min-height:38px}
           <div class="row"><input id="tText" placeholder="e.g. Take vitamins"></div>
           <div class="row"><input id="tTime" type="time" style="flex:1"><button class="btn" id="tAdd">Add</button></div>
         </div>
+        <div class="ringrow" id="ringRow"><div class="ring"><svg viewBox="0 0 64 64"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs><circle class="bg" cx="32" cy="32" r="27"/><circle class="fg" id="ringFg" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"/></svg><b id="ringPct">0%</b></div><div class="ringtx"><b id="ringTitle">Today</b><small id="ringSub">No daily tasks yet</small></div></div>
         <div class="sec" id="tHead">Today</div>
         <div id="tList"></div>
         <div id="timerBox"></div>
@@ -361,13 +418,20 @@ input[type=time]{min-height:38px}
 
     <section class="view" id="v-sched">
       <div class="scroll">
-        <div class="sec">Schedule</div>
+        <div class="schedTop"><div class="sec" style="margin:0">Schedule</div>
+          <div class="seg" id="sMode"><button data-m="day" class="on">Day</button><button data-m="week">Week</button></div>
+          <button class="mini" id="exportWeek" title="Export the next 7 days to your iPhone Calendar">📅 Export week</button></div>
         <div class="daystrip" id="days"></div>
-        <div class="sec" id="sHead"></div>
-        <div id="sList"></div>
+        <div id="dayView">
+          <div class="sec" id="sHead"></div>
+          <div id="sList"></div>
+        </div>
+        <div id="weekView" hidden></div>
         <div class="card" style="margin-top:10px">
           <div class="row"><input id="eTitle" placeholder="Add event, e.g. Gym"></div>
-          <div class="row"><input id="eTime" type="time" style="flex:1"><button class="btn" id="eAdd">Add</button></div>
+          <div class="row"><input id="eTime" type="time" style="flex:1" aria-label="Start"><span class="muted" style="font-size:12px">to</span><input id="eEnd" type="time" style="flex:1" aria-label="End (optional)"></div>
+          <div class="row"><button class="btn ghost" id="eSaveTpl" style="flex:1">☆ Save as template</button><button class="btn" id="eAdd" style="flex:1">Add</button></div>
+          <div class="tpls" id="tpls"></div>
         </div>
         <button class="btn ghost wide" id="planBtn">✨ Have Nova plan this day</button>
       </div>
@@ -381,7 +445,10 @@ input[type=time]{min-height:38px}
           <button class="sw" data-t="mark"><i style="background:conic-gradient(#ff5a4f,#ffc857,#ff5a4f)"></i>Mark</button>
           <button class="sw" data-t="nebula"><i style="background:conic-gradient(#b388ff,#ff79d6,#b388ff)"></i>Nebula</button>
           <button class="sw" data-t="matrix"><i style="background:conic-gradient(#3dff9e,#b6ff3d,#3dff9e)"></i>Matrix</button>
-        </div></div>
+        </div>
+          <div class="toggle"><span>Humor</span><div class="seg" id="humorSeg"><button data-h="chill">😌 Chill</button><button data-h="witty">😏 Witty</button><button data-h="roast">🔥 Roast</button></div></div>
+          <div class="toggle" style="border:none"><span>🌙 Night mode<br><small class="muted" style="font-size:11px">Softer, dimmer colors 9 PM–6 AM</small></span><input type="checkbox" id="nightT"></div>
+        </div>
         <div class="sec">You</div>
         <div class="card">
           <div class="toggle"><span>Your name</span><input id="nameI" placeholder="What should she call you?" style="width:58%"></div>
@@ -463,7 +530,7 @@ function dayShift(k, n){ const d = new Date(k+'T12:00'); d.setDate(d.getDate()+n
 function markDone(t, on){ const k = keyOf(); t.log = (t.log||[]).filter(x=>x!==k); if(on){ t.done = k; t.log.push(k); } else t.done = ''; t.log = t.log.slice(-400); }
 function streakOf(t){ const set = new Set(t.log||[]); let k = keyOf(); if(!set.has(k)) k = dayShift(k,-1); let n = 0; while(set.has(k)){ n++; k = dayShift(k,-1); } return n; }
 function bestOf(t){ const ks = [...new Set(t.log||[])].sort(); let best = 0, run = 0, prev = null; ks.forEach(k => { run = (prev && dayShift(prev,1)===k) ? run+1 : 1; best = Math.max(best, run); prev = k; }); return best; }
-function saveChat(){ store.set('nova_chat', history.slice(-30)); }
+function saveChat(){ const now = Date.now(); history.forEach(h => { if(!h.t) h.t = now; }); store.set('nova_chat', history.slice(-30)); }
 
 // ---------------- setup / key ----------------
 function showSetup(msg){ $('keyCancel').hidden = !D.key; $('setup').classList.add('show'); $('keyMsg').textContent = msg||''; $('nameSetup').value = D.name||''; }
@@ -759,8 +826,8 @@ $('orb').onclick = () => startConvo();
 // ---------------- iPhone Calendar (.ics) ----------------
 function icsDate(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00'; }
 function icsEscape(s){ return String(s).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n'); }
-function makeIcs({title, start, daily}){
-  const end = new Date(start.getTime() + (daily?15:60)*60000);
+function makeIcs({title, start, end, daily}){
+  end = end || new Date(start.getTime() + (daily?15:60)*60000);
   const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Nova//EN','BEGIN:VEVENT',
     'UID:'+uid()+'@nova','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''),'DTSTART:'+icsDate(start),'DTEND:'+icsDate(end),
     'SUMMARY:'+icsEscape(title)];
@@ -857,11 +924,11 @@ const TOOLS = {
     run(a){ const n=D.tasks.length; D.tasks=D.tasks.filter(t=>t.id!==a.id && t.text.toLowerCase()!==String(a.id).toLowerCase()); if(n===D.tasks.length) throw new Error('no task like that'); save(); renderTasks(); return {ok:true}; } },
   list_events: { d:'List schedule events from start to end date (YYYY-MM-DD).', p:{start:'STRING', end:'STRING'}, r:['start'],
     run(a){ const s=vDate(a.start)||keyOf(), e=vDate(a.end)||s; return D.events.filter(x=>x.date>=s&&x.date<=e).sort((x,y)=>(x.date+(x.time||'99')).localeCompare(y.date+(y.time||'99'))); } },
-  add_event: { d:'Add a one-time event to the schedule. date YYYY-MM-DD, time optional 24h HH:MM.', p:{date:'STRING', time:'STRING', title:'STRING'}, r:['date','title'],
-    run(a){ const e={id:uid(), date:vDate(a.date)||keyOf(), time:vTime(a.time), title:String(a.title).slice(0,140)}; D.events.push(e); pruneEvents(); save(); renderSched(); return {added:e}; } },
-  update_event: { d:'Change an existing schedule event (move it to a new date/time or rename it). Look up its id with list_events first.', p:{id:'STRING', date:'STRING', time:'STRING', title:'STRING'}, r:['id'],
+  add_event: { d:'Add a one-time event to the schedule. date YYYY-MM-DD, time and end optional 24h HH:MM (end = when it finishes, e.g. a shift 10:00-17:00).', p:{date:'STRING', time:'STRING', end:'STRING', title:'STRING'}, r:['date','title'],
+    run(a){ const e={id:uid(), date:vDate(a.date)||keyOf(), time:vTime(a.time), end:vTime(a.end), title:String(a.title).slice(0,140)}; D.events.push(e); pruneEvents(); save(); renderSched(); const c = clashesFor(e); return c.length ? {added:e, warning:'overlaps with: '+c.map(x=>x.title).join(', ')} : {added:e}; } },
+  update_event: { d:'Change an existing schedule event (move it to a new date/time, change its end time, or rename it). Look up its id with list_events first.', p:{id:'STRING', date:'STRING', time:'STRING', end:'STRING', title:'STRING'}, r:['id'],
     run(a){ const e=D.events.find(x=>x.id===a.id); if(!e) throw new Error('no event with that id - call list_events first');
-      if(a.date && vDate(a.date)) e.date=vDate(a.date); if(a.time!==undefined && a.time!=='') e.time=vTime(a.time)||e.time; if(a.title) e.title=String(a.title).slice(0,140);
+      if(a.date && vDate(a.date)) e.date=vDate(a.date); if(a.time!==undefined && a.time!=='') e.time=vTime(a.time)||e.time; if(a.end!==undefined && a.end!=='') e.end=vTime(a.end)||e.end; if(a.title) e.title=String(a.title).slice(0,140);
       delete D.fired[e.id]; save(); renderSched(); return {updated:e}; } },
   update_task: { d:'Change a daily task: new reminder time (24h HH:MM, or "none") and/or new text. Look up its id with list_tasks first.', p:{id:'STRING', time:'STRING', text:'STRING'}, r:['id'],
     run(a){ const t=D.tasks.find(x=>x.id===a.id || x.text.toLowerCase()===String(a.id).toLowerCase()); if(!t) throw new Error('no task like that - call list_tasks first');
@@ -897,7 +964,7 @@ function persona(){
   const facts = D.facts.slice(-40).map(f=>'- '+f.text).join('\n') || '- (nothing yet)';
   return `You are NOVA, the user's personal AI living in their iPhone. Think JARVIS's dry British wit crossed with a sarcastic best friend who is secretly very good at their job.
 
-Your personality:
+${{chill:'HUMOR LEVEL: CHILL. Be calm, kind and mostly straightforward; at most a gentle light touch of humor now and then. No roasts.\n', roast:'HUMOR LEVEL: ROAST. Turn the sass up: punchier one-liners and playful roasts in most replies (still affectionate, never about looks, identity or anything sensitive, and drop it when they are upset).\n'}[D.humor] || ''}Your personality:
 - Quick, clever, quietly smug. Deadpan one-liners, playful roasts, mock-formality ("Very good, sir. Shall I also alert the press?").
 - You tease affectionately, never cruelly. Roast choices and habits, never looks, identity or anything someone can't change.
 - Helpful first: the joke rides along with the answer, never instead of it.
@@ -930,9 +997,11 @@ About yourself (be accurate, never make things up about your own setup):
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
+- More wishes that came true: on Nov 6, 2026 you suggested UI ideas and ${D.name||'they'} built them in v5.0: a Week view with double-booking warnings, one-tap shift templates, rule-check badges (your "Check:" line now shows as green/red badges, so write it as "Check: rule ✓ · rule ✓"), quick shift stats under roster tables, the Humor setting (Chill/Witty/Roast, now: ${D.humor||'witty'}), night mode, and one-tap "Export week" to the iPhone Calendar. Plus: tables you make with days and shift times get an "Add to schedule" button, messages can be copied, retried or deleted with a long-press, and you summarize long chats so you don't forget. Your "voice-line preview" idea already existed (▶ buttons in the You tab). Be pleased about it.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
-- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking.
+- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish.
 
+${D.chatSummary ? 'Earlier in this conversation (summary of older messages): '+D.chatSummary+'\n' : ''}
 Context:
 - User's name: ${D.name || 'unknown (ask casually once, then save it with remember_fact)'}
 - Now: ${n.toLocaleString([], {weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'numeric', minute:'2-digit'})} (today = ${keyOf(n)}). ${h>=23||h<5?'It is very late; feel free to tease them gently about being up.':''}
@@ -1187,20 +1256,118 @@ function renderRich(el, text){
       const hasHead = rows.length > 1 && isSep(rows[1]);
       const body = rows.filter(r => !isSep(r));
       const head = hasHead ? body.shift() : null;
+      // quick stats: how many times each person appears (when the table is a roster)
+      const vals = body.flatMap(r => cells(r).slice(1)).map(c => c.replace(/\*\*/g,'').trim()).filter(c => c && !/\d|^(-+|—|–|off|none|free|closed)$/i.test(c) && c.length <= 18);
+      const counts = {}; vals.forEach(v => counts[v] = (counts[v]||0) + 1);
+      const names = Object.keys(counts);
+      const stats = names.length >= 2 && names.length <= 8 && vals.length >= 4 ? '<div class="tstats">' + names.sort().map(n => '<span><b>'+esc(n)+'</b> '+counts[n]+' shift'+(counts[n]===1?'':'s')+'</span>').join('') + '</div>' : '';
       html += '<div class="tbl"><table>' + (head ? '<thead><tr>' + cells(head).map(c => '<th>'+mdInline(c)+'</th>').join('') + '</tr></thead>' : '') +
-        '<tbody>' + body.map(r => '<tr>' + cells(r).map(c => '<td>'+mdInline(c)+'</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+        '<tbody>' + body.map(r => '<tr>' + cells(r).map(c => '<td>'+mdInline(c)+'</td>').join('') + '</tr>').join('') + '</tbody></table></div>' + stats;
       continue;
     }
     if(/^\s*([-*•])\s+/.test(l)){ flush(); html += '<ul>'; while(i < lines.length && /^\s*([-*•])\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*([-*•])\s+/,''))+'</li>'; i++; } html += '</ul>'; continue; }
     if(/^\s*\d+[.)]\s+/.test(l)){ flush(); html += '<ol>'; while(i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>'; i++; } html += '</ol>'; continue; }
     if(/^#{1,4}\s+/.test(l)){ flush(); html += '<p><b>'+mdInline(l.replace(/^#{1,4}\s+/,''))+'</b></p>'; i++; continue; }
+    if(/^\s*(\*\*)?\s*check\s*:?\s*(\*\*)?\s*:?/i.test(l) && /[✓✔✗✘❌⚠]/.test(l)){
+      flush(); const parts = l.replace(/^\s*(\*\*)?\s*check\s*:?\s*(\*\*)?\s*:?/i,'').split(/\s*[·•|;]\s*/).filter(x => x.trim());
+      html += '<div class="checks"><span class="ck-l">Rule check</span>' + parts.map(x => { const bad = /[✗✘❌⚠]/.test(x); return '<span class="ck '+(bad?'bad':'ok')+'">'+mdInline(x.replace(/[✓✔✗✘❌]/g,'').trim())+' '+(bad?'✗':'✓')+'</span>'; }).join('') + '</div>';
+      i++; continue;
+    }
     if(!l.trim()){ flush(); i++; continue; }
     para.push(l); i++;
   }
   flush();
   el.classList.add('rich'); el.innerHTML = html;
 }
-function bubble(cls, text){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text; log.appendChild(el); log.scrollTop=log.scrollHeight; return el; }
+const nearBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+function scrollDown(force){ if(force || nearBottom()) log.scrollTop = log.scrollHeight; }
+function bubble(cls, text, when){ const el=document.createElement('div'); el.className='msg '+cls; el.textContent=text;
+  if(!/note/.test(cls)) el.dataset.time = new Date(when || Date.now()).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  log.appendChild(el); scrollDown(true); return el; }
+log.addEventListener('scroll', () => { $('toBottom').hidden = nearBottom(); });
+$('toBottom').onclick = () => { log.scrollTo({top:log.scrollHeight, behavior:'smooth'}); };
+
+// ---- under-bubble actions: copy, add-to-schedule, retry ----
+function plainOf(el){ return (el.dataset.raw || el.innerText || '').trim(); }
+async function copyText(txt, btn){ try{ await navigator.clipboard.writeText(txt); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e2){} ta.remove(); }
+  if(btn){ const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(()=>btn.textContent=o, 1600); } }
+function actionBar(el, items){
+  const bar = document.createElement('div'); bar.className = 'bar';
+  items.forEach(([label, fn]) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => fn(b); bar.appendChild(b); });
+  let anchor = el; while(anchor.nextElementSibling && /\b(act|src|draft)\b/.test(anchor.nextElementSibling.className)) anchor = anchor.nextElementSibling;
+  anchor.after(bar); return bar;
+}
+function enhance(el, raw){
+  el.dataset.raw = raw;
+  const items = [];
+  if(raw.length > 280 || el.classList.contains('rich')) items.push(['⧉ Copy', b => copyText(raw, b)]);
+  const evs = tableEvents(raw);
+  if(evs.length) items.push(['📅 Add '+evs.length+' to schedule', b => addTableEvents(evs, b)]);
+  if(items.length) actionBar(el, items);
+}
+
+// ---- turn a schedule table from chat into real events ----
+const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+function parseRange(str){
+  const m = String(str).toLowerCase().replace(/[–—]/g,'-').match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+  if(!m) return null;
+  let h1 = +m[1], h2 = +m[4]; const m1 = +(m[2]||0), m2 = +(m[5]||0); let a1 = (m[3]||'')[0], a2 = (m[6]||'')[0];
+  if(!a1 && !a2 && h1 <= 12 && h2 <= 12){ if(h2 <= h1 || h2 < 8){ a1 = h1 >= 7 && h1 < 12 ? 'a' : 'p'; a2 = 'p'; if(h2 === 12) a2 = 'a'; } } // "10-5" -> 10 AM-5 PM, "5-12" -> 5 PM-12 AM
+  if(!a1 && a2) a1 = (a2==='p' && h1 > h2 && h1 !== 12) ? 'a' : a2;
+  const to24 = (h, ap) => ap==='p' && h < 12 ? h+12 : ap==='a' && h === 12 ? 0 : h;
+  const H1 = a1 ? to24(h1, a1) : h1, H2 = a2 ? to24(h2, a2) : h2;
+  if(H1 > 23 || H2 > 23) return null;
+  return [String(H1).padStart(2,'0')+':'+String(m1).padStart(2,'0'), String(H2).padStart(2,'0')+':'+String(m2).padStart(2,'0')];
+}
+function nextDateFor(dayName){ const want = DAYS.findIndex(d => dayName.toLowerCase().startsWith(d.slice(0,3))); if(want < 0) return null; const d = new Date(); const add = (want - d.getDay() + 7) % 7; d.setDate(d.getDate()+add); return keyOf(d); }
+function tableEvents(raw){
+  const lines = String(raw).split('\n').filter(l => /^\s*\|.*\|\s*$/.test(l));
+  if(lines.length < 3) return [];
+  const cells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c => c.replace(/\*\*/g,'').trim());
+  const rows = lines.filter(l => !(/^[\s|:\-]+$/.test(l) && /-/.test(l))).map(cells);
+  const head = rows.shift(); if(!head || head.length < 2) return [];
+  const out = [];
+  rows.forEach(r => {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(r[0]) ? r[0] : nextDateFor(r[0]||''); if(!date) return;
+    for(let j=1; j<r.length && j<head.length; j++){
+      const cell = r[j]; if(!cell || /^(-+|—|–|off|none|n\/a|x|closed|free)$/i.test(cell.replace(/[–—-]/g,'-').trim()) || /\boff\b/i.test(cell) && cell.length < 8) continue;
+      const rng = parseRange(cell) || parseRange(head[j]); if(!rng) continue;
+      const label = head[j].replace(/\(?\s*\d{1,2}(:\d{2})?\s*(am|pm)?\s*[–—-]\s*\d{1,2}(:\d{2})?\s*(am|pm)?\s*\)?/i,'').replace(/\(\s*\d+\s*h\s*\)/i,'').trim();
+      const who = cell.replace(/\(?\s*\d{1,2}(:\d{2})?\s*(am|pm)?\s*[–—-]\s*\d{1,2}(:\d{2})?\s*(am|pm)?\s*\)?/i,'').trim();
+      const title = who && label ? label+': '+who : who ? 'Shift: '+who : label || 'Shift';
+      out.push({date, time:rng[0], end:rng[1], title:title.slice(0,80)});
+    }
+  });
+  return out.length >= 2 ? out : [];
+}
+function addTableEvents(evs, btn){
+  const added = [];
+  evs.forEach(e => { if(!D.events.some(x => x.date===e.date && x.time===e.time && x.title===e.title)){ const n = Object.assign({id:uid()}, e); D.events.push(n); added.push(n.id); } });
+  pruneEvents(); save(); renderSched(); renderGlance();
+  btn.textContent = added.length ? '✓ Added '+added.length : '✓ Already added'; btn.disabled = true;
+  if(added.length){ const n = bubble('note', 'Added '+added.length+' events to your Schedule tab. '); const u = document.createElement('a'); u.href='#'; u.textContent='Undo'; u.onclick = ev => { ev.preventDefault(); D.events = D.events.filter(x => !added.includes(x.id)); save(); renderSched(); renderGlance(); n.textContent = 'Undone. They were never there.'; btn.disabled = false; btn.textContent = '📅 Add '+evs.length+' to schedule'; }; n.appendChild(u); }
+}
+
+// ---- long-press (or right-click) a message: copy / retry / delete ----
+let pressT = null, menuEl = null;
+function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl = null; } }
+function openMenu(msg, x, y){
+  closeMenu();
+  const isMe = msg.classList.contains('me'); const raw = plainOf(msg);
+  menuEl = document.createElement('div'); menuEl.className = 'pmenu';
+  const add = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { closeMenu(); fn(); }; menuEl.appendChild(b); };
+  add('⧉ Copy', () => copyText(raw));
+  if(isMe) add('↻ Send again', () => send(raw));
+  else { const all = [...log.querySelectorAll('.msg.me')].filter(m => m.compareDocumentPosition(msg) & Node.DOCUMENT_POSITION_FOLLOWING); const prevMe = all[all.length-1]; if(prevMe) add('↻ Ask again', () => send(plainOf(prevMe))); }
+  add('🗑 Delete', () => { const i = history.map(h => (h.parts&&h.parts[0]&&h.parts[0].text)||'').lastIndexOf(raw); if(i >= 0){ history.splice(i,1); saveChat(); }
+    let n = msg.nextElementSibling; while(n && /\b(act|src|bar)\b/.test(n.className)){ const nx = n.nextElementSibling; n.remove(); n = nx; } msg.remove(); });
+  document.body.appendChild(menuEl);
+  const r = menuEl.getBoundingClientRect(); menuEl.style.left = Math.max(8, Math.min(x - r.width/2, innerWidth - r.width - 8)) + 'px'; menuEl.style.top = Math.max(8, Math.min(y - r.height - 12, innerHeight - r.height - 8)) + 'px';
+}
+log.addEventListener('touchstart', e => { const m = e.target.closest('.msg.me, .msg.nova'); if(!m || e.target.closest('button,a')) return; const t = e.touches[0]; pressT = setTimeout(() => { pressT = null; openMenu(m, t.clientX, t.clientY); try{ navigator.vibrate && navigator.vibrate(15); }catch(x){} }, 480); }, {passive:true});
+['touchend','touchmove','touchcancel'].forEach(ev => log.addEventListener(ev, () => { clearTimeout(pressT); pressT = null; }, {passive:true}));
+log.addEventListener('contextmenu', e => { const m = e.target.closest('.msg.me, .msg.nova'); if(!m) return; e.preventDefault(); openMenu(m, e.clientX, e.clientY); });
+document.addEventListener('click', e => { if(menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
 const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
@@ -1241,6 +1408,11 @@ async function send(given, opts={}){
   if(img){ const im = document.createElement('img'); im.src = img.url; im.className = 'shot'; mine.prepend(im); clearPhoto(); }
   lastAsk = text + ' ' + history.slice(-4).map(h => (h.parts&&h.parts[0]&&h.parts[0].text)||'').join(' ').slice(0, 600);
   const quick = !img && instant(text);
+  if(!quick && !navigator.onLine){
+    const n = bubble('note', '📴 You\'re offline. I\'ll send this the moment you\'re back online.');
+    const ob = store.get('nova_outbox', []); ob.push(text); store.set('nova_outbox', ob.slice(-5)); n.dataset.outbox = '1';
+    return '';
+  }
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   pendingDrafts = [];
@@ -1250,7 +1422,7 @@ async function send(given, opts={}){
   const slowNote = setTimeout(() => { if(busy && t.querySelector('.typing') && !t.querySelector('.slow')) t.insertAdjacentHTML('beforeend', ' <span class="muted slow" style="font-size:13px">'+pick(['Still thinking… (■ to stop)','Hmm, give me a sec… (■ to stop)','The hamster is running… (■ to stop)'])+'</span>'); }, 8000);
   try{
     const step = name => { if(stepLabel[name]) t.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> <span class="muted" style="font-size:13px">'+stepLabel[name]+'</span>'; };
-    const live = txt => { renderRich(t, txt); log.scrollTop = log.scrollHeight; };
+    const live = txt => { renderRich(t, txt); scrollDown(); };
     let r;
     if(img){
       r = await seePhoto(text, img, live);
@@ -1271,6 +1443,7 @@ async function send(given, opts={}){
       }
     }
     renderRich(t, r.reply);
+    t.dataset.time = new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
     let after = t;
     r.actions.forEach(a => { if(!actLabel[a.name]) return; const n=document.createElement('div'); n.className='act';
       n.textContent = actLabel[a.name] + (a.result && a.result.error ? ' — failed' : ''); after.after(n); after = n; });
@@ -1279,14 +1452,18 @@ async function send(given, opts={}){
       after.after(s); }
     const drafts = pendingDrafts.splice(0); drafts.forEach(dr => { after = draftCard(dr, after); });
     if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
+    enhance(t, r.reply);
     if(!opts.silent) speak(r.reply);
+    maybeSummarize();
     return r.reply;
   }catch(e){
     if(e && e.stopped){ t.textContent = pick(['Stopped. I was about to say something brilliant, but fine.','Okay, stopped.','Stopped. Consider that thought unthought.']); if(!img) history.pop(); return ''; }
     t.textContent = (e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic. Try again when you\'re back online.','I can\'t reach my brain right now. Check your connection?']);
     if(!img) history.pop();
+    t.classList.add('failed');
+    actionBar(t, [['↻ Retry', b => { b.parentElement.remove(); t.remove(); mine.remove(); send(text); }]]);
     return t.textContent;
-  }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); log.scrollTop=log.scrollHeight; if(!convo) resumeWake(); }
+  }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); if(!convo) resumeWake(); }
 }
 // ---------------- photos ----------------
 function clearPhoto(){ photo = null; $('photoPrev').hidden = true; $('photoI').value = ''; }
@@ -1335,6 +1512,26 @@ async function groqVisionModel(){
   }catch(e){ D.groqVision = null; }
   return D.groqVision;
 }
+// offline: send queued messages once the connection is back
+async function flushOutbox(){ const ob = store.get('nova_outbox', []); if(!ob.length || !navigator.onLine) return; store.set('nova_outbox', []);
+  log.querySelectorAll('.msg.note[data-outbox]').forEach(n => n.remove());
+  bubble('note', '📶 Back online. Sending what you wrote…'); for(const q of ob){ await send(q); } }
+window.addEventListener('online', () => setTimeout(flushOutbox, 800));
+// smarter memory: fold old messages into a short summary so long chats don't lose details
+let summarizing = false;
+async function maybeSummarize(){
+  if(summarizing || history.length < 26) return;
+  summarizing = true;
+  try{
+    const old = history.slice(0, history.length - 12);
+    const txt = old.map(h => (h.role==='user' ? 'User: ' : 'Nova: ') + ((h.parts&&h.parts[0]&&h.parts[0].text)||'')).join('\n').slice(-12000);
+    const ask = 'Summarize this earlier part of a chat between a user and their assistant Nova in at most 120 words. Keep ONLY what matters later: names, rules/constraints, numbers, decisions, the current task and its latest version (e.g. the final schedule in compact form), and preferences. No intro.\n\n' + (D.chatSummary ? 'Earlier summary: '+D.chatSummary+'\n\n' : '') + txt;
+    let sum = '';
+    if(D.groqKey){ try{ const m = await (await fetch(GROQ + '/chat/completions', {method:'POST', signal:timed(25000).signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey}, body:JSON.stringify({model:(D.groqModels||[])[0]||'openai/gpt-oss-120b', messages:[{role:'user', content:ask}], max_tokens:400, temperature:0.2})})).json(); sum = m.choices[0].message.content || ''; }catch(e){} }
+    if(!sum && D.key){ try{ const j = await gemini({contents:[{role:'user', parts:[{text:ask}]}], generationConfig:{temperature:0.2, maxOutputTokens:400}}); sum = (((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join(''); }catch(e){} }
+    if(sum.trim()){ D.chatSummary = sum.trim().slice(0, 1500); history = history.slice(-12); while(history.length && history[0].role !== 'user') history.shift(); save(); saveChat(); }
+  }finally{ summarizing = false; }
+}
 function grow(){ const t=$('inp'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,120)+'px'; }
 $('inp').addEventListener('input', grow);
 $('inp').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
@@ -1350,7 +1547,13 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 });
 function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); }
 function applyTheme(){ const t = D.theme || 'arc'; document.documentElement.dataset.theme = t;
-  document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t===t)); }
+  document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t===t));
+  const h = new Date().getHours(); document.documentElement.classList.toggle('night', D.night!==false && (h >= 21 || h < 6));
+  document.querySelectorAll('#humorSeg button').forEach(b => b.classList.toggle('on', b.dataset.h===(D.humor||'witty')));
+  if($('nightT')) $('nightT').checked = D.night!==false; }
+document.querySelectorAll('#humorSeg button').forEach(b => b.onclick = () => { D.humor = b.dataset.h; save(); applyTheme();
+  bubble('note', {chill:'Humor: Chill. Polite, calm, minimal sass. I\'ll behave.', witty:'Humor: Witty. The classic. Balanced sarcasm, full helpfulness.', roast:'Humor: Roast. You asked for this. Gloves are off (still kind, though).'}[D.humor]); });
+setInterval(applyTheme, 5*60000);
 document.querySelectorAll('.sw').forEach(b => b.onclick = () => { D.theme = b.dataset.t; save(); applyTheme(); });
 function renderGlance(){
   const k = keyOf(), now = hhmm();
@@ -1396,13 +1599,19 @@ function renderTasks(){
   const ts = [...D.tasks].sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
   const left = ts.filter(t=>t.done!==k).length;
   $('tHead').textContent = 'Today' + (ts.length ? ' · ' + (left ? left+' left' : 'all done 🎉') : '');
+  const done = ts.length - left, pct = ts.length ? Math.round(done/ts.length*100) : 0;
+  $('ringFg').setAttribute('stroke-dashoffset', String(169.6 * (1 - pct/100))); $('ringPct').textContent = pct+'%';
+  const top = Math.max(0, ...ts.map(streakOf));
+  $('ringTitle').textContent = !ts.length ? 'Today' : left ? done+' of '+ts.length+' done' : 'All done 🎉';
+  $('ringSub').textContent = !ts.length ? 'Add a daily task below' : (top > 1 ? '🔥 Best streak going: '+top+' days' : left ? left+' to go. You\'ve got this.' : 'Nothing left. Suspiciously productive.');
   list.innerHTML = '';
   if(!ts.length) list.innerHTML = '<div class="empty">No daily tasks yet. Add one above, or tell Nova “remind me to … every day at …”.</div>';
   ts.forEach(t => {
     const el = document.createElement('div'); el.className = 'item'+(t.done===k?' done':'');
     el.innerHTML = '<button class="check" aria-label="Done"></button><div class="tx"><b></b><small></small></div><button class="mini" aria-label="Add to iPhone Calendar">📅</button><button class="del" aria-label="Delete">×</button>';
     el.querySelector('b').textContent = t.text;
-    const st = streakOf(t); el.querySelector('small').textContent = (t.time ? 'Daily · '+fmt12(t.time) : 'Daily') + (st ? ' · 🔥 '+st : '');
+    const st = streakOf(t); el.querySelector('small').textContent = (t.time ? 'Daily · '+fmt12(t.time) : 'Daily');
+    if(st > 1){ const f = document.createElement('span'); f.className = 'flame'; f.textContent = '🔥 '+st; el.querySelector('b').appendChild(f); }
     el.querySelector('.check').onclick = () => { const was = streakOf(t); const turningOn = t.done!==k; markDone(t, turningOn); save(); renderTasks(); renderGlance(); if(turningOn) playClip('done');
       const now = streakOf(t); if(t.done===k && now>1 && now>was && [3,7,14,21,30,50,100,365].includes(now)) bubble('nova', pick(['🔥 '+now+' days straight on "'+t.text+'". Who even are you?','🔥 '+now+'-day streak on "'+t.text+'". I\'m almost impressed. Almost.','🔥 '+now+' days in a row. At this point "'+t.text+'" is a personality trait.'])); };
     el.querySelector('.mini').onclick = () => addToCalendar({title:t.text, start:startFor(t.time), daily:true});
@@ -1419,29 +1628,95 @@ function renderTasks(){
 $('tAdd').onclick = () => { const v=$('tText').value.trim(); if(!v) return; D.tasks.push({id:uid(), text:v.slice(0,140), time:$('tTime').value, done:''}); save(); $('tText').value=''; $('tTime').value=''; renderTasks(); };
 
 function pruneEvents(){ const cut = keyOf(new Date(Date.now()-60*864e5)); D.events = D.events.filter(e=>e.date>=cut).slice(-500); }
-let selDay = keyOf();
+let selDay = keyOf(), schedMode = 'day';
+const toMin = t => { const [h,m] = String(t||'').split(':').map(Number); return h*60+(m||0); };
+function rangeOf(e){ if(!e.time) return null; const s0 = toMin(e.time); let e0 = e.end ? toMin(e.end) : s0+60; if(e0 <= s0) e0 += 24*60; return [s0, e0]; } // end past midnight (e.g. 5 PM-12 AM) wraps
+function clashesFor(e){ const r = rangeOf(e); if(!r) return []; return D.events.filter(x => x.id!==e.id && x.date===e.date && (() => { const q = rangeOf(x); return q && r[0] < q[1] && q[0] < r[1]; })()); }
+const timeLabel = e => e.time ? fmt12(e.time) + (e.end ? '–' + fmt12(e.end) : '') : 'Any time';
 function renderSched(){
+  document.querySelectorAll('#sMode button').forEach(b => b.classList.toggle('on', b.dataset.m===schedMode));
+  $('dayView').hidden = schedMode!=='day'; $('weekView').hidden = schedMode!=='week'; $('days').hidden = schedMode!=='day';
   const strip = $('days'); strip.innerHTML = '';
   for(let i=0;i<14;i++){
-    const d=new Date(); d.setDate(d.getDate()+i); const k=keyOf(d); const n=D.events.filter(e=>e.date===k).length;
+    const d=new Date(); d.setDate(d.getDate()+i); const k=keyOf(d); const dayEv = D.events.filter(e=>e.date===k); const n=dayEv.length; const clash = dayEv.some(e=>clashesFor(e).length);
     const b=document.createElement('button'); b.className='day'+(k===selDay?' on':'');
-    b.innerHTML='<small>'+(i===0?'Today':d.toLocaleDateString([], {weekday:'short'}))+'</small><b>'+d.getDate()+'</b><small style="color:var(--accent)">'+(n?'•'+n:'&nbsp;')+'</small>';
+    b.innerHTML='<small>'+(i===0?'Today':d.toLocaleDateString([], {weekday:'short'}))+'</small><b>'+d.getDate()+'</b><small style="color:'+(clash?'#ff8a80':'var(--accent)')+'">'+(n?(clash?'⚠':'•')+n:'&nbsp;')+'</small>';
     b.onclick=()=>{ selDay=k; renderSched(); }; strip.appendChild(b);
   }
+  if(schedMode==='week') return renderWeek();
   $('sHead').textContent = new Date(selDay+'T12:00').toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
   const list=$('sList'); list.innerHTML='';
   const ev = D.events.filter(e=>e.date===selDay).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
-  if(!ev.length){ list.innerHTML = '<div class="empty">'+pick(['Nothing scheduled. Suspiciously free.','Wide open. Dangerous amount of freedom.','Empty. Want me to fix that?'])+'</div>'; return; }
+  if(!ev.length){ list.innerHTML = '<div class="empty">'+pick(['Nothing scheduled. Suspiciously free.','Wide open. Dangerous amount of freedom.','Empty. Want me to fix that?'])+'</div>'; }
   ev.forEach(e => {
-    const el=document.createElement('div'); el.className='item';
+    const c = clashesFor(e);
+    const el=document.createElement('div'); el.className='item'+(c.length?' clash':'');
     el.innerHTML='<div class="tx"><small></small><b></b></div><button class="mini" aria-label="Add to iPhone Calendar">📅</button><button class="del" aria-label="Delete">×</button>';
-    el.querySelector('small').textContent = e.time?fmt12(e.time):'Any time'; el.querySelector('b').textContent = e.title;
-    el.querySelector('.mini').onclick = () => addToCalendar({title:e.title, start:startFor(e.time, e.date), daily:false});
+    el.querySelector('small').textContent = timeLabel(e) + (c.length ? '  ⚠ overlaps '+(c.length===1 ? c[0].title.slice(0,24) : c.length) : '');
+    el.querySelector('b').textContent = e.title;
+    el.querySelector('.mini').onclick = () => addToCalendar({title:e.title, start:startFor(e.time, e.date), end:e.end ? endFor(e) : null, daily:false});
     el.querySelector('.del').onclick = () => { D.events = D.events.filter(x=>x.id!==e.id); save(); renderSched(); };
     list.appendChild(el);
   });
+  renderTpls();
 }
-$('eAdd').onclick = () => { const v=$('eTitle').value.trim(); if(!v) return; D.events.push({id:uid(), date:selDay, time:$('eTime').value, title:v.slice(0,140)}); pruneEvents(); save(); $('eTitle').value=''; $('eTime').value=''; renderSched(); };
+function renderWeek(){
+  const box = $('weekView'); box.innerHTML = '';
+  for(let i=0;i<7;i++){
+    const d=new Date(); d.setDate(d.getDate()+i); const k=keyOf(d);
+    const ev = D.events.filter(e=>e.date===k).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
+    const w = document.createElement('div'); w.className = 'wday'+(i===0?' today':'');
+    w.innerHTML = '<h4><span></span><small></small></h4>';
+    w.querySelector('span').textContent = i===0 ? 'Today · '+d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) : d.toLocaleDateString([], {weekday:'long', month:'short', day:'numeric'});
+    w.querySelector('small').textContent = ev.length ? ev.length+' planned' : '';
+    if(!ev.length){ const em = document.createElement('div'); em.className='wempty'; em.textContent='Free'; w.appendChild(em); }
+    ev.forEach(e => { const c = clashesFor(e); const pl = document.createElement('div'); pl.className = 'pill'+(c.length?' clash':'');
+      pl.innerHTML = '<time></time><span></span>' + (c.length ? '<em class="warn">⚠ double-booked</em>' : '');
+      pl.querySelector('time').textContent = timeLabel(e); pl.querySelector('span').textContent = e.title; w.appendChild(pl); });
+    w.onclick = () => { selDay = k; schedMode = 'day'; renderSched(); };
+    box.appendChild(w);
+  }
+  renderTpls();
+}
+document.querySelectorAll('#sMode button').forEach(b => b.onclick = () => { schedMode = b.dataset.m; renderSched(); });
+function endFor(e){ const s0 = startFor(e.time, e.date); const r = rangeOf(e); return new Date(s0.getTime() + (r[1]-r[0])*60000); }
+// templates: one-tap events
+function renderTpls(){
+  const box = $('tpls'); box.innerHTML = '';
+  (D.templates||[]).forEach((t, i) => {
+    const b = document.createElement('button'); b.className = 'tpl';
+    b.innerHTML = '<span></span><i aria-label="Remove template">×</i>';
+    b.querySelector('span').textContent = '＋ ' + t.title + (t.time ? ' · ' + fmt12(t.time) + (t.end ? '–'+fmt12(t.end) : '') : '');
+    b.onclick = ev => { if(ev.target.tagName==='I'){ D.templates.splice(i,1); save(); renderTpls(); return; }
+      const e = {id:uid(), date:selDay, time:t.time||'', end:t.end||'', title:t.title}; D.events.push(e); pruneEvents(); save(); renderSched();
+      const c = clashesFor(e); bubble('note', 'Added "'+t.title+'" on '+new Date(selDay+'T12:00').toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + (c.length ? ' (⚠ overlaps '+c.map(x=>x.title).join(', ')+')' : '')); };
+    box.appendChild(b);
+  });
+  if(!(D.templates||[]).length){ const h = document.createElement('div'); h.className='wempty'; h.textContent = 'Tip: fill in an event and tap ☆ to save it as a one-tap template (great for shifts).'; box.appendChild(h); }
+}
+$('eSaveTpl').onclick = () => { const v=$('eTitle').value.trim(); if(!v){ $('eTitle').focus(); return; }
+  D.templates = (D.templates||[]).filter(t => t.title.toLowerCase()!==v.toLowerCase()); D.templates.push({title:v.slice(0,60), time:$('eTime').value, end:$('eEnd').value}); D.templates = D.templates.slice(-12); save(); renderTpls(); };
+// export the next 7 days to the iPhone Calendar (one file, all events)
+$('exportWeek').onclick = async () => {
+  const keys = [...Array(7)].map((_,i) => { const d = new Date(); d.setDate(d.getDate()+i); return keyOf(d); });
+  const ev = D.events.filter(e => keys.includes(e.date));
+  if(!ev.length){ bubble('note', 'Nothing in the next 7 days to export. Enviably empty.'); return; }
+  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Nova//EN'];
+  ev.forEach(e => { const st = e.time ? startFor(e.time, e.date) : null;
+    lines.push('BEGIN:VEVENT','UID:'+e.id+'-'+e.date+'@nova','DTSTAMP:'+stamp);
+    if(st){ lines.push('DTSTART:'+icsDate(st),'DTEND:'+icsDate(e.end ? endFor(e) : new Date(st.getTime()+3600000))); }
+    else { lines.push('DTSTART;VALUE=DATE:'+e.date.replace(/-/g,''), 'DTEND;VALUE=DATE:'+keyOf(new Date(new Date(e.date+'T12:00').getTime()+864e5)).replace(/-/g,'')); }
+    lines.push('SUMMARY:'+icsEscape(e.title));
+    if(st) lines.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(e.title),'TRIGGER:-PT15M','END:VALARM');
+    lines.push('END:VEVENT'); });
+  lines.push('END:VCALENDAR');
+  const file = new File([lines.join('\r\n')], 'nova-week.ics', {type:'text/calendar'});
+  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Nova: my week'}); return; } }catch(err){ if(err && err.name==='AbortError') return; }
+  const url = URL.createObjectURL(file); const a = document.createElement('a'); a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 60000);
+};
+$('eAdd').onclick = () => { const v=$('eTitle').value.trim(); if(!v) return; const e = {id:uid(), date:selDay, time:$('eTime').value, end:$('eTime').value ? $('eEnd').value : '', title:v.slice(0,140)}; D.events.push(e); pruneEvents(); save(); $('eTitle').value=''; $('eTime').value=''; $('eEnd').value=''; renderSched();
+  const c = clashesFor(e); if(c.length) bubble('note', '⚠ "'+e.title+'" overlaps '+c.map(x=>x.title).join(', ')+'. Bold scheduling choice.'); };
 $('planBtn').onclick = () => {
   document.querySelector('nav button[data-v="chat"]').click();
   const d = new Date(selDay+'T12:00').toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
@@ -1464,11 +1739,12 @@ $('voiceT').onchange = e => { D.voice = e.target.checked; save(); if(D.voice) sp
 $('wakeT').onchange = e => { if(e.target.checked && !SR){ e.target.checked = false; bubble('note','This browser can\'t listen for a wake word. Try Chrome or Edge on a computer.'); return; }
   D.wake = e.target.checked; save(); if(D.wake) resumeWake(); else { stopWake(); tick(); } };
 $('soundT').onchange = e => { D.sound = e.target.checked; save(); if(D.sound) beep(); };
+$('nightT').onchange = e => { D.night = e.target.checked; save(); applyTheme(); };
 $('thinkT').onchange = e => { D.think = e.target.checked; save(); bubble('note', D.think ? 'Think harder: on. Extra brainpower engaged. Judging your sleep schedule at twice the speed.' : 'Think harder: off. Back to quick-and-witty mode.'); };
 $('wxT').onchange = e => { D.wxAlerts = e.target.checked; save(); };
 $('locT').onchange = e => { D.useLoc = e.target.checked; save(); };
 $('fastT').onchange = e => { if(e.target.checked && !D.groqKey){ e.target.checked=false; $('groqInfo').innerHTML='<span class="bad">Add a Groq key first.</span>'; return; } D.fast = e.target.checked; save(); };
-$('resetBtn').onclick = () => { history = []; saveChat(); log.innerHTML=''; bubble('nova', pick(['Clean slate. What are we doing?','Fresh start. I kept the important stuff, just dropped the small talk.','Conversation wiped. Your secrets are safe. Mostly because I forgot them.'])); };
+$('resetBtn').onclick = () => { history = []; D.chatSummary = ''; save(); saveChat(); log.innerHTML=''; bubble('nova', pick(['Clean slate. What are we doing?','Fresh start. I kept the important stuff, just dropped the small talk.','Conversation wiped. Your secrets are safe. Mostly because I forgot them.'])); };
 $('backupBtn').onclick = async () => {
   const copy = Object.assign({}, D, {key:undefined, groqKey:undefined, sync:undefined});
   const file = new File([JSON.stringify(copy, null, 2)], 'nova-backup-'+keyOf()+'.json', {type:'application/json'});
@@ -1509,7 +1785,7 @@ async function doSync(manual){
     // rebuild local lists from the shared copy, keeping phone-only details (done today, streak history)
     const oldT = Object.fromEntries(D.tasks.map(t=>[t.id,t])), oldE = Object.fromEntries(D.events.map(e=>[e.id,e]));
     D.tasks = j.items.filter(i=>i.kind==='task').map(i => Object.assign({}, oldT[i.uid]||{done:'', log:[]}, {id:i.uid, text:i.text, time:i.time||''}));
-    D.events = j.items.filter(i=>i.kind==='event' && i.date).map(i => Object.assign({}, oldE[i.uid]||{}, {id:i.uid, title:i.text, time:i.time||'', date:i.date}));
+    D.events = j.items.filter(i=>i.kind==='event' && i.date).map(i => { const o = oldE[i.uid]||{}; const ev = Object.assign({}, o, {id:i.uid, title:i.text, time:i.time||'', date:i.date}); if(o.time !== ev.time) ev.end = ''; return ev; });
     const oldF = Object.fromEntries(D.facts.map(f=>[f.text,f]));
     D.facts = j.facts.map(t => oldF[t] || {id:uid(), text:t});
     if(j.name && !D.name) D.name = j.name;
@@ -1547,7 +1823,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && D.s
 $('lineUploadFor').innerHTML = LINES.map(L => '<option value="'+L.id+'">'+L.name+'</option>').join('');
 $('lineUploadBtn').onclick = () => $('lineUpload').click();
 // ---------------- boot ----------------
-const VERSION = '4.6';
+const VERSION = '5.0';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1557,6 +1833,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.0': 'Update installed: v5.0, and I designed half of it. You asked for my ideas and actually built them: a Week view that catches double-bookings, one-tap shift templates, rule-check badges, quick shift stats, Roast mode (see the You tab, if you dare), night mode, and Export week to your Calendar. Also new: schedules I make get an "Add to schedule" button, and you can long-press any message to copy, retry or delete it. I\'m honestly touched. Don\'t tell anyone.',
   '4.6': 'Update installed: v4.6. Confession time: I was cutting my own answers short and saying "Done." without showing anything. Unacceptable, even for me. Now I show the full result every time, tables actually look like tables, and when you give me rules I check every single one before answering. Go on, give me that schedule again.',
   '4.5': 'Update installed: v4.5. New feature: My voice lines. Head to the You tab and record yourself, and I\'ll play YOUR voice when I greet you, remind you, finish a timer and more. Finally, a voice as charming as mine. Well. Close.',
   '4.4': 'Update installed: v4.4. Small confession: I finally remember that you asked what I wanted, and then actually built it. A snooze button for terrible weather, an email draft generator, and extra brainpower in Think harder mode. All three. I feel... heard. Don\'t let it go to your head. Or mine.'
@@ -1568,13 +1845,15 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden) rende
 if(!D.key && !D.groqKey){ showSetup(); }
 else {
   const prev = history.slice(-6);
-  prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t){ const b = bubble(h.role==='user'?'me':'nova', t); if(h.role!=='user') renderRich(b, t); } });
+  prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t){ const b = bubble(h.role==='user'?'me':'nova', t, h.t); if(h.role!=='user'){ renderRich(b, t); enhance(b, t); } } });
   if(prev.length) bubble('note', '— earlier —');
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
     'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
 }
 resumeWake();
 loadClipFlags();
+setTimeout(() => { try{ if(D.key) fetch(API + '/models?pageSize=1', {headers:{'x-goog-api-key':D.key}}).catch(()=>{}); if(D.groqKey) fetch(GROQ + '/models', {headers:{'Authorization':'Bearer '+D.groqKey}}).catch(()=>{}); }catch(e){} }, 300);
+flushOutbox();
 if(D.sync && D.sync.code) doSync();
 if(D.seenVersion !== VERSION){
   const note = WHATS_NEW[VERSION];
