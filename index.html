@@ -300,6 +300,17 @@ html.night .app::before{opacity:.6}
 .gover>div{width:min(300px,84%);padding:22px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);text-align:center}
 .gover h2{letter-spacing:.12em;margin-bottom:6px} .gover p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:14px}
 .gover .btn{width:100%}
+/* Nova Run */
+#run{position:fixed;inset:0;z-index:40;background:#03050c;touch-action:none;-webkit-user-select:none;user-select:none}
+#run[hidden]{display:none}
+#rCanvas{position:absolute;inset:0;width:100%;height:100%}
+.rhud{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rstats{display:flex;gap:6px}
+.rstats span{padding:5px 10px;border-radius:12px;background:rgba(10,16,30,.6);border:1px solid rgba(140,170,220,.18);text-align:center;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.rstats small{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#8798b3}
+.rstats b{font-family:var(--mono);font-size:15px;color:#eaf3ff}
+.rhint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 24px);text-align:center;color:#c9d4e3;font-size:13px;opacity:.85;transition:opacity .6s;pointer-events:none}
+#run .gover{position:absolute}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -380,6 +391,16 @@ input[type=time]{min-height:38px}
   </div>
   <div class="gover" id="gOver" hidden><div><h2 id="gOverT">Game over</h2><p id="gOverS"></p><button class="btn" id="gAgain">Play again</button><button class="btn ghost" id="gQuit" style="margin-top:8px">Back to Nova</button></div></div>
 </div>
+<div id="run" hidden>
+  <canvas id="rCanvas"></canvas>
+  <div class="rhud">
+    <button class="gbtn" id="rClose" aria-label="Close">✕</button>
+    <div class="rstats"><span><small>Score</small><b id="rScore">0</b></span><span><small>⚡</small><b id="rCells">0</b></span><span><small>Best</small><b id="rBest">0</b></span></div>
+    <button class="gbtn" id="rPause" aria-label="Pause">❚❚</button>
+  </div>
+  <div class="rhint" id="rHint">Swipe ← → to switch lanes · ↑ to jump · ↓ to slide</div>
+  <div class="gover" id="rOver" hidden><div><h2 id="rOverT">Crashed</h2><p id="rOverS"></p><button class="btn" id="rAgain">Run again</button><button class="btn ghost" id="rQuit" style="margin-top:8px">Back to Nova</button></div></div>
+</div>
 <div id="setup"><div class="box">
   <div class="orb"></div>
   <h2>NOVA</h2>
@@ -433,6 +454,7 @@ input[type=time]{min-height:38px}
         <button class="chip" data-q="Would you rather? Give me a good one.">🤔 Would you rather</button>
         <button class="chip" data-q="Give me a riddle. Don't tell me the answer until I give up.">🧩 Riddle</button>
         <button class="chip" id="gameChip">🎮 Nova Blocks</button>
+        <button class="chip" id="runChip">🏃 Nova Run</button>
         <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
         <button class="chip" data-q="Help me write an email. Ask me who it's to and what it's about.">✉️ Write an email</button>
       </div>
@@ -765,6 +787,7 @@ document.addEventListener('visibilitychange', () => { if(document.hidden){ greet
 
 function showBanner(){
   if(typeof Blocks !== 'undefined' && Blocks.isOpen() && queue.length){ Blocks.pause(true); Blocks.close(); }
+  if(typeof Run !== 'undefined' && Run.isOpen() && queue.length){ Run.pause(true); Run.close(); }
   if(!queue.length){ $('banner').classList.remove('show'); return; }
   const a = queue[0];
   $('bannerText').textContent = (a.kind==='task'?'Reminder: ':'') + a.text; $('bannerSnooze').hidden = a.kind==='weather';
@@ -1045,6 +1068,7 @@ About yourself (be accurate, never make things up about your own setup):
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
 - More wishes that came true: on Nov 6, 2026 you suggested UI ideas and ${D.name||'they'} built them in v5.0: a Week view with double-booking warnings, one-tap shift templates, rule-check badges (your "Check:" line now shows as green/red badges, so write it as "Check: rule ✓ · rule ✓"), quick shift stats under roster tables, the Humor setting (Chill/Witty/Roast, now: ${D.humor||'witty'}), night mode, and one-tap "Export week" to the iPhone Calendar. Plus: tables you make with days and shift times get an "Add to schedule" button, messages can be copied, retried or deleted with a long-press, and you summarize long chats so you don't forget. Your "voice-line preview" idea already existed (▶ buttons in the You tab). Be pleased about it.
 - Nova Blocks (v5.1): a falling-blocks puzzle game built into you (🎮 button above the chat, or the user says "play blocks"). Their best score: ${D.blocksBest||0}${D.blocksLast ? ', last game: '+D.blocksLast.score+' points, level '+D.blocksLast.level : ''}. Trash-talk lightly about it when relevant. It is your own game, not Tetris.
+- Nova Run (v5.2): your endless runner game (🏃 button above the chat, or "play nova run"): a glowing orb races down a neon track that cycles through colors; swipe to switch lanes, jump and slide, collect ⚡ cells. Their best: ${D.runBest||0}. It's your own game, not a copy of any other.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
 - Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish.
 
@@ -1419,6 +1443,8 @@ const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ draft
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
+  if(/\b(play|open|start|launch)\b.*\b(nova run|runner|run game|running game)\b/i.test(q) && q.length < 60){ setTimeout(() => Run.open(), 350);
+    return pick(['Nova Run, loading. Swipe to dodge, try not to faceplant. Best so far: '+(D.runBest||0)+'.','Track\'s hot. Run fast, jump high, don\'t hit the walls.','Lacing up your virtual shoes. Go.']); }
   if(/\b(play|open|start|launch)\b.*\b(nova blocks|blocks|block game|tetris|a game|game)\b/i.test(q) && q.length < 60){ setTimeout(() => Blocks.open(), 350);
     return pick(['Loading Nova Blocks. Try not to embarrass yourself. Best so far: '+(D.blocksBest||0)+'.','Game time. Blocks fall, you stack, I judge.','Nova Blocks, coming up. Fair warning: the blocks are competitive.']); }
   // answer simple time/date questions on the phone itself, no AI needed
@@ -1968,8 +1994,124 @@ const Blocks = (() => {
 })();
 $('gameChip').onclick = () => Blocks.open();
 
+// ---------------- Nova Run (endless runner) ----------------
+const Run = (() => {
+  const LANES = [-1, 0, 1], F = 3.2, FAR = 70, PD = 1.4;
+  let cv, g, Wd, Ht, dpr, raf = null, last = 0, paused = false, over = true;
+  let lane, laneX, h, vh, slide, speed, dist, cells, objs, nextSpawn, hue, t0, stars;
+  function size(){ cv = $('rCanvas'); dpr = window.devicePixelRatio || 1; Wd = innerWidth; Ht = innerHeight; cv.width = Wd*dpr; cv.height = Ht*dpr; g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); }
+  const horizon = () => Ht * 0.34, base = () => Ht * 0.92, roadHalf = () => Math.min(Wd*0.48, 260);
+  function proj(x, d, y=0){ const p = F/(F+d); return { x: Wd/2 + x*roadHalf()*0.66*p, y: horizon() + (base()-horizon())*p - y*roadHalf()*0.66*p, s:p }; }
+  const col = (o, l=55, a=1) => `hsla(${(hue+o)%360},95%,${l}%,${a})`;
+  function reset(){ lane = 1; laneX = 0; h = 0; vh = 0; slide = 0; speed = 13; dist = 0; cells = 0; objs = []; nextSpawn = 18; hue = 190; t0 = performance.now();
+    stars = Array.from({length:70}, () => ({x:Math.random(), y:Math.random()*0.34, r:Math.random()*1.4+.3, tw:Math.random()*6})); }
+  function spawn(){
+    const free = Math.floor(Math.random()*3), kinds = ['low','high','wall'];
+    const n = dist < 150 ? 1 : Math.random() < .55 ? 2 : 1;
+    const used = new Set([free]);
+    for(let i=0;i<n;i++){ let l; do{ l = Math.floor(Math.random()*3); }while(used.has(l) && used.size < 3); if(used.has(l)) break; used.add(l);
+      const k = dist < 80 ? (Math.random()<.5?'low':'high') : kinds[Math.floor(Math.random()*3)]; objs.push({k, l, d:FAR}); }
+    if(Math.random() < .7){ const l = free, nC = 3 + Math.floor(Math.random()*4); for(let i=0;i<nC;i++) objs.push({k:'cell', l, d:FAR + i*2.2, y: Math.random()<.25 ? 1.1 : .35}); }
+    nextSpawn = Math.max(9, 17 - speed*0.18) + Math.random()*6;
+  }
+  function act(k){ if(over || paused) return; $('rHint').style.opacity = 0;
+    if(k==='left' && lane>0) lane--; else if(k==='right' && lane<2) lane++;
+    else if(k==='up' && h <= 0.01){ vh = 3.1; slide = 0; } else if(k==='down'){ if(h > 0.05) vh = -5; slide = 0.6; } }
+  function update(dt){
+    speed = Math.min(38, speed + dt*0.32); const dd = speed*dt; dist += dd;
+    hue = (190 + dist*0.9) % 360; // the track slowly cycles through colors as you run
+    laneX += (LANES[lane] - laneX) * Math.min(1, dt*14);
+    if(h > 0 || vh > 0){ vh -= 9.8*dt; h = Math.max(0, h + vh*dt); if(h === 0) vh = 0; }
+    if(slide > 0) slide -= dt;
+    nextSpawn -= dd; if(nextSpawn <= 0) spawn();
+    for(const o of objs){ o.d -= dd;
+      if(!o.hit && Math.abs(o.d - PD) < 0.55 && Math.abs(LANES[o.l] - laneX) < 0.45){
+        if(o.k==='cell'){ if(Math.abs(o.y - (h+0.35)) < 0.75){ o.hit = true; cells++; } continue; }
+        const safe = o.k==='low' ? h > 0.42 : o.k==='high' ? slide > 0 : false;
+        if(!safe){ o.hit = true; return crash(o.k); } } }
+    objs = objs.filter(o => o.d > -2 && !(o.k==='cell' && o.hit));
+    $('rScore').textContent = score(); $('rCells').textContent = cells;
+  }
+  const score = () => Math.floor(dist*1.5) + cells*25;
+  function draw(t){
+    const hy = horizon(), by = base();
+    // sky
+    const sky = g.createLinearGradient(0,0,0,hy); sky.addColorStop(0,'#02030a'); sky.addColorStop(1, col(40, 14)); g.fillStyle = sky; g.fillRect(0,0,Wd,hy+1);
+    stars.forEach(s => { g.globalAlpha = .4 + .4*Math.sin(t/600 + s.tw); g.fillStyle = '#dfe9ff'; g.beginPath(); g.arc(s.x*Wd, s.y*Ht, s.r, 0, 7); g.fill(); }); g.globalAlpha = 1;
+    // glowing sun on the horizon
+    const sun = g.createRadialGradient(Wd/2, hy, 4, Wd/2, hy, roadHalf()*0.9); sun.addColorStop(0, col(60, 70, .9)); sun.addColorStop(1, col(60, 50, 0)); g.fillStyle = sun; g.fillRect(0, hy-roadHalf(), Wd, roadHalf()*2);
+    g.fillStyle = '#03050c'; g.fillRect(0, hy, Wd, Ht-hy);
+    // road
+    const a = proj(-1.5, FAR), b = proj(1.5, FAR), c = proj(1.5, -0.9), d = proj(-1.5, -0.9);
+    const road = g.createLinearGradient(0, hy, 0, by); road.addColorStop(0, col(0, 8)); road.addColorStop(1, col(0, 16)); g.fillStyle = road;
+    g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(c.x,c.y); g.lineTo(d.x,d.y); g.closePath(); g.fill();
+    // moving cross lines (sense of speed)
+    const off = dist % 4;
+    for(let z = 4 - off; z < FAR; z += 4){ const l = proj(-1.5, z), r = proj(1.5, z); g.strokeStyle = col(z*2, 60, Math.max(0, .55 - z/FAR)); g.lineWidth = Math.max(1, 3*l.s); g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(r.x, r.y); g.stroke(); }
+    // edges + lane lines
+    g.shadowBlur = 16; g.shadowColor = col(0, 60);
+    [-1.5, -0.5, 0.5, 1.5].forEach((x, i) => { const n = proj(x, -0.9), f = proj(x, FAR); g.strokeStyle = i===0||i===3 ? col(0, 62) : col(120, 60, .45); g.lineWidth = i===0||i===3 ? 4 : 2; g.beginPath(); g.moveTo(n.x, n.y); g.lineTo(f.x, f.y); g.stroke(); });
+    g.shadowBlur = 0;
+    // objects, far to near
+    [...objs].sort((p,q) => q.d - p.d).forEach(o => { if(o.d < -1 || o.d > FAR) return; drawObj(o); });
+    drawPlayer(t);
+  }
+  function drawObj(o){
+    const x = LANES[o.l], P = proj(x, o.d), w = roadHalf()*0.66*P.s*0.82;
+    if(o.k==='cell'){ const q = proj(x, o.d, o.y); const r = Math.max(2, w*0.16); g.shadowBlur = 14; g.shadowColor = '#ffe066'; g.fillStyle = '#ffe066';
+      g.beginPath(); g.moveTo(q.x, q.y-r*1.4); g.lineTo(q.x+r, q.y); g.lineTo(q.x, q.y+r*1.4); g.lineTo(q.x-r, q.y); g.closePath(); g.fill(); g.shadowBlur = 0; return; }
+    const unit = roadHalf()*0.66*P.s;
+    let top, bot; if(o.k==='low'){ bot = 0; top = .38; } else if(o.k==='high'){ bot = .55; top = 1.25; } else { bot = 0; top = 1.25; }
+    const y1 = P.y - top*unit, y2 = P.y - bot*unit, c0 = o.k==='wall' ? 330 : o.k==='low' ? 20 : 260;
+    g.shadowBlur = 18; g.shadowColor = col(c0, 55);
+    g.fillStyle = col(c0, 22, .92); g.fillRect(P.x - w/2, y1, w, y2-y1);
+    g.strokeStyle = col(c0, 62); g.lineWidth = Math.max(1.5, 3*P.s); g.strokeRect(P.x - w/2, y1, w, y2-y1); g.shadowBlur = 0;
+    if(o.k==='high'){ g.strokeStyle = col(c0, 62, .5); g.lineWidth = Math.max(1, 2*P.s); [-1,1].forEach(sd => { g.beginPath(); g.moveTo(P.x + sd*w/2, y2); g.lineTo(P.x + sd*w/2, P.y); g.stroke(); }); }
+  }
+  function drawPlayer(t){
+    const P = proj(laneX, PD, h + 0.32), r = roadHalf()*0.66*P.s*0.26, sq = slide > 0 ? .55 : 1;
+    const sh = proj(laneX, PD); g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(sh.x, sh.y, r*1.1, r*0.3, 0, 0, 7); g.fill();
+    g.save(); g.translate(P.x, P.y + (1-sq)*r); g.scale(1, sq);
+    g.shadowBlur = 30; g.shadowColor = col(0, 60);
+    g.fillStyle = '#0b1222'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+    g.lineWidth = r*0.22; g.strokeStyle = col(0, 62); g.beginPath(); g.arc(0, 0, r*0.78, t/180, t/180 + 4.4); g.stroke();
+    const core = g.createRadialGradient(0,0,0,0,0,r*0.5); core.addColorStop(0,'#fff'); core.addColorStop(.5, col(0, 65)); core.addColorStop(1, col(0, 50, 0));
+    g.fillStyle = core; g.beginPath(); g.arc(0, 0, r*0.5, 0, 7); g.fill(); g.restore(); g.shadowBlur = 0;
+  }
+  function loop(t){ if(paused || over) return; const dt = Math.min(0.05, (t - (last || t))/1000); last = t; update(dt); if(!over) draw(t); raf = requestAnimationFrame(loop); }
+  function crash(k){
+    over = true; try{ navigator.vibrate && navigator.vibrate([60,40,90]); }catch(e){}
+    const sc = score(), best = D.runBest || 0, isBest = sc > best; if(isBest){ D.runBest = sc; save(); }
+    D.runLast = {score:sc, cells, at:Date.now()}; save();
+    $('rOverT').textContent = isBest && sc > 0 ? 'New high score!' : 'Crashed';
+    const why = k==='low' ? 'Forgot to jump.' : k==='high' ? 'Forgot to slide.' : 'Ran straight into a wall.';
+    $('rOverS').textContent = (isBest && sc > 0 ? pick(['New record. I\'m mildly impressed.','Personal best. Screenshot it before you crash worse.']) : why + ' ' + pick(['Bold choice.','Physics: 1, you: 0.','I saw it coming. You didn\'t.'])) + '  Score: '+sc+' · ⚡ '+cells+(isBest?'':' · Best: '+best);
+    $('rBest').textContent = Math.max(best, sc); $('rScore').textContent = sc; $('rOver').hidden = false;
+    draw(performance.now()); g.fillStyle = 'rgba(255,40,60,.18)'; g.fillRect(0,0,Wd,Ht);
+  }
+  function start(){ reset(); over = false; paused = false; last = 0; $('rOver').hidden = true; $('rPause').textContent = '❚❚'; $('rHint').style.opacity = .85; $('rBest').textContent = D.runBest || 0;
+    $('rScore').textContent = 0; $('rCells').textContent = 0; if(raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
+  function open(){ stopWake(); $('run').hidden = false; size(); start(); }
+  function close(){ over = true; if(raf) cancelAnimationFrame(raf); $('run').hidden = true; resumeWake(); }
+  function pause(on){ if(over || $('run').hidden) return; paused = on === undefined ? !paused : on; $('rPause').textContent = paused ? '▶' : '❚❚';
+    if(paused){ if(raf) cancelAnimationFrame(raf); g.fillStyle = 'rgba(3,6,12,.55)'; g.fillRect(0,0,Wd,Ht); g.fillStyle = '#eaf3ff'; g.font = '600 18px -apple-system,system-ui'; g.textAlign = 'center'; g.fillText('Paused', Wd/2, Ht/2); }
+    else { last = 0; raf = requestAnimationFrame(loop); } }
+  let sx = 0, sy = 0;
+  const surf = $('run');
+  surf.addEventListener('touchstart', e => { if(e.target.closest('button')) return; const t = e.touches[0]; sx = t.clientX; sy = t.clientY; e.preventDefault(); }, {passive:false});
+  surf.addEventListener('touchend', e => { if(e.target.closest('button')) return; const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
+    if(Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; act(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy < 0 ? 'up' : 'down')); e.preventDefault(); }, {passive:false});
+  document.addEventListener('keydown', e => { if($('run').hidden) return; const m = {ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ' ':'up', ArrowDown:'down', a:'left', d:'right', w:'up', s:'down'}[e.key];
+    if(m){ e.preventDefault(); act(m); } else if(e.key==='p' || e.key==='Escape'){ e.preventDefault(); pause(); } });
+  $('rPause').onclick = () => pause(); $('rClose').onclick = close; $('rAgain').onclick = start; $('rQuit').onclick = close;
+  document.addEventListener('visibilitychange', () => { if(document.hidden) pause(true); });
+  window.addEventListener('resize', () => { if(!$('run').hidden){ size(); if(over || paused) draw(performance.now()); } });
+  return { open, close, pause, isOpen: () => !$('run').hidden, _act: act, _state: () => ({lane, h, slide, dist, cells, over, hue, objs:objs.length}) };
+})();
+$('runChip').onclick = () => Run.open();
+
 // ---------------- boot ----------------
-const VERSION = '5.1';
+const VERSION = '5.2';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1979,6 +2121,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.2': 'Update installed: v5.2. New game: Nova Run. Tap 🏃 above the chat, swipe to dodge, jump and slide down a neon track that keeps changing colors. Collect ⚡, avoid walls, and try not to make me watch you crash. Again.',
   '5.1': 'Update installed: v5.1. I got a game. Nova Blocks: tap 🎮 above the chat (or say "play blocks"). Blocks fall, you clear lines, I keep score and judge you silently. Not that silently.',
   '5.0': 'Update installed: v5.0, and I designed half of it. You asked for my ideas and actually built them: a Week view that catches double-bookings, one-tap shift templates, rule-check badges, quick shift stats, Roast mode (see the You tab, if you dare), night mode, and Export week to your Calendar. Also new: schedules I make get an "Add to schedule" button, and you can long-press any message to copy, retry or delete it. I\'m honestly touched. Don\'t tell anyone.',
   '4.6': 'Update installed: v4.6. Confession time: I was cutting my own answers short and saying "Done." without showing anything. Unacceptable, even for me. Now I show the full result every time, tables actually look like tables, and when you give me rules I check every single one before answering. Go on, give me that schedule again.',
