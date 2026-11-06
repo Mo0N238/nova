@@ -1998,13 +1998,16 @@ $('gameChip').onclick = () => Blocks.open();
 const Run = (() => {
   const LANES = [-1, 0, 1], F = 3.2, FAR = 70, PD = 1.4;
   let cv, g, Wd, Ht, dpr, raf = null, last = 0, paused = false, over = true;
-  let lane, laneX, h, vh, slide, speed, dist, cells, objs, nextSpawn, hue, t0, stars;
+  let lane, laneX, h, vh, slide, speed, dist, cells, objs, nextSpawn, hue, t0, stars, hills, shoot, dust;
   function size(){ cv = $('rCanvas'); dpr = window.devicePixelRatio || 1; Wd = innerWidth; Ht = innerHeight; cv.width = Wd*dpr; cv.height = Ht*dpr; g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); }
   const horizon = () => Ht * 0.34, base = () => Ht * 0.92, roadHalf = () => Math.min(Wd*0.48, 260);
   function proj(x, d, y=0){ const p = F/(F+d); return { x: Wd/2 + x*roadHalf()*0.66*p, y: horizon() + (base()-horizon())*p - y*roadHalf()*0.66*p, s:p }; }
   const col = (o, l=55, a=1) => `hsla(${(hue+o)%360},95%,${l}%,${a})`;
   function reset(){ lane = 1; laneX = 0; h = 0; vh = 0; slide = 0; speed = 13; dist = 0; cells = 0; objs = []; nextSpawn = 18; hue = 190; t0 = performance.now();
-    stars = Array.from({length:70}, () => ({x:Math.random(), y:Math.random()*0.34, r:Math.random()*1.4+.3, tw:Math.random()*6})); }
+    stars = Array.from({length:90}, () => ({x:Math.random(), y:Math.random()*0.34, r:Math.random()*1.4+.3, tw:Math.random()*6}));
+    const ridge = (n, lo, hi) => Array.from({length:n+1}, (_, i) => lo + Math.random()*(hi-lo) * (0.55 + 0.45*Math.abs(Math.sin(i*1.7))));
+    hills = { far: ridge(26, .05, .16), near: ridge(18, .03, .11) };
+    shoot = null; dust = Array.from({length:26}, () => ({x:(Math.random()<.5?-1:1)*(1.8+Math.random()*3), d:Math.random()*FAR, y:Math.random()*2.2})); }
   function spawn(){
     const free = Math.floor(Math.random()*3), kinds = ['low','high','wall'];
     const n = dist < 150 ? 1 : Math.random() < .55 ? 2 : 1;
@@ -2038,9 +2041,44 @@ const Run = (() => {
     // sky
     const sky = g.createLinearGradient(0,0,0,hy); sky.addColorStop(0,'#02030a'); sky.addColorStop(1, col(40, 14)); g.fillStyle = sky; g.fillRect(0,0,Wd,hy+1);
     stars.forEach(s => { g.globalAlpha = .4 + .4*Math.sin(t/600 + s.tw); g.fillStyle = '#dfe9ff'; g.beginPath(); g.arc(s.x*Wd, s.y*Ht, s.r, 0, 7); g.fill(); }); g.globalAlpha = 1;
-    // glowing sun on the horizon
-    const sun = g.createRadialGradient(Wd/2, hy, 4, Wd/2, hy, roadHalf()*0.9); sun.addColorStop(0, col(60, 70, .9)); sun.addColorStop(1, col(60, 50, 0)); g.fillStyle = sun; g.fillRect(0, hy-roadHalf(), Wd, roadHalf()*2);
+    // shooting stars
+    if(!shoot && Math.random() < 0.006) shoot = {x:Math.random()*Wd, y:Math.random()*hy*0.5, life:1};
+    if(shoot){ g.strokeStyle = `rgba(230,240,255,${shoot.life})`; g.lineWidth = 1.6; g.beginPath(); g.moveTo(shoot.x, shoot.y); g.lineTo(shoot.x - 70*shoot.life, shoot.y - 26*shoot.life); g.stroke();
+      shoot.x += 9; shoot.y += 3.4; shoot.life -= 0.03; if(shoot.life <= 0) shoot = null; }
+    const par = -laneX * 14; // scenery shifts a little when you change lanes
+    // ringed planet
+    const px = Wd*0.2 + par*0.4, py = hy*0.38, pr = Math.min(Wd, Ht)*0.11;
+    const pg = g.createRadialGradient(px - pr*.4, py - pr*.4, pr*.1, px, py, pr); pg.addColorStop(0, col(180, 62)); pg.addColorStop(1, col(200, 16));
+    g.save(); g.translate(px, py); g.rotate(-0.35); g.strokeStyle = col(170, 70, .35); g.lineWidth = pr*0.08; g.beginPath(); g.ellipse(0, 0, pr*1.75, pr*0.42, 0, Math.PI, 2*Math.PI); g.stroke(); g.restore();
+    g.fillStyle = pg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
+    g.save(); g.translate(px, py); g.rotate(-0.35); g.strokeStyle = col(170, 75, .55); g.lineWidth = pr*0.08; g.beginPath(); g.ellipse(0, 0, pr*1.75, pr*0.42, 0, 0, Math.PI); g.stroke(); g.restore();
+    // glowing sun with stripes, sitting on the horizon
+    const sr = roadHalf()*0.62, sx = Wd/2 + par*0.2;
+    const halo = g.createRadialGradient(sx, hy, 4, sx, hy, sr*2); halo.addColorStop(0, col(60, 70, .55)); halo.addColorStop(1, col(60, 50, 0)); g.fillStyle = halo; g.fillRect(0, hy - sr*2, Wd, sr*2);
+    g.save(); g.beginPath(); g.rect(0, 0, Wd, hy); g.clip();
+    const sg = g.createLinearGradient(0, hy - sr, 0, hy); sg.addColorStop(0, col(50, 72)); sg.addColorStop(1, col(0, 58)); g.fillStyle = sg; g.beginPath(); g.arc(sx, hy, sr, Math.PI, 0); g.fill();
+    g.fillStyle = '#02030a'; for(let k=0;k<6;k++){ const yy = hy - sr*0.08 - k*sr*0.13, th = sr*0.035*(6-k)/6 + 1; g.fillRect(sx - sr, yy, sr*2, th); }
+    g.restore();
+    // two layers of mountains with neon ridgelines
+    [['far', .5, 14, .55], ['near', .9, 8, .9]].forEach(([k, pf, l, a]) => { const pts = hills[k], n = pts.length - 1, span = Wd*1.3, x0 = (Wd - span)/2 + par*pf;
+      g.beginPath(); g.moveTo(x0, hy); pts.forEach((v, i) => g.lineTo(x0 + span*i/n, hy - v*Ht)); g.lineTo(x0 + span, hy); g.closePath();
+      g.fillStyle = `hsla(${(hue + (k==='far'?30:0))%360},${k==='far'?55:45}%,${k==='far'?11:6}%,1)`; g.fill(); g.strokeStyle = col(k==='far'?200:0, 60, a*0.8); g.lineWidth = k==='far' ? 1.2 : 2; g.shadowBlur = 10; g.shadowColor = col(0, 60); g.stroke(); g.shadowBlur = 0; });
     g.fillStyle = '#03050c'; g.fillRect(0, hy, Wd, Ht-hy);
+    // neon floor grid beyond the track
+    const goff = dist % 4;
+    g.lineWidth = 1;
+    for(let z = 4 - goff; z < FAR; z += 4){ const l = proj(-14, z), r = proj(14, z); g.strokeStyle = col(140, 55, Math.max(0, .22 - z/FAR*0.25)); g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(r.x, r.y); g.stroke(); }
+    for(let x = -13; x <= 13; x += 2){ if(Math.abs(x) < 2) continue; const n = proj(x, -0.9), f = proj(x, FAR); g.strokeStyle = col(140, 55, .12); g.beginPath(); g.moveTo(n.x, n.y); g.lineTo(f.x, f.y); g.stroke(); }
+    // light pillars rushing past both sides
+    const poff = dist % 9;
+    for(let z = FAR - ((FAR - 9 + poff) % 9); z > -0.8; z -= 9){ [-2.3, 2.3].forEach(x => { const b0 = proj(x, z), t0_ = proj(x, z, 2.6 + (Math.floor((dist - poff + z)/9) % 3)*0.5);
+      const w = Math.max(1.5, 7*b0.s); g.shadowBlur = 20*b0.s + 4; g.shadowColor = col(z*4, 60);
+      const pgr = g.createLinearGradient(0, t0_.y, 0, b0.y); pgr.addColorStop(0, col(z*4, 70, .95)); pgr.addColorStop(1, col(z*4, 40, .15));
+      g.fillStyle = pgr; g.fillRect(b0.x - w/2, t0_.y, w, b0.y - t0_.y);
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(t0_.x, t0_.y, w*0.7, 0, 7); g.fill(); g.shadowBlur = 0; }); }
+    // drifting sparks for a sense of speed
+    dust.forEach(p => { p.d -= speed*0.016; if(p.d < -1){ p.d = FAR; p.x = (Math.random()<.5?-1:1)*(1.8+Math.random()*3); p.y = Math.random()*2.2; }
+      const q = proj(p.x, p.d, p.y), q2 = proj(p.x, p.d + 1.4, p.y); g.strokeStyle = col(90, 75, Math.min(.8, q.s*1.2)); g.lineWidth = Math.max(1, 2.2*q.s); g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(q2.x, q2.y); g.stroke(); });
     // road
     const a = proj(-1.5, FAR), b = proj(1.5, FAR), c = proj(1.5, -0.9), d = proj(-1.5, -0.9);
     const road = g.createLinearGradient(0, hy, 0, by); road.addColorStop(0, col(0, 8)); road.addColorStop(1, col(0, 16)); g.fillStyle = road;
