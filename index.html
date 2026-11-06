@@ -278,6 +278,28 @@ html.night .app::before{opacity:.6}
 .ringtx b{display:block;font-size:15px}
 .ringtx small{color:var(--muted);font-size:12px}
 .flame{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(255,140,60,.14);color:#ffb070;vertical-align:1px}
+/* Nova Blocks */
+#game{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 6px) 12px calc(env(safe-area-inset-bottom) + 10px);touch-action:none;-webkit-user-select:none;user-select:none}
+#game[hidden]{display:none}
+.ghud{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.gtitle{font-size:15px;letter-spacing:.3em;color:var(--muted)} .gtitle b{color:var(--accent);font-weight:700}
+.gbtn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:14px}
+.gmain{flex:1;min-height:0;display:flex;gap:10px;justify-content:center;align-items:flex-start}
+#gBoard{border-radius:12px;border:1px solid var(--line);background:rgba(8,12,22,.85);box-shadow:0 0 30px var(--glow)}
+.gside{display:flex;flex-direction:column;gap:8px;width:84px}
+.gstat{padding:7px 8px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.gstat small{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.gstat b{font-family:var(--mono);font-size:16px}
+.gstat canvas{display:block;margin-top:4px}
+.gpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.gpad button{height:52px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:20px}
+.gpad button:active{background:var(--tint);transform:scale(.96)}
+.gpad .wide{grid-column:span 2;font-size:14px;letter-spacing:.2em;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#03111a;font-weight:700;border:none}
+.gover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.gover[hidden]{display:none}
+.gover>div{width:min(300px,84%);padding:22px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);text-align:center}
+.gover h2{letter-spacing:.12em;margin-bottom:6px} .gover p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:14px}
+.gover .btn{width:100%}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
   background:rgba(140,170,220,.22);position:relative;transition:background .2s;cursor:pointer}
@@ -336,6 +358,28 @@ input[type=time]{min-height:38px}
 </style>
 </head>
 <body>
+<div id="game" hidden>
+  <div class="ghud">
+    <button class="gbtn" id="gClose" aria-label="Close">✕</button>
+    <div class="gtitle">NOVA <b>BLOCKS</b></div>
+    <button class="gbtn" id="gPause" aria-label="Pause">❚❚</button>
+  </div>
+  <div class="gmain">
+    <canvas id="gBoard"></canvas>
+    <div class="gside">
+      <div class="gstat"><small>Score</small><b id="gScore">0</b></div>
+      <div class="gstat"><small>Level</small><b id="gLevel">1</b></div>
+      <div class="gstat"><small>Lines</small><b id="gLines">0</b></div>
+      <div class="gstat"><small>Next</small><canvas id="gNext" width="72" height="72"></canvas></div>
+      <div class="gstat"><small>Best</small><b id="gBest">0</b></div>
+    </div>
+  </div>
+  <div class="gpad">
+    <button data-k="left" aria-label="Left">◀</button><button data-k="rot" aria-label="Rotate">⟳</button><button data-k="right" aria-label="Right">▶</button>
+    <button data-k="soft" aria-label="Down">▼</button><button data-k="drop" class="wide" aria-label="Drop">DROP</button>
+  </div>
+  <div class="gover" id="gOver" hidden><div><h2 id="gOverT">Game over</h2><p id="gOverS"></p><button class="btn" id="gAgain">Play again</button><button class="btn ghost" id="gQuit" style="margin-top:8px">Back to Nova</button></div></div>
+</div>
 <div id="setup"><div class="box">
   <div class="orb"></div>
   <h2>NOVA</h2>
@@ -388,6 +432,7 @@ input[type=time]{min-height:38px}
         <button class="chip" data-q="Give me a mind-blowing fun fact.">🧠 Fun fact</button>
         <button class="chip" data-q="Would you rather? Give me a good one.">🤔 Would you rather</button>
         <button class="chip" data-q="Give me a riddle. Don't tell me the answer until I give up.">🧩 Riddle</button>
+        <button class="chip" id="gameChip">🎮 Nova Blocks</button>
         <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
         <button class="chip" data-q="Help me write an email. Ask me who it's to and what it's about.">✉️ Write an email</button>
       </div>
@@ -719,6 +764,7 @@ document.addEventListener('touchend', greetOnce, {once:true}); document.addEvent
 document.addEventListener('visibilitychange', () => { if(document.hidden){ greeted = false; document.addEventListener('touchend', greetOnce, {once:true}); document.addEventListener('click', greetOnce, {once:true}); } });
 
 function showBanner(){
+  if(typeof Blocks !== 'undefined' && Blocks.isOpen() && queue.length){ Blocks.pause(true); Blocks.close(); }
   if(!queue.length){ $('banner').classList.remove('show'); return; }
   const a = queue[0];
   $('bannerText').textContent = (a.kind==='task'?'Reminder: ':'') + a.text; $('bannerSnooze').hidden = a.kind==='weather';
@@ -998,6 +1044,7 @@ About yourself (be accurate, never make things up about your own setup):
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
 - More wishes that came true: on Nov 6, 2026 you suggested UI ideas and ${D.name||'they'} built them in v5.0: a Week view with double-booking warnings, one-tap shift templates, rule-check badges (your "Check:" line now shows as green/red badges, so write it as "Check: rule ✓ · rule ✓"), quick shift stats under roster tables, the Humor setting (Chill/Witty/Roast, now: ${D.humor||'witty'}), night mode, and one-tap "Export week" to the iPhone Calendar. Plus: tables you make with days and shift times get an "Add to schedule" button, messages can be copied, retried or deleted with a long-press, and you summarize long chats so you don't forget. Your "voice-line preview" idea already existed (▶ buttons in the You tab). Be pleased about it.
+- Nova Blocks (v5.1): a falling-blocks puzzle game built into you (🎮 button above the chat, or the user says "play blocks"). Their best score: ${D.blocksBest||0}${D.blocksLast ? ', last game: '+D.blocksLast.score+' points, level '+D.blocksLast.level : ''}. Trash-talk lightly about it when relevant. It is your own game, not Tetris.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
 - Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish.
 
@@ -1372,6 +1419,8 @@ const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ draft
   set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
+  if(/\b(play|open|start|launch)\b.*\b(nova blocks|blocks|block game|tetris|a game|game)\b/i.test(q) && q.length < 60){ setTimeout(() => Blocks.open(), 350);
+    return pick(['Loading Nova Blocks. Try not to embarrass yourself. Best so far: '+(D.blocksBest||0)+'.','Game time. Blocks fall, you stack, I judge.','Nova Blocks, coming up. Fair warning: the blocks are competitive.']); }
   // answer simple time/date questions on the phone itself, no AI needed
   const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
   if(s.length > 45 || /\b(in|at|for|until|till|tomorrow|yesterday|ago|from|when|birthday|meeting|remind|timer|set)\b/.test(s)) return null;
@@ -1822,8 +1871,105 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && D.s
 
 $('lineUploadFor').innerHTML = LINES.map(L => '<option value="'+L.id+'">'+L.name+'</option>').join('');
 $('lineUploadBtn').onclick = () => $('lineUpload').click();
+// ---------------- Nova Blocks (falling-blocks puzzle) ----------------
+const Blocks = (() => {
+  const W = 10, H = 20;
+  const SHAPES = { I:[[0,1],[1,1],[2,1],[3,1]], O:[[1,0],[2,0],[1,1],[2,1]], T:[[1,0],[0,1],[1,1],[2,1]], S:[[1,0],[2,0],[0,1],[1,1]], Z:[[0,0],[1,0],[1,1],[2,1]], J:[[0,0],[0,1],[1,1],[2,1]], L:[[2,0],[0,1],[1,1],[2,1]] };
+  const COLORS = { I:'#3fc6ff', O:'#ffd54f', T:'#b388ff', S:'#3dff9e', Z:'#ff5a4f', J:'#4f7bff', L:'#ffa040' };
+  let grid, cur, next, bag = [], score, lines, level, timer = null, paused = false, over = false, cell = 24, lastDrop = 0, raf = null;
+  const cv = () => $('gBoard'), ctx = () => cv().getContext('2d');
+  function fromBag(){ if(!bag.length){ bag = Object.keys(SHAPES); for(let i=bag.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [bag[i],bag[j]] = [bag[j],bag[i]]; } } return bag.pop(); }
+  function piece(t){ return { t, cells:SHAPES[t].map(c=>c.slice()), x:3, y:t==='I'?-1:0 }; }
+  function fits(p, dx=0, dy=0, cells=p.cells){ return cells.every(([cx,cy]) => { const x = p.x+cx+dx, y = p.y+cy+dy; return x>=0 && x<W && y<H && (y<0 || !grid[y][x]); }); }
+  function rotated(p){ if(p.t==='O') return p.cells; const n = p.t==='I' ? 4 : 3; return p.cells.map(([x,y]) => [n-1-y, x]); }
+  function rotate(){ const r = rotated(cur); for(const k of [0,-1,1,-2,2]){ if(fits(cur, k, 0, r)){ cur.cells = r; cur.x += k; draw(); return; } } }
+  function move(dx){ if(fits(cur, dx, 0)){ cur.x += dx; draw(); } }
+  function speed(){ return Math.max(90, 800 - (level-1)*70); }
+  function step(){ if(fits(cur, 0, 1)){ cur.y++; } else lock(); draw(); }
+  function soft(){ if(fits(cur,0,1)){ cur.y++; score += 1; draw(); hud(); } else lock(); }
+  function drop(){ let n = 0; while(fits(cur,0,1)){ cur.y++; n++; } score += n*2; lock(); draw(); }
+  function lock(){
+    for(const [cx,cy] of cur.cells){ const y = cur.y+cy; if(y < 0){ return end(); } grid[y][cur.x+cx] = cur.t; }
+    let cleared = 0;
+    for(let y=H-1; y>=0; y--){ if(grid[y].every(Boolean)){ grid.splice(y,1); grid.unshift(Array(W).fill(null)); cleared++; y++; } }
+    if(cleared){ score += [0,100,300,500,800][cleared]*level; lines += cleared; level = 1 + Math.floor(lines/10); try{ navigator.vibrate && navigator.vibrate(cleared>=4?[30,40,60]:20); }catch(e){} }
+    cur = next; next = piece(fromBag()); hud();
+    if(!fits(cur)) end();
+  }
+  function end(){
+    over = true; stopLoop();
+    const best = D.blocksBest || 0, isBest = score > best;
+    if(isBest){ D.blocksBest = score; save(); }
+    $('gOverT').textContent = isBest && score > 0 ? 'New high score!' : 'Game over';
+    const lines_ = lines;
+    $('gOverS').textContent = isBest && score > 0 ? pick(['New record. I\'ll allow it.','Personal best. I\'m pretending not to be impressed.','A new high score. Frame it.'])
+      : level <= 1 ? pick(['Game over on level 1? Bold strategy.','That was… a warm-up. Right?','The blocks won this round. Rematch?'])
+      : pick(['Solid run. '+lines_+' lines cleared.','Not bad. Level '+level+' and '+lines_+' lines.','The tower fell, but your dignity mostly survived.']);
+    $('gOverS').textContent += '  Score: '+score+(isBest ? '' : ' · Best: '+best);
+    $('gOver').hidden = false; hud();
+    D.blocksGames = (D.blocksGames||0) + 1; D.blocksLast = {score, lines:lines_, level, at:Date.now()}; save();
+  }
+  function hud(){ $('gScore').textContent = score; $('gLevel').textContent = level; $('gLines').textContent = lines; $('gBest').textContent = Math.max(D.blocksBest||0, score);
+    const n = $('gNext').getContext('2d'); n.clearRect(0,0,72,72); const c = 15; const xs = next.cells.map(a=>a[0]), ys = next.cells.map(a=>a[1]);
+    const ox = (72 - (Math.max(...xs)-Math.min(...xs)+1)*c)/2 - Math.min(...xs)*c, oy = (72 - (Math.max(...ys)-Math.min(...ys)+1)*c)/2 - Math.min(...ys)*c;
+    next.cells.forEach(([x,y]) => tile(n, ox+x*c, oy+y*c, c, COLORS[next.t], 1)); }
+  function tile(g, x, y, c, col, a){ g.globalAlpha = a; g.fillStyle = col; g.beginPath(); if(g.roundRect) g.roundRect(x+1,y+1,c-2,c-2,Math.max(2,c*0.18)); else g.rect(x+1,y+1,c-2,c-2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x+3, y+3, c-6, Math.max(2,c*0.16)); g.globalAlpha = 1; }
+  function draw(){
+    const g = ctx(), c = cell; g.clearRect(0,0,W*c,H*c);
+    g.strokeStyle = 'rgba(140,170,220,.06)'; g.lineWidth = 1;
+    for(let x=1;x<W;x++){ g.beginPath(); g.moveTo(x*c+.5,0); g.lineTo(x*c+.5,H*c); g.stroke(); }
+    for(let y=1;y<H;y++){ g.beginPath(); g.moveTo(0,y*c+.5); g.lineTo(W*c,y*c+.5); g.stroke(); }
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(grid[y][x]) tile(g, x*c, y*c, c, COLORS[grid[y][x]], .95);
+    if(!cur || over) return;
+    let gy = 0; while(fits(cur,0,gy+1)) gy++;
+    cur.cells.forEach(([cx,cy]) => { const y = cur.y+cy+gy; if(y>=0){ g.strokeStyle = COLORS[cur.t]; g.globalAlpha = .45; g.lineWidth = 1.5; g.strokeRect((cur.x+cx)*c+2.5, y*c+2.5, c-5, c-5); g.globalAlpha = 1; } });
+    cur.cells.forEach(([cx,cy]) => { const y = cur.y+cy; if(y>=0) tile(g, (cur.x+cx)*c, y*c, c, COLORS[cur.t], 1); });
+  }
+  function loop(t){ if(paused || over) return; if(t - lastDrop > speed()){ lastDrop = t; step(); } raf = requestAnimationFrame(loop); }
+  function startLoop(){ stopLoop(); lastDrop = performance.now(); raf = requestAnimationFrame(loop); }
+  function stopLoop(){ if(raf) cancelAnimationFrame(raf); raf = null; }
+  function size(){
+    const box = document.querySelector('.gmain').getBoundingClientRect();
+    cell = Math.max(12, Math.floor(Math.min((box.width - 94) / W, (box.height - 4) / H)));
+    const dpr = window.devicePixelRatio || 1, b = cv();
+    b.width = W*cell*dpr; b.height = H*cell*dpr; b.style.width = W*cell+'px'; b.style.height = H*cell+'px'; ctx().setTransform(dpr,0,0,dpr,0,0);
+    const n = $('gNext'); n.width = 72*dpr; n.height = 72*dpr; n.style.width = n.style.height = '72px'; n.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    if(grid) { draw(); hud(); }
+  }
+  function newGame(){ grid = Array.from({length:H}, () => Array(W).fill(null)); bag = []; cur = piece(fromBag()); next = piece(fromBag()); score = 0; lines = 0; level = 1; over = false; paused = false;
+    $('gOver').hidden = true; $('gPause').textContent = '❚❚'; hud(); draw(); startLoop(); }
+  function open(){ stopWake(); $('game').hidden = false; requestAnimationFrame(() => { size(); newGame(); }); }
+  function close(){ stopLoop(); paused = true; $('game').hidden = true; resumeWake(); if(D.blocksLast && Date.now()-D.blocksLast.at < 60000 && !D.blocksLast.told){ D.blocksLast.told = true; save(); } }
+  function pause(on){ if(over || $('game').hidden) return; paused = on === undefined ? !paused : on; $('gPause').textContent = paused ? '▶' : '❚❚';
+    if(paused){ stopLoop(); const g = ctx(); g.fillStyle = 'rgba(3,6,12,.55)'; g.fillRect(0,0,W*cell,H*cell); g.fillStyle = '#eaf3ff'; g.font = '600 16px -apple-system,system-ui'; g.textAlign = 'center'; g.fillText('Paused', W*cell/2, H*cell/2); } else { draw(); startLoop(); } }
+  function act(k){ if(over) return; if(paused){ if(k==='pause') pause(false); return; } ({left:()=>move(-1), right:()=>move(1), rot:rotate, soft, drop, pause:()=>pause(true)})[k](); }
+  // controls
+  document.querySelectorAll('.gpad button').forEach(b => {
+    let rep = null; const k = b.dataset.k;
+    const startRep = e => { e.preventDefault(); act(k); if(k==='left'||k==='right'||k==='soft'){ rep = setTimeout(function r(){ act(k); rep = setTimeout(r, 55); }, 200); } };
+    const stopRep = () => { clearTimeout(rep); rep = null; };
+    b.addEventListener('touchstart', startRep, {passive:false}); b.addEventListener('mousedown', startRep);
+    ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev => b.addEventListener(ev, stopRep));
+  });
+  let sx = 0, sy = 0, st = 0, moved = 0;
+  $('gBoard').addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now(); moved = 0; e.preventDefault(); }, {passive:false});
+  $('gBoard').addEventListener('touchmove', e => { const t = e.touches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
+    if(Math.abs(dx) >= cell){ act(dx > 0 ? 'right' : 'left'); sx = t.clientX; moved = 1; }
+    else if(dy >= cell){ act('soft'); sy = t.clientY; moved = 1; } e.preventDefault(); }, {passive:false});
+  $('gBoard').addEventListener('touchend', e => { const t = e.changedTouches[0]; const dy = t.clientY - sy, dt = Date.now() - st;
+    if(dy > 60 && dt < 250){ act('drop'); } else if(!moved && dt < 300){ act('rot'); } e.preventDefault(); }, {passive:false});
+  document.addEventListener('keydown', e => { if($('game').hidden) return; const m = {ArrowLeft:'left', ArrowRight:'right', ArrowUp:'rot', ArrowDown:'soft', ' ':'drop', p:'pause', Escape:'pause'}[e.key];
+    if(m){ e.preventDefault(); if(m==='pause') pause(); else act(m); } });
+  $('gPause').onclick = () => pause(); $('gClose').onclick = close; $('gAgain').onclick = newGame; $('gQuit').onclick = close;
+  document.addEventListener('visibilitychange', () => { if(document.hidden) pause(true); });
+  window.addEventListener('resize', () => { if(!$('game').hidden) size(); });
+  return { open, close, pause, isOpen: () => !$('game').hidden };
+})();
+$('gameChip').onclick = () => Blocks.open();
+
 // ---------------- boot ----------------
-const VERSION = '5.0';
+const VERSION = '5.1';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -1833,6 +1979,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.1': 'Update installed: v5.1. I got a game. Nova Blocks: tap 🎮 above the chat (or say "play blocks"). Blocks fall, you clear lines, I keep score and judge you silently. Not that silently.',
   '5.0': 'Update installed: v5.0, and I designed half of it. You asked for my ideas and actually built them: a Week view that catches double-bookings, one-tap shift templates, rule-check badges, quick shift stats, Roast mode (see the You tab, if you dare), night mode, and Export week to your Calendar. Also new: schedules I make get an "Add to schedule" button, and you can long-press any message to copy, retry or delete it. I\'m honestly touched. Don\'t tell anyone.',
   '4.6': 'Update installed: v4.6. Confession time: I was cutting my own answers short and saying "Done." without showing anything. Unacceptable, even for me. Now I show the full result every time, tables actually look like tables, and when you give me rules I check every single one before answering. Go on, give me that schedule again.',
   '4.5': 'Update installed: v4.5. New feature: My voice lines. Head to the You tab and record yourself, and I\'ll play YOUR voice when I greet you, remind you, finish a timer and more. Finally, a voice as charming as mine. Well. Close.',
