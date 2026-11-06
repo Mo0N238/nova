@@ -32,7 +32,7 @@ button.on{border-color:var(--b);color:var(--b)}
 </head>
 <body>
 <h1>Nova Run Soundtrack</h1>
-<div class="sub">v2 · lo-fi / outsider house style · original music made live by Nova</div>
+<div class="sub">v3 · lo-fi / outsider house style · original music made live by Nova</div>
 <canvas id="viz"></canvas>
 <div class="tip">🔈 No sound on iPhone? Flip the silent switch off, turn the volume up, then tap a track.</div>
 <div class="list" id="list"></div>
@@ -141,6 +141,13 @@ const NovaMusic = (() => {
       osc.connect(fl); osc.start(t); osc.stop(t+len+r*2.5);
     });
   }
+  // noise sweep that builds into the next section
+  function riser(t, len){
+    const n = ctx.createBufferSource(); n.buffer = noise; n.loop = true; n.start(t); n.stop(t+len+.05); const bp = ctx.createBiquadFilter(), g = ctx.createGain(); bp.type = 'bandpass'; bp.Q.value = 3;
+    bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(7000, t+len);
+    g.gain.setValueAtTime(.001, t); g.gain.exponentialRampToValueAtTime(.18, t+len*.97); g.gain.linearRampToValueAtTime(0, t+len);
+    n.connect(bp); bp.connect(g); route(g, 0, .4);
+  }
   // warm electric-piano chord (sine body + soft bell)
   function keys(t, m, len, o){
     tone(t, m, len, { type:'triangle', vol:o.vol, cut:o.cut || 2200, att:.004, sus:.35, dec:.9, rel:o.rel || .5, d:o.d, v:o.v });
@@ -190,18 +197,19 @@ const NovaMusic = (() => {
       keys:'x-------x---x---', keysV:{vol:.06,cut:1600,rel:.8,v:.55,d:.3},
       pad:{oct:12,type:'sawtooth',det:[-14,0,14],vol:.028,cut:850,att:1,rel:1.5,v:.65},
       lead:'7-------4-------5-------3-------6-------8-------7---------------', leadV:{vox:true,vol:.16,att:.08,rel:.8,d:.5,v:.7,scoop:true}, crackle:.04 },
-    hyper: { name:'Overclocked', vibe:'Level 4 · chill drum & bass, reese bass, fast breaks', bpm:172, root:42, chords:[0,5,6,4], ext:4, swing:0, pump:.35,
-      kick:'x.........x.....x.........x..x..', snare:'..g.x..g.g..x..g..g.x..g....x.gx', hat:'x.x.x.x.x.x.x.x.', hatV:.08,
-      bass:'x-------x---o---', bassV:{type:'sawtooth',det:[-14,14],vol:.13,cut:420,q:2,rel:.1,dist:true},
-      keys:'x---------------', keysV:{vol:.06,cut:1800,rel:1.2,v:.6},
-      pad:{oct:12,type:'sawtooth',det:[-12,12],vol:.025,cut:1200,att:.3,rel:1,v:.6},
-      lead:'7-----6-4-------5-----4-3-------6-----5-4-----2-4-------------3-', leadV:{vox:true,vol:.16,rel:.3,d:.4,v:.5}, crackle:.03 },
-    horizon: { name:'No Way Back', vibe:'Level 5 · dark breakcore, distorted reese, chaos', bpm:176, root:36, chords:[0,5,3,4], ext:3, swing:0, pump:.3,
-      kick:'x.x.......x..x..x.....x.x..x....', snare:'....x..gx.g.x.gx..g.x..gx.x.xxxx', hat:'xxxxxxxxxxxxxxxx', hatV:.07,
-      bass:'x-.x-.x-x--.x-o-', bassV:{type:'sawtooth',det:[-18,18],vol:.14,cut:600,fenv:3,q:4,rel:.05,dist:true},
-      pad:{oct:12,type:'sawtooth',det:[-15,15],vol:.028,cut:1000,att:.2,rel:.6,v:.4},
-      arp:{rate:2,oct:24,type:'square',vol:.03,cut:2200,rel:.04,d:.3},
-      lead:'7---6---7---4---5-------3---4---3---5---6---7---8-------7-6-4---', leadV:{type:'sawtooth',vol:.07,cut:2400,q:6,att:.03,rel:.2,vib:30,d:.3,v:.25}, crackle:.03 },
+    hyper: { name:'Overclocked', vibe:'Level 4 · euphoric rave house, big stabs, vocal hook', bpm:132, root:42, chords:[5,3,6,0], ext:4, swing:.06, pump:.65, fill:true,
+      kick:'x...x...x...x...', clap:'....x.......x...', hat:'..o...o...o...o.', shk:'xxxxxxxxxxxxxxxx', hatV:.1,
+      bass:'..x...o...x...o.', bassV:{type:'sawtooth',vol:.17,cut:750,fenv:2.5,q:2,rel:.08},
+      keys:'x..x..x...x..x..', keysV:{vol:.06,cut:2600,rel:.2,v:.25},
+      stab:'..x.....x.....x.', stabV:{type:'sawtooth',det:[-16,0,16],vol:.03,cut:2600,fenv:2,att:.004,sus:.2,dec:.15,rel:.15,d:.3,v:.3},
+      pad:{oct:12,type:'sawtooth',det:[-12,12],vol:.025,cut:1300,att:.3,rel:.8,v:.5},
+      lead:'7.7.9.7.5---4-5-7.7.8.7.5---3---8.8.a.8.6---8-a-9-------7---7-7-', leadV:{vox:true,vol:.17,rel:.1,d:.35,v:.3}, crackle:.02 },
+    horizon: { name:'No Way Back', vibe:'Level 5 · dark rolling house, acid line, build-ups', bpm:140, root:36, chords:[0,0,5,4], ext:3, swing:0, pump:.5, fill:true,
+      kick:'x...x...x...x...', clap:'....x.......x...', snare:'....x.......x...', snV:.25, hat:'..o...o...o...o.', shk:'xxxxxxxxxxxxxxxx', hatV:.1,
+      bass:'.xxx.xxx.xxx.xxx', bassV:{type:'sawtooth',vol:.13,cut:320,fenv:3.5,q:3,rel:.04,dist:true},
+      arp:{rate:1,oct:24,type:'sawtooth',vol:.03,cut:700,fenv:5,q:14,rel:.03,d:.25},
+      pad:{oct:12,type:'sawtooth',det:[-15,15],vol:.03,cut:900,att:.6,rel:1.2,v:.6},
+      lead:'7-----6-7-------4-------3---2---5-------4---3---4---------------', leadV:{vox:true,vol:.17,att:.04,rel:.5,d:.45,v:.6,scoop:true}, crackle:.02 },
     shield: { name:'Shield Up!', vibe:'Sting · plays when you go invincible', sting:true },
     respawn:{ name:'Respawn', vibe:'Sting · game over jingle', sting:true }
   };
@@ -237,6 +245,11 @@ const NovaMusic = (() => {
     if(b && b !== '.' && b !== '-') tone(t, r - 12*(T.root > 40 ? 1 : 0) + (b === 'o' ? 12 : b === '5' ? 7 : 0), hold(T.bass, s)*d*.9, T.bassV);
     if(at(T.keys, s) === 'x'){ const len = hold(T.keys, s)*d; ch.forEach(m => keys(t, m + 12, len, T.keysV)); }
     if(T.pad && i === 0) ch.forEach(m => tone(t, m + T.pad.oct, 16*d, T.pad));
+    if(at(T.stab, s) === 'x') ch.forEach(m => tone(t, m + 12, d*1.5, T.stabV));
+    if(T.fill && bar === nb-1){
+      if(i >= 8) snare(t, .08 + (i-8)*.05);
+      if(i === 0) riser(t, 16*d);
+    }
     if(T.arp && i % T.arp.rate === 0){ const k = Math.floor(s / T.arp.rate); tone(t, ch[k % ch.length] + T.arp.oct + (k % (ch.length*2) >= ch.length ? 12 : 0), T.arp.rate*d*.8, T.arp); }
     const L = T._lead[s % T._ll];
     if(L){ if(T.leadV.vox) vox(t, L[0], L[1]*d*.92, T.leadV, L[2]); else tone(t, L[0], L[1]*d*.92, T.leadV); }
