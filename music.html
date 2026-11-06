@@ -32,7 +32,7 @@ button.on{border-color:var(--b);color:var(--b)}
 </head>
 <body>
 <h1>Nova Run Soundtrack</h1>
-<div class="sub">Preview: original music, made live by Nova (no files, works offline)</div>
+<div class="sub">v2 · lo-fi / outsider house style · original music made live by Nova</div>
 <canvas id="viz"></canvas>
 <div class="tip">🔈 No sound on iPhone? Flip the silent switch off, turn the volume up, then tap a track.</div>
 <div class="list" id="list"></div>
@@ -48,59 +48,78 @@ button.on{border-color:var(--b);color:var(--b)}
 <script>
 const NovaMusic = (() => {
   const SC = [0,2,3,5,7,8,10]; // natural minor
-  let ctx, master, lp, comp, an, dsend, vsend, noise, drive, bus;
+  let ctx, master, lp, comp, an, dsend, vsend, noise, drive, sat, bus, duck, wob, crackBuf, crack;
   let cur = null, step = 0, nextT = 0, timer = null, slow = false, rush = false;
+  const LP_ON = 7200; // lo-fi haze: top end rolled off
 
   function init(c){
     ctx = c || new (window.AudioContext || window.webkitAudioContext)();
     comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 6; comp.attack.value = .003; comp.release.value = .15;
-    lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 18000;
+    lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = LP_ON; lp.Q.value = .5;
+    sat = ctx.createWaveShaper(); const sc = new Float32Array(1024); for(let i = 0; i < 1024; i++){ const x = i/512 - 1; sc[i] = Math.tanh(x*1.6)/Math.tanh(1.6); } sat.curve = sc;
     master = ctx.createGain(); master.gain.value = .5;
-    master.connect(lp); lp.connect(comp); comp.connect(ctx.destination);
+    master.connect(sat); sat.connect(lp); lp.connect(comp); comp.connect(ctx.destination);
     an = ctx.createAnalyser(); an.fftSize = 128; comp.connect(an);
     // echo
     const dl = ctx.createDelay(1), fb = ctx.createGain(), dlp = ctx.createBiquadFilter();
-    dl.delayTime.value = .27; fb.gain.value = .38; dlp.type = 'lowpass'; dlp.frequency.value = 2800;
+    dl.delayTime.value = .32; fb.gain.value = .4; dlp.type = 'lowpass'; dlp.frequency.value = 2400;
     dsend = ctx.createGain(); dsend.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(master);
-    // reverb
-    const cv = ctx.createConvolver(), n = ctx.sampleRate * 2.4, ib = ctx.createBuffer(2, n, ctx.sampleRate);
-    for(let ch = 0; ch < 2; ch++){ const d = ib.getChannelData(ch); for(let i = 0; i < n; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/n, 3); }
+    // reverb (long, dreamy)
+    const cv = ctx.createConvolver(), n = ctx.sampleRate * 3.2, ib = ctx.createBuffer(2, n, ctx.sampleRate);
+    for(let ch = 0; ch < 2; ch++){ const d = ib.getChannelData(ch); for(let i = 0; i < n; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/n, 2.6); }
     cv.buffer = ib; vsend = ctx.createGain(); vsend.connect(cv); cv.connect(master);
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const nd = noise.getChannelData(0); for(let i = 0; i < nd.length; i++) nd[i] = Math.random()*2-1;
     drive = new Float32Array(1024); for(let i = 0; i < 1024; i++){ const x = i/512 - 1; drive[i] = Math.tanh(x*3.2); }
-    bus = master;
+    // vinyl crackle: faint hiss + random pops
+    crackBuf = ctx.createBuffer(1, ctx.sampleRate*3, ctx.sampleRate);
+    const cd = crackBuf.getChannelData(0); let hb = 0;
+    for(let i = 0; i < cd.length; i++){ hb = hb*.97 + (Math.random()*2-1)*.03; cd[i] = hb*.6 + (Math.random() < .0006 ? (Math.random()*2-1)*.9 : 0); }
+    // tape wobble: everything drifts a few cents, like an old cassette
+    wob = ctx.createGain(); wob.gain.value = 9;
+    const wl = ctx.createOscillator(); wl.frequency.value = .45; wl.connect(wob); wl.start();
+    bus = duck = master;
   }
   const mf = m => 440 * Math.pow(2, (m-69)/12) * (slow ? .84 : 1);
-  function route(node, d = 0, v = 0){
-    node.connect(bus);
+  function route(node, d = 0, v = 0, music = false){
+    node.connect(music ? duck : bus);
     if(d){ const s = ctx.createGain(); s.gain.value = d; node.connect(s); s.connect(dsend); }
     if(v){ const s = ctx.createGain(); s.gain.value = v; node.connect(s); s.connect(vsend); }
   }
   function nz(t, len){ const s = ctx.createBufferSource(); s.buffer = noise; s.start(t, Math.random()*.5); s.stop(t+len); return s; }
 
-  // ---- instruments ----
+  // ---- drums ----
   function kick(t, vol = .9){
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.setValueAtTime(155, t); o.frequency.exponentialRampToValueAtTime(42, t+.13);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t+.38);
-    o.connect(g); route(g); o.start(t); o.stop(t+.4);
+    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t+.11);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t+.42);
+    o.connect(g); route(g); o.start(t); o.stop(t+.45);
+    const c = nz(t, .02), cg = ctx.createGain(), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500;
+    cg.gain.setValueAtTime(vol*.25, t); cg.gain.exponentialRampToValueAtTime(.001, t+.015); c.connect(hp); hp.connect(cg); route(cg);
   }
   function snare(t, vol = .5){
-    const s = nz(t, .25), hp = ctx.createBiquadFilter(), g = ctx.createGain();
-    hp.type = 'highpass'; hp.frequency.value = 1300;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t+.2);
-    s.connect(hp); hp.connect(g); route(g, 0, .25);
-    const o = ctx.createOscillator(), g2 = ctx.createGain(); o.type = 'triangle'; o.frequency.value = 190;
-    g2.gain.setValueAtTime(vol*.6, t); g2.gain.exponentialRampToValueAtTime(.001, t+.1);
+    const s = nz(t, .25), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+    bp.type = 'highpass'; bp.frequency.value = 1100;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + (vol < .2 ? .07 : .19));
+    s.connect(bp); bp.connect(g); route(g, 0, .2);
+    const o = ctx.createOscillator(), g2 = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(230, t); o.frequency.exponentialRampToValueAtTime(160, t+.08);
+    g2.gain.setValueAtTime(vol*.7, t); g2.gain.exponentialRampToValueAtTime(.001, t+.1);
     o.connect(g2); route(g2); o.start(t); o.stop(t+.12);
   }
-  function hat(t, vol = .14, open = false){
-    const len = open ? .18 : .045, s = nz(t, len+.02), hp = ctx.createBiquadFilter(), g = ctx.createGain();
-    hp.type = 'highpass'; hp.frequency.value = 7200;
+  function clap(t, vol = .45){
+    const s = nz(t, .3), bp = ctx.createBiquadFilter(), g = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 1.2;
+    g.gain.setValueAtTime(0, t);
+    [0, .011, .022].forEach(o => { g.gain.setValueAtTime(vol, t+o); g.gain.exponentialRampToValueAtTime(vol*.2, t+o+.009); });
+    g.gain.setValueAtTime(vol*.8, t+.031); g.gain.exponentialRampToValueAtTime(.001, t+.22);
+    s.connect(bp); bp.connect(g); route(g, 0, .35);
+  }
+  function hat(t, vol = .12, open = false){
+    const len = open ? .2 : .04, s = nz(t, len+.02), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+    hp.type = 'highpass'; hp.frequency.value = open ? 6500 : 8000;
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t+len);
     s.connect(hp); hp.connect(g); route(g);
   }
+  // ---- melodic voices (all go through the sidechain "pump") ----
   function tone(t, m, len, o = {}){
     const f = mf(m), g = ctx.createGain(), fl = ctx.createBiquadFilter();
     const a = o.att || .006, r = o.rel || .09, vol = o.vol || .18, cut = (o.cut || 4000) * (slow ? .6 : 1);
@@ -112,83 +131,116 @@ const NovaMusic = (() => {
     g.gain.setTargetAtTime(0, t+len, r/3);
     let last = fl;
     if(o.dist){ const ws = ctx.createWaveShaper(); ws.curve = drive; fl.connect(ws); last = ws; }
-    last.connect(g); route(g, o.d || 0, o.v || 0);
+    last.connect(g); route(g, o.d || 0, o.v || 0, o.duck !== false);
     (o.det || [0]).forEach(dt => {
       const osc = ctx.createOscillator(); osc.type = o.type || 'sawtooth'; osc.detune.value = dt;
       if(o.glide){ osc.frequency.setValueAtTime(f*o.glide, t); osc.frequency.exponentialRampToValueAtTime(f, t+.06); }
       else osc.frequency.setValueAtTime(f, t);
+      if(wob) wob.connect(osc.detune);
       if(o.vib){ const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 5.5; lg.gain.value = o.vib; l.connect(lg); lg.connect(osc.detune); l.start(t); l.stop(t+len+r*2); }
       osc.connect(fl); osc.start(t); osc.stop(t+len+r*2.5);
     });
   }
+  // warm electric-piano chord (sine body + soft bell)
+  function keys(t, m, len, o){
+    tone(t, m, len, { type:'triangle', vol:o.vol, cut:o.cut || 2200, att:.004, sus:.35, dec:.9, rel:o.rel || .5, d:o.d, v:o.v });
+    tone(t, m+12, len*.4, { type:'sine', vol:o.vol*.35, cut:5000, att:.002, sus:.1, dec:.3, rel:.3, v:o.v });
+  }
+  // chopped "vocal" synth: saw through vowel formants (ah / oh / ee)
+  const VOW = [[800,1150],[500,900],[350,2000],[650,1100]];
+  function vox(t, m, len, o, k){
+    const f = mf(m), g = ctx.createGain(), mix = ctx.createGain(), vw = VOW[k % VOW.length];
+    const a = o.att || .015, vol = o.vol || .2;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+a); g.gain.setTargetAtTime(0, t+len, (o.rel || .12)/3);
+    vw.forEach((fr, j) => { const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = fr; bp.Q.value = 6; const bg = ctx.createGain(); bg.gain.value = j ? .6 : 1; mix.connect(bp); bp.connect(bg); bg.connect(g); });
+    route(g, o.d || .3, o.v || .4, true);
+    [-6, 6].forEach(dt => {
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.detune.value = dt;
+      osc.frequency.setValueAtTime(f * (o.scoop ? .94 : 1), t); osc.frequency.exponentialRampToValueAtTime(f, t+.07);
+      if(wob) wob.connect(osc.detune);
+      const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 5; lg.gain.value = 14; l.connect(lg); lg.connect(osc.detune); l.start(t); l.stop(t+len+.4);
+      osc.connect(mix); osc.start(t); osc.stop(t+len+.4);
+    });
+  }
 
-  // ---- tracks ----
-  const D = (k) => ({ kick:'x...x...x...x...', snare:'....x.......x...', ...k });
+  // ---- tracks (original melodies, outsider-house / lo-fi style) ----
+  // patterns: 16 or 32 steps (1-2 bars). x = hit, g = ghost snare, o = open hat
+  // bass: x root, o octave, 5 fifth, - hold   ·  lead: scale degree digits, - hold, . rest
   const TRACKS = {
-    menu: { name:'Standby Glow', vibe:'Menu · calm, dreamy synth pads', bpm:90, root:45, chords:[5,2,3,0], sev:true,
-      hat:'........x.......', hatV:.05, bass:'x---------------', bassV:{type:'triangle',vol:.22,cut:600,rel:.6},
-      pad:{oct:12,type:'sawtooth',det:[-9,9],vol:.045,cut:1100,att:.9,rel:1.4,v:.5},
-      arp:{rate:4,oct:24,type:'triangle',vol:.07,cut:3000,rel:.4,d:.5,v:.3},
-      lead:'9-------7-------6-------4-------7-------8-------7---------------', leadV:{type:'sine',vol:.09,att:.02,rel:.8,d:.35,v:.4}, kick:null, snare:null },
-    cruise: D({ name:'Neon Commute', vibe:'Level 1 · chill synthwave, bouncy bass', bpm:110, root:45, chords:[0,5,2,6],
-      hat:'..x...x...x...x.', bass:'x.o.x.o.x.o.x.o.', bassV:{type:'sawtooth',vol:.2,cut:700,fenv:3,q:4,rel:.08},
-      pad:{oct:12,type:'sawtooth',det:[-10,10],vol:.035,cut:1400,att:.3,rel:.6,v:.4},
-      arp:{rate:2,oct:24,type:'square',vol:.045,cut:2600,rel:.06,d:.35},
-      lead:'4---3-2-0---2-3-5---4-3-2-------4---4-5-7---5-4-6---5-4-3---1---', leadV:{type:'sawtooth',det:[-7,7],vol:.08,cut:3200,att:.02,rel:.25,vib:12,d:.3,v:.2} }),
-    warp: D({ name:'Lightspeed Lane', vibe:'Level 2 · upbeat retro arcade', bpm:124, root:40, chords:[0,2,6,5],
-      kick:'x...x...x...x.x.', hat:'xxxxxxxxxxxxxxxx', hatV:.08, bass:'x.xo.xx.x.xo.x5.', bassV:{type:'square',vol:.13,cut:900,fenv:2,rel:.05},
-      arp:{rate:1,oct:24,type:'square',vol:.03,cut:4000,rel:.03,d:.2},
-      lead:'0.2.4.7.4.2.0.4.2.4.6.9.6.4.2.6.6.8.a.8.6.4.6.8.7---6---4---2-1-', leadV:{type:'square',vol:.07,cut:5000,rel:.06,d:.25} }),
-    nebula: D({ name:'Purple Static', vibe:'Level 3 · spacey, mysterious, echoey', bpm:128, root:38, chords:[0,5,6,0],
-      kick:'x.........x.....', snare:'........x.......', hat:'..x...x...x...xx', bass:'x-------5---o---', bassV:{type:'sawtooth',vol:.2,cut:500,q:6,fenv:4,rel:.2},
-      pad:{oct:12,type:'sawtooth',det:[-14,0,14],vol:.03,cut:900,att:1,rel:1.5,v:.6},
-      arp:{rate:1,oct:24,type:'triangle',vol:.06,cut:3500,rel:.08,d:.6,v:.3},
-      lead:'7-------4-------5-------3-------6-------8-------7---------------', leadV:{type:'sine',vol:.1,att:.15,rel:1,vib:20,d:.5,v:.5} }),
-    hyper: D({ name:'Overclocked', vibe:'Level 4 · driving electro, tension', bpm:140, root:42, chords:[0,3,5,6], fill:true,
-      snare:'....x.......x..x', hat:'x.xxx.xxx.xxx.xx', hatV:.1, bass:'xxoxxxoxxxoxxxox', bassV:{type:'sawtooth',vol:.15,cut:800,fenv:3,q:3,rel:.04,dist:true},
-      pad:{oct:12,type:'sawtooth',det:[-8,8],vol:.03,cut:1800,att:.1,rel:.3},
-      arp:{rate:2,oct:24,type:'sawtooth',vol:.04,cut:3000,rel:.05,d:.3},
-      lead:'0-0-3-0-4-0-3-2-3-3-5-3-7-5-3-2-5-5-7-5-8-7-5-4-6-6-8-6-9---8-7-', leadV:{type:'sawtooth',det:[-6,6],vol:.07,cut:3800,rel:.1,glide:.97,d:.25} }),
-    horizon: D({ name:'No Way Back', vibe:'Level 5 · dark, heavy bass, frantic', bpm:155, root:36, chords:[0,5,3,4], fill:true,
-      kick:'x..x..x...x..x..', hat:'x.x.x.x.x.x.x.x.', hatV:.12, bass:'xx.xx.x.xx.xx5o.', bassV:{type:'sawtooth',det:[-12,12],vol:.16,cut:650,fenv:4,q:5,rel:.05,dist:true},
-      pad:{oct:12,type:'sawtooth',det:[-15,15],vol:.03,cut:1200,att:.2,rel:.5,v:.3},
-      arp:{rate:1,oct:24,type:'square',vol:.03,cut:2400,rel:.03,d:.2},
-      lead:'7---6---7---4---5-------3---4---3---5---6---7---8-------7-6-4---', leadV:{type:'sawtooth',vol:.08,cut:2600,q:6,att:.03,rel:.2,vib:30,d:.3,v:.2} }),
+    menu: { name:'Standby Glow', vibe:'Menu · lo-fi haze, soft boom-bap, warm keys', bpm:84, root:45, chords:[5,4,3,0], ext:5, swing:.2, pump:.25,
+      kick:'x......x..x.....', snare:'....x.......x...', snV:.3, hat:'x.x.x.x.x.x.x.xx', hatV:.05,
+      bass:'x------.x-----..', bassV:{type:'sine',vol:.3,cut:400,rel:.3},
+      keys:'x-----------x---', keysV:{vol:.075,cut:1800,rel:.9,v:.45},
+      lead:'7-------9-----7-6-------4-------5-------4-----3-4---------------', leadV:{vox:true,vol:.16,rel:.5,d:.45,v:.6,scoop:true}, crackle:.05 },
+    cruise: { name:'Neon Commute', vibe:'Level 1 · outsider house, pumping chords, vocal chops', bpm:112, root:45, chords:[5,6,4,0], ext:4, swing:.12, pump:.55,
+      kick:'x...x...x...x...', clap:'....x.......x...', hat:'..o...o...o...o.', shk:'xxxxxxxxxxxxxxxx', hatV:.09,
+      bass:'x..x..o.x..x..5.', bassV:{type:'triangle',vol:.26,cut:600,fenv:2,rel:.1},
+      keys:'x..x..x...x..x..', keysV:{vol:.065,cut:2000,rel:.25,v:.3},
+      pad:{oct:12,type:'sawtooth',det:[-12,12],vol:.025,cut:1000,att:.4,rel:.8,v:.5},
+      lead:'4.4.3.2.0---2-3-5.5.4.3.2-------4.4.5.7.9---7-5-6-------5---4---', leadV:{vox:true,vol:.17,d:.35,v:.35}, crackle:.035 },
+    warp: { name:'Lightspeed Lane', vibe:'Level 2 · bright house, rolling bass, sparkle plucks', bpm:122, root:40, chords:[0,5,2,6], ext:4, swing:.08, pump:.6,
+      kick:'x...x...x...x...', clap:'....x.......x...', hat:'x.o.x.o.x.o.x.o.', shk:'..x...x...x...x.', hatV:.08,
+      bass:'x.xo.x.ox.xo.x5.', bassV:{type:'sawtooth',vol:.14,cut:700,fenv:3,q:4,rel:.06},
+      keys:'x.....x.....x...', keysV:{vol:.06,cut:2400,rel:.3,v:.3},
+      arp:{rate:1,oct:24,type:'square',vol:.025,cut:3200,rel:.04,d:.35},
+      lead:'0.2.4.7.4.2.0.4.2.4.6.9.6.4.2.6.6.8.a.8.6.4.6.8.7---6---4---2-1-', leadV:{vox:true,vol:.15,rel:.08,d:.3,v:.25}, crackle:.025 },
+    nebula: { name:'Purple Static', vibe:'Level 3 · dreamy house over chopped breakbeats', bpm:126, root:38, chords:[3,6,2,5], ext:5, swing:.14, pump:.45,
+      kick:'x.....x...x.....x.....x..x......', snare:'....x..g.g..x.......x..g....x.gx', hat:'x.x.x.xxx.x.x.x.', hatV:.07,
+      bass:'x-------5---o---', bassV:{type:'sine',vol:.3,cut:500,rel:.2},
+      keys:'x-------x---x---', keysV:{vol:.06,cut:1600,rel:.8,v:.55,d:.3},
+      pad:{oct:12,type:'sawtooth',det:[-14,0,14],vol:.028,cut:850,att:1,rel:1.5,v:.65},
+      lead:'7-------4-------5-------3-------6-------8-------7---------------', leadV:{vox:true,vol:.16,att:.08,rel:.8,d:.5,v:.7,scoop:true}, crackle:.04 },
+    hyper: { name:'Overclocked', vibe:'Level 4 · chill drum & bass, reese bass, fast breaks', bpm:172, root:42, chords:[0,5,6,4], ext:4, swing:0, pump:.35,
+      kick:'x.........x.....x.........x..x..', snare:'..g.x..g.g..x..g..g.x..g....x.gx', hat:'x.x.x.x.x.x.x.x.', hatV:.08,
+      bass:'x-------x---o---', bassV:{type:'sawtooth',det:[-14,14],vol:.13,cut:420,q:2,rel:.1,dist:true},
+      keys:'x---------------', keysV:{vol:.06,cut:1800,rel:1.2,v:.6},
+      pad:{oct:12,type:'sawtooth',det:[-12,12],vol:.025,cut:1200,att:.3,rel:1,v:.6},
+      lead:'7-----6-4-------5-----4-3-------6-----5-4-----2-4-------------3-', leadV:{vox:true,vol:.16,rel:.3,d:.4,v:.5}, crackle:.03 },
+    horizon: { name:'No Way Back', vibe:'Level 5 · dark breakcore, distorted reese, chaos', bpm:176, root:36, chords:[0,5,3,4], ext:3, swing:0, pump:.3,
+      kick:'x.x.......x..x..x.....x.x..x....', snare:'....x..gx.g.x.gx..g.x..gx.x.xxxx', hat:'xxxxxxxxxxxxxxxx', hatV:.07,
+      bass:'x-.x-.x-x--.x-o-', bassV:{type:'sawtooth',det:[-18,18],vol:.14,cut:600,fenv:3,q:4,rel:.05,dist:true},
+      pad:{oct:12,type:'sawtooth',det:[-15,15],vol:.028,cut:1000,att:.2,rel:.6,v:.4},
+      arp:{rate:2,oct:24,type:'square',vol:.03,cut:2200,rel:.04,d:.3},
+      lead:'7---6---7---4---5-------3---4---3---5---6---7---8-------7-6-4---', leadV:{type:'sawtooth',vol:.07,cut:2400,q:6,att:.03,rel:.2,vib:30,d:.3,v:.25}, crackle:.03 },
     shield: { name:'Shield Up!', vibe:'Sting · plays when you go invincible', sting:true },
     respawn:{ name:'Respawn', vibe:'Sting · game over jingle', sting:true }
   };
   const idx = (T, i) => T.root + SC[((i%7)+7)%7] + 12*Math.floor(i/7);
-  function chord(T, deg){ const c = [idx(T,deg), idx(T,deg+2), idx(T,deg+4)]; if(T.sev) c.push(idx(T,deg+6)); return c; }
+  function chord(T, deg){ const c = []; for(let k = 0; k < (T.ext || 3); k++) c.push(idx(T, deg + k*2)); return c; }
   function parseLead(T){
     const map = {}, s = T.lead || '';
-    for(let i = 0; i < s.length; i++){
+    for(let i = 0, n = 0; i < s.length; i++){
       const ch = s[i]; if(ch === '-' || ch === '.') continue;
       let len = 1; while(s[i+len] === '-') len++;
-      map[i] = [idx(T, parseInt(ch, 36)) + 24, len];
+      map[i] = [idx(T, parseInt(ch, 36)) + 24, len, n++];
     }
     T._lead = map; T._ll = s.length || 64;
   }
   Object.values(TRACKS).forEach(T => { if(!T.sting) parseLead(T); });
+  const at = (p, s) => p && p[s % p.length];
+  const hold = (p, s) => { let len = 1; while(p[(s+len) % p.length] === '-' && len < p.length) len++; return len; };
 
   const sd = T => 60 / (T.bpm * (slow ? .6 : 1) * (rush ? 1.12 : 1)) / 4;
-  function sched(T, s, t){
+  function sched(T, s, t0){
     const nb = T.chords.length, bar = Math.floor(s/16) % nb, i = s % 16, d = sd(T);
+    const t = t0 + (i % 2 ? (T.swing || 0) * d : 0);
     const ch = chord(T, T.chords[bar]), r = ch[0];
-    if(T.kick && T.kick[i] === 'x') kick(t);
-    if(T.snare && T.snare[i] === 'x') snare(t);
-    if(T.fill && bar === nb-1 && i >= 12 && Math.floor(s/16) % (nb*2) === nb*2-1) snare(t, .2 + (i-12)*.08);
-    if(T.hat && T.hat[i] === 'x') hat(t, (T.hatV || .12) * (i%4 === 2 ? 1.3 : 1));
-    const b = T.bass && T.bass[i];
-    if(b && b !== '.' && b !== '-'){
-      let len = 1; while(T.bass[i+len] === '-') len++;
-      tone(t, r + (b === 'o' ? 12 : b === '5' ? 7 : 0), len*d*.9, T.bassV);
+    if(at(T.kick, s) === 'x'){
+      kick(t);
+      if(T.pump && duck !== master){ duck.gain.setValueAtTime(1 - T.pump, t); duck.gain.linearRampToValueAtTime(1, t + d*3.2); }
     }
+    const sn = at(T.snare, s); if(sn === 'x') snare(t, T.snV || .5); else if(sn === 'g') snare(t, .12);
+    if(at(T.clap, s) === 'x') clap(t);
+    const h = at(T.hat, s); if(h === 'x') hat(t, (T.hatV || .1) * (i%4 === 2 ? 1.25 : .8)); else if(h === 'o') hat(t, (T.hatV || .1)*1.1, true);
+    if(at(T.shk, s) === 'x') hat(t, .025 + (i%2 ? .015 : 0));
+    const b = at(T.bass, s);
+    if(b && b !== '.' && b !== '-') tone(t, r - 12*(T.root > 40 ? 1 : 0) + (b === 'o' ? 12 : b === '5' ? 7 : 0), hold(T.bass, s)*d*.9, T.bassV);
+    if(at(T.keys, s) === 'x'){ const len = hold(T.keys, s)*d; ch.forEach(m => keys(t, m + 12, len, T.keysV)); }
     if(T.pad && i === 0) ch.forEach(m => tone(t, m + T.pad.oct, 16*d, T.pad));
     if(T.arp && i % T.arp.rate === 0){ const k = Math.floor(s / T.arp.rate); tone(t, ch[k % ch.length] + T.arp.oct + (k % (ch.length*2) >= ch.length ? 12 : 0), T.arp.rate*d*.8, T.arp); }
-    const L = T._lead[s % T._ll]; if(L) tone(t, L[0], L[1]*d*.92, T.leadV);
+    const L = T._lead[s % T._ll];
+    if(L){ if(T.leadV.vox) vox(t, L[0], L[1]*d*.92, T.leadV, L[2]); else tone(t, L[0], L[1]*d*.92, T.leadV); }
   }
-
-  // ---- stings + sfx ----
   const STINGS = {
     shield(t){
       [72,76,79,84,88,91,96].forEach((m,k) => {
@@ -224,28 +276,33 @@ const NovaMusic = (() => {
     if(!ctx){ init(); try{ if(navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){} }
     if(ctx.state !== 'running') ctx.resume();
   }
-  function newBus(){ const g = ctx.createGain(); g.connect(master); bus = g; return g; }
+  function newBus(T){
+    bus = ctx.createGain(); bus.connect(master);
+    duck = ctx.createGain(); duck.connect(bus);
+    if(T && T.crackle){ crack = ctx.createBufferSource(); crack.buffer = crackBuf; crack.loop = true; const cg = ctx.createGain(); cg.gain.value = T.crackle * 3; crack.connect(cg); cg.connect(bus); crack.start(ctx.currentTime); }
+  }
   function tick(){ while(nextT < ctx.currentTime + .15){ sched(cur, step, nextT); nextT += sd(cur); step++; } }
   function stop(){
     clearInterval(timer); timer = null; cur = null;
+    if(crack){ try{ crack.stop(ctx.currentTime + .3); }catch(e){} crack = null; }
     if(bus && bus !== master && ctx){ const b = bus; b.gain.setTargetAtTime(0, ctx.currentTime, .05); setTimeout(() => b.disconnect(), 400); }
   }
   function play(id){
-    ensure(); stop(); newBus(); const T = TRACKS[id];
+    ensure(); stop(); const T = TRACKS[id]; newBus(T.sting ? null : T);
     if(T.sting){ STINGS[id](ctx.currentTime + .05); return; }
     cur = T; step = 0; nextT = ctx.currentTime + .06; tick(); timer = setInterval(tick, 25);
   }
-  function sfx(name){ ensure(); const prev = bus; bus = master; SFX[name](ctx.currentTime + .02); bus = prev; }
-  function setSlow(v){ slow = v; if(ctx) lp.frequency.setTargetAtTime(v ? 1600 : 18000, ctx.currentTime, .15); }
+  function sfx(name){ ensure(); const pb = bus, pd = duck; bus = duck = master; SFX[name](ctx.currentTime + .02); bus = pb; duck = pd; }
+  function setSlow(v){ slow = v; if(ctx) lp.frequency.setTargetAtTime(v ? 1400 : LP_ON, ctx.currentTime, .15); }
   function setRush(v){ rush = v; }
   // offline render for testing: returns RMS of the rendered audio
   async function render(id, sec = 4){
-    const off = new OfflineAudioContext(2, 44100*sec, 44100); init(off); bus = master;
-    const T = TRACKS[id];
+    const off = new OfflineAudioContext(2, 44100*sec, 44100); init(off);
+    const T = TRACKS[id]; newBus(T.sting ? null : T);
     if(T.sting) STINGS[id](.05); else { let t = .05, s = 0; while(t < sec - .2){ sched(T, s++, t); t += sd(T); } }
     const buf = await off.startRendering(), d = buf.getChannelData(0);
     let sum = 0, pk = 0; for(let i = 0; i < d.length; i++){ sum += d[i]*d[i]; pk = Math.max(pk, Math.abs(d[i])); }
-    ctx = null; return { rms: Math.sqrt(sum/d.length), peak: pk };
+    ctx = null; crack = null; return { rms: Math.sqrt(sum/d.length), peak: pk };
   }
   return { TRACKS, SFX, play, stop, sfx, setSlow, setRush, render, get playing(){ return cur && Object.keys(TRACKS).find(k => TRACKS[k] === cur); }, get analyser(){ return an; } };
 })();
