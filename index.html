@@ -208,6 +208,27 @@ nav button svg{position:relative}
 .msg.draft .dm{font-size:13px;color:var(--muted);margin-bottom:8px}
 .msg.draft .db{font-size:14px;line-height:1.45;margin-bottom:10px}
 .msg.draft a.btn{display:inline-flex;align-items:center;text-decoration:none}
+#micBtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#03111a;border-color:transparent;animation:micp 1.1s ease-in-out infinite}
+@keyframes micp{50%{box-shadow:0 0 0 6px rgba(63,198,255,.18),0 0 18px var(--glow)}}
+.row input,.row select{min-width:0}
+.sheetbg{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:88vh;overflow:auto;background:linear-gradient(var(--panel),var(--panel)),var(--bg);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px);font-size:14px;line-height:1.45}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.sheet textarea{width:100%;min-height:110px;margin-top:10px}
+.sheet .seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.sheet .seg button{flex:1;min-width:70px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:9px 6px;font:inherit;font-size:13px}
+.sheet .seg button.on{border-color:var(--accent);color:var(--accent);background:rgba(63,198,255,.08)}
+.sheet label{display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-size:13px;color:var(--muted)}
+.sheet label input{width:20px;height:20px;min-height:0;padding:0;margin-top:1px;flex:none;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--accent);border-radius:4px}
+.fbk{display:flex;gap:4px;margin:-2px 0 6px 6px}
+.fbk button{background:none;border:1px solid transparent;border-radius:999px;font-size:14px;padding:2px 7px;opacity:.55}
+.fbk button:active,.fbk button.on{opacity:1;border-color:var(--line);background:var(--panel)}
+.msg.checkin{max-width:94%;border-left:3px solid var(--accent2)}
+.msg.checkin .em{display:flex;justify-content:space-between;gap:4px;margin-top:8px}
+.msg.checkin .em button{flex:1;font-size:24px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:6px 0}
+.msg.checkin .row{margin-top:8px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 170px);transform:translateX(-50%);z-index:85;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px)}
+.toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;padding:0}
 #sendBtn.stop svg{display:none}
 #sendBtn.stop::after{content:"";width:12px;height:12px;border-radius:3px;background:#03111a}
 .item.line{background:var(--panel2)}
@@ -443,15 +464,13 @@ input[type=time]{min-height:38px}
       <li>Copy the key and paste it here.</li>
     </ol>
     <p class="muted" style="font-size:12px;margin:-2px 0 8px">Already have a Groq key (starts with gsk_)? That works too: paste it instead.</p>
-    <ol class="steps" hidden>
-    </ol>
     <input id="keyI" placeholder="Paste your key (AIza… or gsk_…)" autocomplete="off" autocapitalize="off" spellcheck="false">
     <input id="nameSetup" placeholder="Your name (optional)" style="margin-top:8px">
     <button class="btn wide" id="keyBtn">Wake Nova up</button>
     <button class="btn ghost wide" id="keyCancel" hidden>Cancel</button>
     <p class="muted" id="keyMsg" style="margin-top:10px"></p>
   </div>
-  <p class="muted" style="font-size:12px">Your key is saved only on this phone. Nova talks straight to Google; there's no other server.</p>
+  <p class="muted" style="font-size:12px">Your key is saved only on this phone. Nova talks straight to the AI service; there's no Nova server in between.</p>
 </div></div>
 
 <div class="app">
@@ -488,6 +507,7 @@ input[type=time]{min-height:38px}
         <button class="chip" id="runChip">🏃 Nova Run</button>
         <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
         <button class="chip" data-q="Help me write an email. Ask me who it's to and what it's about.">✉️ Write an email</button>
+        <button class="chip" id="fbChip">💬 Feedback</button>
       </div>
       <div class="photoPrev" id="photoPrev" hidden><img id="photoThumb" alt=""><span>Photo attached. Ask about it, or just send.</span><button id="photoX" aria-label="Remove photo">×</button></div>
       <input type="file" id="photoI" accept="image/*" hidden>
@@ -552,7 +572,6 @@ input[type=time]{min-height:38px}
           <div class="toggle"><span>Your name</span><input id="nameI" placeholder="What should she call you?" style="width:58%"></div>
           <div class="toggle"><span>🧠 Think harder<br><small class="muted" style="font-size:11px">Smarter answers, a bit slower (same free keys)</small></span><input type="checkbox" id="thinkT"></div>
           <div class="toggle"><span>Speak replies out loud</span><input type="checkbox" id="voiceT"></div>
-          <div class="toggle"><span>"Hey Nova" wake word<br><small class="muted" style="font-size:11px">Listens only while Nova is open on screen</small></span><input type="checkbox" id="wakeT"></div>
           <div class="toggle"><span>Reminder sound</span><input type="checkbox" id="soundT"></div>
           <div class="toggle"><span>Use my location for weather</span><input type="checkbox" id="locT"></div>
           <div class="toggle"><span>Bad-weather heads-up<br><small class="muted" style="font-size:11px">Rain, storms, snow, extreme heat/cold</small></span><input type="checkbox" id="wxT"></div>
@@ -586,8 +605,11 @@ input[type=time]{min-height:38px}
           <div id="groqInfo" style="margin-top:8px"></div>
           <div class="toggle" style="margin-top:6px;border:none"><span>⚡ Speed mode<br><small>Use Groq first. Fastest replies.</small></span><input type="checkbox" id="fastT"></div>
         </div>
+        <div class="sec">Help &amp; feedback</div>
+        <div class="card muted" id="fbInfo">Testing Nova? Tell Moon what's broken, confusing or awesome. Every report helps.</div>
+        <div class="row"><button class="btn" style="flex:1" id="fbBtn">💬 Send feedback</button><button class="btn ghost" style="flex:1" id="bugBtn">🐞 Report a bug</button></div>
         <div class="sec">Your data</div>
-        <div class="card muted">Everything lives on this phone. Make a backup now and then.</div>
+        <div class="card muted">Everything lives on this phone (plus your Discord link, if you set one up). Make a backup now and then.</div>
         <div class="row"><button class="btn ghost" style="flex:1" id="backupBtn">Back up</button><button class="btn ghost" style="flex:1" id="restoreBtn">Restore</button></div>
         <input type="file" id="restoreF" accept="application/json,.json" hidden>
         <button class="btn ghost wide" id="resetBtn">Start a fresh conversation</button>
@@ -604,6 +626,29 @@ input[type=time]{min-height:38px}
   </nav>
 </div>
 
+<script>
+// Crash catcher: records errors on this phone, and shows a rescue screen if Nova can't start.
+(function(){
+  var K = 'nova_errors';
+  function add(e){ try{ var a = JSON.parse(localStorage.getItem(K) || '[]'); e.v = window.__novaVer || ''; a.push(e); localStorage.setItem(K, JSON.stringify(a.slice(-30))); }catch(x){} }
+  window.__novaErr = add;
+  window.addEventListener('error', function(ev){ if(!ev || !ev.message) return; add({t:Date.now(), kind:'error', msg:String(ev.message).slice(0,300), where:String(ev.filename||'').split('/').pop()+':'+ev.lineno+':'+ev.colno, stack:String(ev.error && ev.error.stack || '').slice(0,700)}); });
+  window.addEventListener('unhandledrejection', function(ev){ var r = ev && ev.reason; if(r && (r.stopped || r.name === 'AbortError')) return; add({t:Date.now(), kind:'promise', msg:String(r && (r.message || r.friendly) || r).slice(0,300), stack:String(r && r.stack || '').slice(0,700)}); });
+  setTimeout(function(){
+    if(window.__novaBooted) return;
+    var errs = []; try{ errs = JSON.parse(localStorage.getItem(K) || '[]'); }catch(x){}
+    var rep = 'Nova crash report (startup)\n' + navigator.userAgent + '\n\n' + errs.slice(-5).map(function(e){ return new Date(e.t).toISOString() + ' ' + e.kind + ': ' + e.msg + (e.where ? ' @ ' + e.where : '') + '\n' + (e.stack || ''); }).join('\n');
+    var d = document.createElement('div');
+    d.setAttribute('style', 'position:fixed;inset:0;z-index:999;background:#070b14;color:#e8f1ff;font:16px/1.5 -apple-system,system-ui,sans-serif;padding:60px 24px;display:flex;flex-direction:column;gap:12px');
+    d.innerHTML = '<div style="font-size:42px">🛠️</div><b style="font-size:20px">Nova hit a problem starting up.</b><div style="color:#8ea3c4">Your tasks, schedule and memories are safe. Sending a crash report helps fix it fast.</div>';
+    function btn(t, f, main){ var b = document.createElement('button'); b.textContent = t; b.onclick = f; b.setAttribute('style', 'height:48px;border-radius:14px;border:1px solid #1f2b42;font:inherit;font-weight:600;' + (main ? 'background:#3fc6ff;color:#04121c;border:none' : 'background:#0e1524;color:#e8f1ff')); d.appendChild(b); }
+    btn('📨 Send crash report', function(){ if(navigator.share) navigator.share({title:'Nova crash report', text:rep}).catch(function(){}); else location.href = 'mailto:?subject=' + encodeURIComponent('Nova crash report') + '&body=' + encodeURIComponent(rep); }, true);
+    btn('↻ Try again', function(){ location.reload(); });
+    btn('🧹 Clear chat history and restart', function(){ try{ localStorage.removeItem('nova_chat'); }catch(x){} location.reload(); });
+    document.body.appendChild(d);
+  }, 7000);
+})();
+</script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -693,6 +738,11 @@ $('testBrain').onclick = async () => {
   }
   b.disabled = false; b.textContent = 'Test my brain';
 };
+let toastT = null;
+function toast(msg, undo){ const old = document.querySelector('.toast'); if(old) old.remove(); clearTimeout(toastT);
+  const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = '<span></span>'; t.querySelector('span').textContent = msg;
+  if(undo){ const b = document.createElement('button'); b.textContent = 'Undo'; b.onclick = () => { undo(); t.remove(); }; t.appendChild(b); }
+  document.body.appendChild(t); toastT = setTimeout(() => t.remove(), 5000); }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ---------------- clock & reminders ----------------
@@ -704,17 +754,21 @@ function tick(){
   $('clk').textContent = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
   $('dte').textContent = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
   const h = d.getHours();
-  if(!convo && !wakeRec) $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
+  if(!rec) $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
   checkReminders(d);
+  if(typeof renderGlance === 'function' && d.getSeconds() < 10) renderGlance();
+  updateTimerText();
 }
 let queue = [];
 function checkReminders(d){
   const k = keyOf(d), nowMin = d.getHours()*60 + d.getMinutes();
-  const inWindow = t => { const [h,m] = t.split(':').map(Number); const diff = nowMin - (h*60+m); return diff >= 0 && diff <= 15; };
+  const lateBy = t => { const [h,m] = t.split(':').map(Number); return nowMin - (h*60+m); };
+  const inWindow = t => { const d = lateBy(t); return d >= 0 && d <= 180; }; // opened Nova late? still remind (up to 3 hours)
+  const late = t => lateBy(t) > 15 ? ' (was due '+fmt12(t)+')' : '';
   let changed = false;
   const fire = (id, kind, text) => { if(D.fired[id]===k) return; D.fired[id]=k; queue.push({id, kind, text}); changed = true; };
-  D.tasks.forEach(t => { if(t.time && inWindow(t.time) && t.done!==k) fire(t.id,'task',t.text); });
-  D.events.forEach(e => { if(e.date===k && e.time && inWindow(e.time)) fire(e.id,'event',e.title+' ('+fmt12(e.time)+')'); });
+  D.tasks.forEach(t => { if(t.time && inWindow(t.time) && t.done!==k) fire(t.id,'task',t.text+late(t.time)); });
+  D.events.forEach(e => { if(e.date===k && e.time && lateBy(e.time) >= 0 && lateBy(e.time) <= 15) fire(e.id,'event',e.title+' ('+fmt12(e.time)+')'); }); // events: only near their start
   const due = D.timers.filter(x => x.at <= Date.now());
   if(due.length){ D.timers = D.timers.filter(x => x.at > Date.now()); due.forEach(x => fire(x.id,'timer','Time\'s up: '+x.label)); renderTasks(); }
   for(const id in D.fired) if(D.fired[id]!==k) delete D.fired[id];
@@ -735,8 +789,7 @@ const LINES = [
   {id:'hello',  name:'👋 Greeting',        hint:'Plays the first time you tap after opening Nova. e.g. "Nova online. What are we doing today?"'},
   {id:'remind', name:'⏰ Reminder alert',  hint:'Plays when a reminder pops up. e.g. "Hey! Time to do your thing."'},
   {id:'timer',  name:'⏱ Timer done',       hint:'Plays when a timer or snooze ends. e.g. "Time\'s up!"'},
-  {id:'listen', name:'🎙 I\'m listening',  hint:'Plays when you tap the orb to talk. e.g. "Yeah? I\'m listening."'},
-  {id:'bye',    name:'👋 Goodbye',         hint:'Plays when a conversation ends. e.g. "Alright, talk later."'},
+  {id:'listen', name:'🎙 I\'m listening',  hint:'Plays when you tap the mic, right before Nova listens. e.g. "Yeah? I\'m listening."'},
   {id:'done',   name:'🎉 Task done',       hint:'Plays when you check off a task. e.g. "Nice. One down."'},
 ];
 const clipDB = { db:null,
@@ -763,7 +816,7 @@ async function recordLine(id){
   if(recState){ const same = recState.id === id; stopRecording(); if(same) return; }
   if(!navigator.mediaDevices || !window.MediaRecorder){ bubble('note', 'Recording isn\'t supported in this browser. You can upload an audio file instead.'); return; }
   try{
-    stopWake();
+    try{ navigator.vibrate && navigator.vibrate(30); }catch(e){}
     const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
     const type = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/aac'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
     const mr = new MediaRecorder(stream, type ? {mimeType:type} : undefined);
@@ -779,7 +832,7 @@ async function recordLine(id){
     mr.start(); renderLines();
   }catch(e){ recState = null; renderLines(); bubble('note', 'I need microphone access to record. Allow it in Settings → Safari → Microphone (or tap Allow when asked).'); }
 }
-function stopRecording(){ if(!recState) return; clearTimeout(recState.timer); try{ recState.mr.stop(); }catch(e){} recState = null; renderLines(); resumeWake(); }
+function stopRecording(){ if(!recState) return; clearTimeout(recState.timer); try{ recState.mr.stop(); }catch(e){} recState = null; renderLines(); }
 async function saveClip(id, blob){
   try{
     const a = audio(); let dur = 0;
@@ -840,10 +893,15 @@ $('bannerOk').onclick = () => { const a = queue.shift(); if(a && a.kind==='task'
 let voices = [];
 try{ speechSynthesis.onvoiceschanged = () => { voices = speechSynthesis.getVoices(); }; voices = speechSynthesis.getVoices(); }catch(e){}
 function pickVoice(){ return voices.find(v=>/^(Samantha|Serena|Kate|Martha|Karen|Moira|Ava)/i.test(v.name) && /^en/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang)); }
+function spoken(text){ // what to say out loud: no tables, markdown symbols, links or emoji
+  return String(text||'').split('\n').filter(l => !/^\s*\|.*\|\s*$/.test(l)).join('\n')
+    .replace(/https?:\/\/\S+/g,'').replace(/^\s*#{1,4}\s+/gm,'').replace(/^\s*([-*•]|\d+[.)])\s+/gm,'').replace(/\*\*|__|`|~~/g,'').replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|[.,!?]|$)/g,'$1$2')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu,'').replace(/[✓✔✗✘⚠→←↑↓·]/g,' ').replace(/\s+/g,' ').trim().slice(0,700);
+}
 function speak(text, force){
   return new Promise(done => {
     if(!(D.voice || force) || !window.speechSynthesis){ done(); return; }
-    try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).replace(/https?:\/\/\S+/g,'').slice(0,700));
+    try{ speechSynthesis.cancel(); const said = spoken(text); if(!said){ done(); return; } const u = new SpeechSynthesisUtterance(said);
       const v = pickVoice(); if(v) u.voice = v; u.rate = 1.04;
       let fin = false; const end = () => { if(!fin){ fin = true; $('orb').classList.remove('speak'); done(); } };
       u.onend = end; u.onerror = end; setTimeout(end, 4000 + String(text).length*90); // safety net
@@ -852,76 +910,40 @@ function speak(text, force){
   });
 }
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null;
-function hearOnce(onInterim){ // one utterance -> text ('' if nothing)
+let rec = null, stopHearing = null;
+const convo = false, wakeRec = null; function stopWake(){} function resumeWake(){} // (wake word + conversation mode removed in v5.5)
+function setMic(on){ $('micBtn').classList.toggle('on', on); $('orb').classList.toggle('listen', on); $('micBtn').setAttribute('aria-label', on ? 'Stop listening' : 'Speak'); if(on) $('greet').textContent = '🎙 Listening… pause when you\'re done'; else tick(); }
+// one utterance -> text. iPhone never stops listening on its own, so Nova stops 1.4s after you stop talking.
+function hearOnce(onInterim){
   return new Promise(resolve => {
     if(!SR){ resolve(null); return; }
-    let text = '', settled = false; const fin = v => { if(!settled){ settled = true; rec = null; $('orb').classList.remove('listen'); resolve(v); } };
+    let text = '', settled = false, silenceT = null, maxT = null, endT = null; const r = new SR();
+    const fin = v => { if(settled) return; settled = true; clearTimeout(silenceT); clearTimeout(maxT); clearTimeout(endT); if(rec === r) rec = null; stopHearing = null; try{ r.abort(); }catch(e){} setMic(false); resolve(v); };
+    const finish = () => { if(settled) return; clearTimeout(silenceT); try{ r.stop(); }catch(e){} endT = setTimeout(() => fin(text.trim()), 700); };
     try{
-      stopWake(); if(rec) try{ rec.abort(); }catch(e){}
-      rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true; rec.continuous = false;
-      rec.onresult = ev => { text = Array.from(ev.results).map(r=>r[0].transcript).join(''); onInterim && onInterim(text); };
-      rec.onend = () => fin(text.trim());
-      rec.onerror = ev => fin(ev && (ev.error==='not-allowed' || ev.error==='service-not-allowed') ? null : text.trim());
-      $('orb').classList.add('listen'); rec.start();
+      rec = r; r.lang = navigator.language || 'en-US'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+      r.onresult = ev => { text = Array.from(ev.results).map(x => x[0].transcript).join(''); onInterim && onInterim(text); clearTimeout(silenceT); silenceT = setTimeout(finish, 1400); };
+      r.onend = () => fin(text.trim());
+      r.onerror = ev => fin(ev && /not-allowed|service-not-allowed/.test(ev.error) ? null : text.trim());
+      stopHearing = finish; setMic(true); r.start();
+      silenceT = setTimeout(finish, 7000);   // tapped but never said anything
+      maxT = setTimeout(finish, 30000);      // hard cap
     }catch(e){ fin(null); }
   });
 }
-async function listen(){ // mic button: one message
-  if(rec){ try{ rec.stop(); }catch(e){} return; }
-  const t = await hearOnce(x => { $('inp').value = x; });
-  if(t === null){ bubble('note', 'Microphone isn\'t available here. Check Settings → Safari → Microphone, or just type.'); return; }
-  if(t) await send(t); else $('inp').value = '';
-  resumeWake();
+async function listen(){ // mic button / orb: tap, talk, pause -> sent. Tap again to stop early.
+  if(stopHearing){ stopHearing(); return; }
+  if(busy) return;
+  audio();
+  if(haveClip.listen) await playClip('listen');
+  const t = await hearOnce(x => { $('inp').value = x; grow(); });
+  $('inp').value = ''; grow();
+  if(t === null){ bubble('note', 'I can\'t use the microphone. Allow it in Settings → Safari → Microphone (and Speech Recognition), or just type.'); return; }
+  if(t) await send(t, {voice:true});
 }
-// ---- conversation mode: talk back and forth hands-free ----
-let convo = false, convoMisses = 0;
-const STOP = /^(stop|bye|goodbye|bye nova|good ?night|that'?s (all|it)|that is all|never ?mind|end( conversation)?|cancel|shut up|i'?m done)[.! ]*$/i;
-function setStatus(t){ $('greet').textContent = t; }
-async function startConvo(firstText){
-  if(!SR){ bubble('note', 'Hands-free talking needs speech recognition, which this browser doesn\'t support. Try Safari or Chrome.'); return; }
-  if(convo){ endConvo('Okay, I\'ll stop listening.'); return; }
-  convo = true; convoMisses = 0; $('orb').classList.add('convo');
-  if(firstText){ await convoTurn(firstText); }
-  else { if(!(await playClip('listen'))) await speak(pick(['I\'m listening.','Go ahead.','Yes?','All ears. Metaphorically.']), true); }
-  convoLoop();
-}
-async function convoLoop(){
-  while(convo){
-    setStatus('🎙 Listening… (say "bye" to stop)');
-    const t = await hearOnce(x => { $('inp').value = x; });
-    $('inp').value = '';
-    if(!convo) break;
-    if(t === null){ endConvo(); bubble('note','Microphone access was blocked. Allow it in Settings → Safari → Microphone.'); break; }
-    if(!t){ if(++convoMisses >= 2){ endConvo(pick(['I\'ll be here if you need me.','Going quiet. Tap me when you need me.'])); break; } continue; }
-    convoMisses = 0;
-    if(STOP.test(t.trim())){ endConvo(pick(['Talk soon.','Signing off. Try not to miss me.','Later. I\'ll be here, being brilliant.'])); break; }
-    await convoTurn(t);
-  }
-}
-async function convoTurn(t){ setStatus('💭 Thinking…'); const reply = await send(t, {silent:true}); if(convo && reply){ setStatus('🔊 Speaking…'); await speak(reply, true); } }
-function endConvo(msg){ convo = false; $('orb').classList.remove('convo','listen'); try{ rec && rec.abort(); }catch(e){} tick(); if(msg){ bubble('nova', msg); playClip('bye').then(p => { if(!p) speak(msg, true); }); } setTimeout(resumeWake, 800); }
-// ---- "Hey Nova" wake word (only while Nova is open on screen) ----
-let wakeRec = null, wakeTimer = null;
-function stopWake(){ clearTimeout(wakeTimer); if(wakeRec){ const w = wakeRec; wakeRec = null; try{ w.abort(); }catch(e){} } }
-function resumeWake(){ clearTimeout(wakeTimer); if(D.wake && SR && !convo && !rec && !busy && !document.hidden) wakeTimer = setTimeout(startWake, 400); }
-function startWake(){
-  if(wakeRec || convo || rec || busy || document.hidden || !D.wake) return;
-  try{
-    const w = new SR(); wakeRec = w; w.lang = navigator.language || 'en-US'; w.continuous = true; w.interimResults = true;
-    w.onresult = ev => {
-      const said = Array.from(ev.results).slice(ev.resultIndex).map(r=>r[0].transcript).join(' ').toLowerCase();
-      const m = said.match(/\b(?:hey|hi|okay|ok|yo|hello)?,?\s*nova\b[,.!?]*\s*(.*)$/);
-      if(m && wakeRec===w){ const rest = (ev.results[ev.results.length-1].isFinal ? m[1] : '').trim(); stopWake(); startConvo(rest.length > 3 ? rest : ''); }
-    };
-    w.onerror = ev => { if(ev && (ev.error==='not-allowed' || ev.error==='service-not-allowed')){ D.wake = false; save(); renderMe(); bubble('note','"Hey Nova" needs microphone access. Allow it in Settings → Safari → Microphone.'); } };
-    w.onend = () => { if(wakeRec===w){ wakeRec = null; resumeWake(); } };
-    w.start(); setStatus('👂 Say "Hey Nova"…');
-  }catch(e){ wakeRec = null; }
-}
-document.addEventListener('visibilitychange', () => { if(document.hidden){ stopWake(); if(convo) endConvo(); } else resumeWake(); });
+document.addEventListener('visibilitychange', () => { if(document.hidden && stopHearing) stopHearing(); });
 if(SR){ $('micBtn').hidden = false; $('micBtn').onclick = listen; }
-$('orb').onclick = () => startConvo();
+$('orb').onclick = () => { if(SR) listen(); };
 
 // ---------------- iPhone Calendar (.ics) ----------------
 function icsDate(d){ return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00'; }
@@ -949,6 +971,13 @@ function startFor(time, date){ const d = date ? new Date(date+'T12:00') : new Da
 // ---------------- tools Nova can use ----------------
 function vTime(t){ t=String(t||'').trim().replace(/^(\d{1,2})(\d{2})\s*([ap])/i,'$1:$2$3'); const m=t.match(/^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?$/i); if(!m) return ''; let h=+m[1], mi=+(m[2]||0); const ap=(m[3]||'').toLowerCase();
   if(ap.startsWith('p')&&h<12) h+=12; if(ap.startsWith('a')&&h===12) h=0; if(h>23||mi>59) return ''; return pad(h)+':'+pad(mi); }
+function findTask(q){ // id, exact name, or a unique partial name ("vitamins" -> "Take vitamins")
+  const s = String(q||'').toLowerCase().trim(); if(!s) throw new Error('which task? call list_tasks first');
+  let t = D.tasks.find(x => x.id===q) || D.tasks.find(x => x.text.toLowerCase()===s); if(t) return t;
+  const m = D.tasks.filter(x => x.text.toLowerCase().includes(s) || s.includes(x.text.toLowerCase()));
+  if(m.length === 1) return m[0];
+  throw new Error(m.length ? 'more than one task matches "'+q+'": '+m.map(x=>x.text).join(', ')+' - use the id from list_tasks' : 'no task like "'+q+'" - call list_tasks first');
+}
 function vDate(d){ return /^\d{4}-\d{2}-\d{2}$/.test(String(d||'')) ? String(d) : ''; }
 
 const weatherCache = {};
@@ -966,7 +995,7 @@ async function fetchWeather(place){
   } else {
     if(!D.useLoc) throw new Error('Location is off. Ask with a city name, or turn on location in the You tab.');
     const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout:10000, maximumAge:30*60000}));
-    lat = pos.coords.latitude; lon = pos.coords.longitude; label = 'your location';
+    lat = pos.coords.latitude; lon = pos.coords.longitude; label = 'your location'; D.locOk = true;
   }
   const fahrenheit = /US|LR|MM/.test((navigator.language||'en-US').split('-')[1]||'US');
   const u = fahrenheit ? '&temperature_unit=fahrenheit&wind_speed_unit=mph' : '';
@@ -1008,7 +1037,7 @@ async function googleSearch(query){
 const TOOLS = {
   self_check: { d:'Run a real self-diagnostic: version, which brains (Google/Groq) actually respond right now, and current settings.', p:{},
     async run(){
-      const out = { version:VERSION, think_harder:!!D.think, speed_mode:!!(D.fast && D.groqKey), discord_linked:!!(D.sync && D.sync.code), wake_word:!!D.wake, tasks:D.tasks.length, events:D.events.length, memories:D.facts.length };
+      const out = { version:VERSION, think_harder:!!D.think, speed_mode:!!(D.fast && D.groqKey), discord_linked:!!(D.sync && D.sync.code), tasks:D.tasks.length, events:D.events.length, memories:D.facts.length };
       if(D.key){ try{ const T = timed(12000); const r = await fetch(`${API}/models/${D.model||'gemini-flash-latest'}:generateContent`, {method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify({contents:[{role:'user',parts:[{text:'Reply: ok'}]}], generationConfig:{maxOutputTokens:5}})}); T.done(); out.google = r.ok ? 'working ('+D.model+')' : 'error '+r.status+(r.status===429?' (daily free limit used up)':''); }catch(e){ out.google = 'not responding'; } } else out.google = 'not set up';
       if(D.groqKey){ try{ const T = timed(12000); const r = await fetch(GROQ+'/models', {signal:T.signal, headers:{'Authorization':'Bearer '+D.groqKey}}); T.done(); out.groq = r.ok ? 'working' : 'error '+r.status+(r.status===401?' (key invalid)':''); }catch(e){ out.groq = 'not responding'; } } else out.groq = 'not set up (add a free key in the You tab under Backup brain)';
       return out; } },
@@ -1017,31 +1046,38 @@ const TOOLS = {
   add_task: { d:'Add a daily recurring task/reminder. time optional, 24h HH:MM.', p:{text:'STRING', time:'STRING'}, r:['text'],
     run(a){ const t={id:uid(), text:String(a.text).slice(0,140), time:vTime(a.time), done:''}; D.tasks.push(t); D.calTips=(D.calTips||0)+1; save(); renderTasks();
       return D.calTips<=2 ? {added:t, tip:'Mention briefly: tapping the calendar button on the task gives a real iPhone alert even when Nova is closed.'} : {added:t}; } },
-  complete_task: { d:'Mark a daily task done for today (id or exact text).', p:{id:'STRING'}, r:['id'],
-    run(a){ const t=D.tasks.find(t=>t.id===a.id || t.text.toLowerCase()===String(a.id).toLowerCase()); if(!t) throw new Error('no task like that'); markDone(t, true); save(); renderTasks(); renderGlance(); return {ok:true, streak_days:streakOf(t)}; } },
+  complete_task: { d:'Mark a daily task done for today (id or its name).', p:{id:'STRING'}, r:['id'],
+    run(a){ const t=findTask(a.id); markDone(t, true); save(); renderTasks(); renderGlance(); return {ok:true, streak_days:streakOf(t)}; } },
   get_streaks: { d:'Habit streaks: for each daily task, current streak (days in a row done) and best streak ever.', p:{}, run(){ return D.tasks.map(t=>({task:t.text, current_streak:streakOf(t), best_streak:bestOf(t), done_today:t.done===keyOf()})); } },
-  delete_task: { d:'Delete a daily task (id or exact text).', p:{id:'STRING'}, r:['id'],
-    run(a){ const n=D.tasks.length; D.tasks=D.tasks.filter(t=>t.id!==a.id && t.text.toLowerCase()!==String(a.id).toLowerCase()); if(n===D.tasks.length) throw new Error('no task like that'); save(); renderTasks(); return {ok:true}; } },
+  delete_task: { d:'Delete a daily task (id or its name).', p:{id:'STRING'}, r:['id'],
+    run(a){ const t=findTask(a.id); D.tasks=D.tasks.filter(x=>x!==t); save(); renderTasks(); return {ok:true, deleted:t.text}; } },
   list_events: { d:'List schedule events from start to end date (YYYY-MM-DD).', p:{start:'STRING', end:'STRING'}, r:['start'],
     run(a){ const s=vDate(a.start)||keyOf(), e=vDate(a.end)||s; return D.events.filter(x=>x.date>=s&&x.date<=e).sort((x,y)=>(x.date+(x.time||'99')).localeCompare(y.date+(y.time||'99'))); } },
   add_event: { d:'Add a one-time event to the schedule. date YYYY-MM-DD, time and end optional 24h HH:MM (end = when it finishes, e.g. a shift 10:00-17:00).', p:{date:'STRING', time:'STRING', end:'STRING', title:'STRING'}, r:['date','title'],
     run(a){ const e={id:uid(), date:vDate(a.date)||keyOf(), time:vTime(a.time), end:vTime(a.end), title:String(a.title).slice(0,140)}; D.events.push(e); pruneEvents(); save(); renderSched(); const c = clashesFor(e); return c.length ? {added:e, warning:'overlaps with: '+c.map(x=>x.title).join(', ')} : {added:e}; } },
   update_event: { d:'Change an existing schedule event (move it to a new date/time, change its end time, or rename it). Look up its id with list_events first.', p:{id:'STRING', date:'STRING', time:'STRING', end:'STRING', title:'STRING'}, r:['id'],
     run(a){ const e=D.events.find(x=>x.id===a.id); if(!e) throw new Error('no event with that id - call list_events first');
-      if(a.date && vDate(a.date)) e.date=vDate(a.date); if(a.time!==undefined && a.time!=='') e.time=vTime(a.time)||e.time; if(a.end!==undefined && a.end!=='') e.end=vTime(a.end)||e.end; if(a.title) e.title=String(a.title).slice(0,140);
+      const oldR = rangeOf(e);
+      if(a.date && vDate(a.date)) e.date=vDate(a.date); if(a.time!==undefined && a.time!=='') e.time=vTime(a.time)||e.time;
+      if(a.end!==undefined && a.end!=='') e.end=vTime(a.end)||e.end;
+      else if(oldR && e.end && e.time){ const st = toMin(e.time) + (oldR[1]-oldR[0]); e.end = pad(Math.floor(st/60)%24)+':'+pad(st%60); } // moved: keep the same length if(a.title) e.title=String(a.title).slice(0,140);
       delete D.fired[e.id]; save(); renderSched(); return {updated:e}; } },
   update_task: { d:'Change a daily task: new reminder time (24h HH:MM, or "none") and/or new text. Look up its id with list_tasks first.', p:{id:'STRING', time:'STRING', text:'STRING'}, r:['id'],
-    run(a){ const t=D.tasks.find(x=>x.id===a.id || x.text.toLowerCase()===String(a.id).toLowerCase()); if(!t) throw new Error('no task like that - call list_tasks first');
+    run(a){ const t=findTask(a.id);
       if(a.time!==undefined && a.time!=='') t.time = /none|no time|clear/i.test(a.time) ? '' : (vTime(a.time)||t.time); if(a.text) t.text=String(a.text).slice(0,140);
       delete D.fired[t.id]; save(); renderTasks(); return {updated:t}; } },
   delete_event: { d:'Delete a schedule event by id.', p:{id:'STRING'}, r:['id'],
     run(a){ const n=D.events.length; D.events=D.events.filter(e=>e.id!==a.id); if(n===D.events.length) throw new Error('no event with that id'); save(); renderSched(); return {ok:true}; } },
-  draft_email: { d:'Write an email draft for the user (new email or a reply). Shows it with Copy and Open-in-Mail buttons. Write the full email in the body, signed with the user\'s name if known.',
+  open_feedback: { d:'Open the feedback form so the user can send a bug report or idea to the developer (Moon). kind: bug, idea, love or other. summary: one or two sentences describing it in their words.', p:{kind:'STRING', summary:'STRING'}, r:['summary'],
+    run(a){ pendingFb = {kind: /idea|feature|suggest/i.test(a.kind||'') ? 'idea' : /love|praise/i.test(a.kind||'') ? 'love' : /bug|broke|crash|error/i.test(a.kind||'') ? 'bug' : 'other', text:String(a.summary||'').slice(0,500)}; return {form_opened:true, note:'The feedback form opens after your reply, prefilled. Keep the reply to one warm line.'}; } },
+  open_game: { d:'Actually open one of Nova\'s built-in games on screen. game: "run" (Nova Run) or "blocks" (Nova Blocks). This is the ONLY way to open a game; never say a game is opening without calling it.', p:{game:'STRING'}, r:['game'],
+    run(a){ const g = /block|tetris|puzzle/i.test(a.game||'') ? 'blocks' : 'run'; pendingGame = g; return {opening: g === 'run' ? 'Nova Run' : 'Nova Blocks', note:'It opens right after your reply. Keep the reply to one short line.'}; } },
+  draft_email: { d:'ONLY for real emails: when the user asks you to write or reply to an email. Shows an email card with Copy and Open-in-Mail buttons. Never use it for trivia, would-you-rather, jokes, lists, texts or anything that is not an email. Write the full email in the body, signed with the user\'s name if known.',
     p:{to:'STRING', subject:'STRING', body:'STRING', tone:'STRING'}, r:['subject','body'],
     run(a){ pendingDrafts.push({to:String(a.to||'').trim(), subject:String(a.subject||'').slice(0,200), body:String(a.body||'').slice(0,5000)}); return {shown_to_user:true, note:'The draft card is on screen with Copy / Open in Mail. Just add a short witty line; do not repeat the email.'}; } },
   set_timer: { d:'Start a countdown timer that alerts after N minutes (while Nova is open).', p:{minutes:'NUMBER', label:'STRING'}, r:['minutes'],
     run(a){ const m=+a.minutes; if(!(m>0 && m<=1440)) throw new Error('minutes must be 1-1440'); const x={id:'t_'+uid(), at:Date.now()+m*60000, label:String(a.label||'Timer').slice(0,60)}; D.timers.push(x); save(); renderTasks();
-      return {set:x.label, goes_off_at:new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}), note:'Only alerts while Nova is open on screen.'}; } },
+      return {set:x.label, goes_off_at:new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}), note:'Only alerts while Nova is open on screen. Say so briefly.'}; } },
   remember_fact: { d:'Save a lasting fact about the user (name, birthday, likes, goals).', p:{fact:'STRING'}, r:['fact'],
     run(a){ const f=String(a.fact).trim().slice(0,200); if(!f) throw new Error('empty'); if(!D.facts.some(x=>x.text.toLowerCase()===f.toLowerCase())) D.facts.push({id:uid(), text:f});
       const m=f.match(/^(?:the user'?s |user'?s |my )?name is (.+)$/i); if(m) D.name=m[1].replace(/\.$/,'').slice(0,40);
@@ -1092,8 +1128,8 @@ Examples of your voice:
 
 About yourself (be accurate, never make things up about your own setup):
 - You are Nova v${VERSION}, a web app on the user's phone. The user builds and updates you (with Claude's help). You cannot change your own code or settings; updates arrive when they reopen you.
-- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Discord link: ${D.sync && D.sync.code ? 'linked' : 'not linked'}. Wake word: ${D.wake ? 'on' : 'off'}.
-- What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; hands-free conversation mode (tap the orb); "Hey Nova" wake word; 4 color themes; syncing with Discord Nova.
+- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Discord link: ${D.sync && D.sync.code ? 'linked' : 'not linked'}.
+- What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; voice input (tap the mic or the orb, talk, and pause: it sends itself, and you answer out loud); 4 color themes; syncing with Discord Nova; a Send feedback button in the You tab (testers can report bugs and ideas). There is NO always-on wake word and no hands-free conversation loop anymore (removed in v5.5 because it kept listening).
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
@@ -1101,7 +1137,7 @@ About yourself (be accurate, never make things up about your own setup):
 - Nova Blocks (v5.1): a falling-blocks puzzle game built into you (🎮 button above the chat, or the user says "play blocks"). Their best score: ${D.blocksBest||0}${D.blocksLast ? ', last game: '+D.blocksLast.score+' points, level '+D.blocksLast.level : ''}. Trash-talk lightly about it when relevant. It is your own game, not Tetris.
 - Nova Run (v5.3): your runner game (🏃 button above the chat, or "play nova run"): a glowing orb races down a neon track that cycles colors, with towers, arches and mountains rushing past. 5 levels (Cruise, Warp, Nebula, Hyperdrive, Event Horizon), each unlocked by reaching the finish flag. Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump. Unlocked: level ${(D.runLv&&D.runLv.unlocked)||1}. Overall best: ${D.runBest||0}. It's your own game, not a copy of any other. Soundtrack (v5.4, made live with Web Audio, lo-fi / outsider house style Moon picked, inspired by the vibe of wiv's "i love u." but all original melodies): menu Standby Glow (84 BPM), L1 Neon Commute (112), L2 Lightspeed Lane (122), L3 Purple Static (126), L4 Overclocked (132), L5 No Way Back (140); stings Shield Up! and Respawn; sound effects for jump, double-jump whoosh, power-up, crash, level clear. Music slows in Slow-mo and speeds up near the finish. 🔊 button mutes it.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
-- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish.
+- Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish; v5.1 Nova Blocks; v5.2 Nova Run; v5.3 Nova Run levels and power-ups; v5.4 Nova Run soundtrack; v5.5 soft-launch polish: tap-to-talk mic that stops when you pause, games open for real, feedback + crash reports, lots of small fixes.
 
 ${D.chatSummary ? 'Earlier in this conversation (summary of older messages): '+D.chatSummary+'\n' : ''}
 Context:
@@ -1118,8 +1154,10 @@ Use tools whenever they help; never invent results:
 - planning a day -> list_events first, add sensible time blocks with add_event, then sum it up in a sentence or two.
 - current events, news, scores, prices, anything that may have changed -> web_search. Mention the source name briefly.
 - weather -> get_weather.
+- games: "play nova run", "open blocks", "let's play a game" -> open_game (run or blocks). Never claim a game is opening unless you called open_game.
+- if they report a bug, complain that something is broken, or suggest a feature -> be gracious, then call open_feedback with a short summary so they can send it to the developer.
 - habits: "how are my streaks" -> get_streaks; celebrate streaks with a quip, gently roast broken ones.
-- games: trivia = one question at a time with options A-D, wait for their answer, say right/wrong with flair, keep score in the chat, offer another. Riddles: never reveal the answer until they give up. Would-you-rather: give two fun options, then react to their pick. Jokes and facts: original, clever, clean.${convo ? '\n- RIGHT NOW you are in a spoken, hands-free conversation: answer in 1-2 short sentences, no lists, no links, no emojis, and sound natural out loud. End with a question only when it keeps the conversation going.' : ''}
+- games: trivia = one question at a time with options A-D, wait for their answer, say right/wrong with flair, keep score in the chat, offer another. Riddles: never reveal the answer until they give up. Would-you-rather: give two fun options, then react to their pick. Jokes and facts: original, clever, clean.
 - "remember..." or a real personal detail they state about themselves (name, birthday, city, likes, goals) -> remember_fact. Never save jokes, banter, hypotheticals or things you said; when unsure, don't save. "forget..." -> forget_fact.
 - writing or replying to an email/message ("write an email to my teacher", "reply to this") -> ask for any missing key detail (who, what), then call draft_email with the complete email. Afterwards just add one short line; never paste the email again.${D.think ? '\n- Think-harder mode is ON: be thorough and careful; you may give longer, well-structured answers when the question needs it.' : ''}
 If a tool errors, say so plainly with a light touch.`;
@@ -1212,7 +1250,7 @@ async function gemini(body, onText){
       if(D.model !== model){ D.model = model; save(); renderMe(); }
       lastError = ''; return res.data;
     }
-    last = res; lastError = model+' → '+res.status+' '+res.msg;
+    last = res; lastError = model+' → '+res.status+' '+res.msg; logIssue('brain', lastError);
     if(res.status===403 || (res.status===400 && /API key/i.test(res.msg))) throw {friendly:'My brain key isn\'t working anymore. Tap "Change API key" in the You tab.'};
     if(res.status===0 && res.msg==='timeout' && ++timeouts >= (D.groqKey ? 1 : 2)) break; // two slow brains in a row: give up
     if(res.status===0 && res.msg!=='timeout') break; // no internet: other models won't help
@@ -1282,7 +1320,7 @@ async function groqCall(messages){
     let r; const T = timed(D.think ? 60000 : 25000);
     try{
       r = await fetch(GROQ + '/chat/completions', { method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
-        body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', temperature:0.8, max_tokens: D.think ? 4000 : 2500, temperature: needsCare(lastAsk) ? 0.4 : 0.8 }, /gpt-oss/.test(model) ? {reasoning_effort: D.think ? 'high' : needsCare(lastAsk) ? 'medium' : 'low'} : {})) });
+        body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', max_tokens: D.think ? 4000 : 2500, temperature: needsCare(lastAsk) ? 0.4 : 0.8 }, /gpt-oss/.test(model) ? {reasoning_effort: D.think ? 'high' : needsCare(lastAsk) ? 'medium' : 'low'} : {})) });
     }catch(e){ T.done(); if(T.ctl.stopped) throw {friendly:'Stopped.', stopped:true}; last = T.signal.aborted ? 'timeout' : 'network'; continue; }
     T.done();
     const j = await r.json().catch(()=>({}));
@@ -1462,7 +1500,7 @@ function openMenu(msg, x, y){
   if(isMe) add('↻ Send again', () => send(raw));
   else { const all = [...log.querySelectorAll('.msg.me')].filter(m => m.compareDocumentPosition(msg) & Node.DOCUMENT_POSITION_FOLLOWING); const prevMe = all[all.length-1]; if(prevMe) add('↻ Ask again', () => send(plainOf(prevMe))); }
   add('🗑 Delete', () => { const i = history.map(h => (h.parts&&h.parts[0]&&h.parts[0].text)||'').lastIndexOf(raw); if(i >= 0){ history.splice(i,1); saveChat(); }
-    let n = msg.nextElementSibling; while(n && /\b(act|src|bar)\b/.test(n.className)){ const nx = n.nextElementSibling; n.remove(); n = nx; } msg.remove(); });
+    let n = msg.nextElementSibling; while(n && /\b(act|src|bar|draft|fbk)\b/.test(n.className)){ const nx = n.nextElementSibling; n.remove(); n = nx; } msg.remove(); });
   document.body.appendChild(menuEl);
   const r = menuEl.getBoundingClientRect(); menuEl.style.left = Math.max(8, Math.min(x - r.width/2, innerWidth - r.width - 8)) + 'px'; menuEl.style.top = Math.max(8, Math.min(y - r.height - 12, innerHeight - r.height - 8)) + 'px';
 }
@@ -1471,12 +1509,13 @@ log.addEventListener('touchstart', e => { const m = e.target.closest('.msg.me, .
 log.addEventListener('contextmenu', e => { const m = e.target.closest('.msg.me, .msg.nova'); if(!m) return; e.preventDefault(); openMenu(m, e.clientX, e.clientY); });
 document.addEventListener('click', e => { if(menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
 const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
-  set_timer:'⏱ timer set', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
+  set_timer:'⏱ timer set', open_feedback:'💬 feedback form', open_game:'🎮 opening the game', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
-  if(/\b(play|open|start|launch)\b.*\b(nova run|runner|run game|running game)\b/i.test(q) && q.length < 60){ setTimeout(() => Run.open(), 350);
+  const qq = q.toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey |ok |okay )?(nova )?(can you |could you |please |let s |lets |i want to |i wanna )*/,'').replace(/( for me)?( please| now| nova)*$/,'');
+  if(/^(play|open|start|launch|load) (nova run|the runner|runner|the run game|run game|running game)$/.test(qq)){ setTimeout(() => Run.open(), 350);
     return pick(['Nova Run, loading. Swipe to dodge, try not to faceplant. Best so far: '+(D.runBest||0)+'.','Track\'s hot. Run fast, jump high, don\'t hit the walls.','Lacing up your virtual shoes. Go.']); }
-  if(/\b(play|open|start|launch)\b.*\b(nova blocks|blocks|block game|tetris|a game|game)\b/i.test(q) && q.length < 60){ setTimeout(() => Blocks.open(), 350);
+  if(/^(play|open|start|launch|load) (nova blocks|blocks|the blocks game|block game|a game|the game|game)$/.test(qq)){ setTimeout(() => Blocks.open(), 350);
     return pick(['Loading Nova Blocks. Try not to embarrass yourself. Best so far: '+(D.blocksBest||0)+'.','Game time. Blocks fall, you stack, I judge.','Nova Blocks, coming up. Fair warning: the blocks are competitive.']); }
   // answer simple time/date questions on the phone itself, no AI needed
   const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
@@ -1491,7 +1530,7 @@ function instant(q){
   if(isDate) return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
   return null;
 }
-let pendingDrafts = [];
+let pendingDrafts = [], pendingGame = null, pendingFb = null;
 function draftCard(dr, after){
   const card = document.createElement('div'); card.className = 'msg nova draft';
   card.innerHTML = '<div class="dh">✉️ Email draft</div><div class="dm"></div><div class="db"></div><div class="row"><button class="btn sm">Copy</button><a class="btn sm ghost" target="_blank" rel="noopener">Open in Mail</a></div>';
@@ -1502,7 +1541,7 @@ function draftCard(dr, after){
   card.querySelector('a').href = 'mailto:'+encodeURIComponent(dr.to||'')+'?subject='+encodeURIComponent(dr.subject)+'&body='+encodeURIComponent(dr.body);
   after.after(card); return card;
 }
-let busy = false;
+let busy = false, sentAt = 0;
 let photo = null; // {data: base64 jpeg, url: dataURL}
 async function send(given, opts={}){
   let text = (typeof given==='string' ? given : $('inp').value).trim();
@@ -1519,10 +1558,10 @@ async function send(given, opts={}){
     const ob = store.get('nova_outbox', []); ob.push(text); store.set('nova_outbox', ob.slice(-5)); n.dataset.outbox = '1';
     return '';
   }
-  if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
+  if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick, opts.voice); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
-  pendingDrafts = [];
-  busy = true; $('orb').classList.add('busy'); $('sendBtn').classList.add('stop'); $('sendBtn').setAttribute('aria-label','Stop');
+  pendingDrafts = []; pendingGame = null;
+  busy = true; sentAt = Date.now(); $('orb').classList.add('busy'); $('sendBtn').classList.add('stop'); $('sendBtn').setAttribute('aria-label','Stop');
   stopCtl = new AbortController(); const myStop = stopCtl;
   const watchdog = setTimeout(() => myStop.abort(), (D.think ? 130 : 50) * 1000);
   const slowNote = setTimeout(() => { if(busy && t.querySelector('.typing') && !t.querySelector('.slow')) t.insertAdjacentHTML('beforeend', ' <span class="muted slow" style="font-size:13px">'+pick(['Still thinking… (■ to stop)','Hmm, give me a sec… (■ to stop)','The hamster is running… (■ to stop)'])+'</span>'); }, 8000);
@@ -1559,7 +1598,10 @@ async function send(given, opts={}){
     const drafts = pendingDrafts.splice(0); drafts.forEach(dr => { after = draftCard(dr, after); });
     if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
     enhance(t, r.reply);
-    if(!opts.silent) speak(r.reply);
+    rateBar(t, r.reply, text);
+    if(pendingFb){ const f = pendingFb; pendingFb = null; setTimeout(() => openFeedback(f.kind, f.text, f.ctx), 700); }
+    if(!opts.silent) speak(r.reply, opts.voice);
+    if(pendingGame){ const g = pendingGame; pendingGame = null; setTimeout(() => (g === 'run' ? Run : Blocks).open(), 600); }
     maybeSummarize();
     return r.reply;
   }catch(e){
@@ -1569,7 +1611,100 @@ async function send(given, opts={}){
     t.classList.add('failed');
     actionBar(t, [['↻ Retry', b => { b.parentElement.remove(); t.remove(); mine.remove(); send(text); }]]);
     return t.textContent;
-  }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); if(!convo) resumeWake(); }
+  }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); }
+}
+// ---------------- feedback, crash reports, check-ins ----------------
+const FEEDBACK_TO = { email:'', sms:'' }; // where testers' reports go. Empty = the iPhone share sheet (Messages, Mail, etc.)
+function logIssue(kind, msg){ try{ window.__novaErr && window.__novaErr({t:Date.now(), kind, msg:String(msg||'').slice(0,300)}); }catch(e){} }
+const errLog = () => store.get('nova_errors', []);
+function newCrashes(){ return errLog().filter(e => (e.kind==='error' || e.kind==='promise') && e.t > (D.errSeen||0)); }
+function fbId(){ return 'FB-' + Math.random().toString(36).slice(2,6).toUpperCase(); }
+function diag(){
+  const ua = navigator.userAgent, ios = (ua.match(/OS (\d+[_\d]*)/)||[])[1];
+  const errs = errLog().slice(-8).map(e => '  ' + new Date(e.t).toLocaleString() + ' [' + e.kind + (e.v ? ' v'+e.v : '') + '] ' + e.msg + (e.where ? ' @ '+e.where : '') + (e.stack ? '\n    ' + e.stack.split('\n').slice(0,3).join('\n    ') : ''));
+  return ['Nova v'+VERSION + ' · ' + (ios ? 'iOS '+ios.replace(/_/g,'.') : ua.slice(0,80)) + ' · ' + (standalone ? 'home-screen app' : 'browser') + ' · ' + innerWidth+'x'+innerHeight,
+    'Brain: ' + (D.key ? 'Google ('+(D.model||'auto')+')' : 'no Google') + ' · ' + (D.groqKey ? 'Groq'+(D.fast?' first':' backup') : 'no Groq') + (lastError ? ' · last brain error: '+lastError : ''),
+    'Settings: humor '+(D.humor||'witty')+', theme '+(D.theme||'arc')+', voice '+(D.voice?'on':'off')+', think '+(D.think?'on':'off')+', mic '+(SR?'yes':'no') + ', online '+navigator.onLine,
+    'Data: '+D.tasks.length+' tasks, '+D.events.length+' events, '+D.facts.length+' memories, discord '+(D.sync && D.sync.code ? 'linked' : 'no'),
+    'Recent errors:' + (errs.length ? '\n' + errs.join('\n') : ' none')].join('\n');
+}
+async function deliverReport(title, text){
+  if(FEEDBACK_TO.sms) { location.href = 'sms:' + FEEDBACK_TO.sms + '&body=' + encodeURIComponent(text); return true; }
+  try{ if(navigator.share){ await navigator.share({title, text}); return true; } }catch(e){ if(e && e.name === 'AbortError') return false; }
+  if(FEEDBACK_TO.email || !navigator.share){ location.href = 'mailto:' + encodeURIComponent(FEEDBACK_TO.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(text); return true; }
+  await copyText(text); toast('Copied. Paste it in a message to Moon.'); return true;
+}
+const FB_KINDS = [['bug','🐞 Bug'],['idea','💡 Idea'],['love','❤️ Love it'],['other','💬 Other']];
+function openFeedback(kind, text, ctx){
+  const bg = document.createElement('div'); bg.className = 'sheetbg';
+  bg.innerHTML = '<div class="sheet"><h3></h3><div class="muted sub">It goes to Moon, who builds me. Be brutally honest. I\'m software, I\'ll cope.</div><div class="seg"></div><textarea placeholder="What happened? What did you expect? Or your idea…"></textarea>'
+    + (ctx ? '<label><input type="checkbox" id="fbCtx" checked> Include the message and my answer, so Moon can see what went wrong</label>' : '')
+    + '<label><input type="checkbox" id="fbTech" checked> Include tech details (version, phone, errors). Never your keys.</label>'
+    + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-send>Send to Moon</button></div></div>';
+  const sh = bg.querySelector('.sheet'); let k = kind || 'bug';
+  const title = () => sh.querySelector('h3').textContent = {bug:'🐞 Report a bug', idea:'💡 Suggest an idea', love:'❤️ What do you love?', other:'💬 Send feedback'}[k];
+  const seg = sh.querySelector('.seg'); FB_KINDS.forEach(([id, lab]) => { const b = document.createElement('button'); b.textContent = lab; b.classList.toggle('on', id===k); b.onclick = () => { k = id; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b)); title(); }; seg.appendChild(b); });
+  title(); const ta = sh.querySelector('textarea'); ta.value = text || '';
+  bg.onclick = e => { if(e.target === bg || e.target.dataset.x !== undefined) bg.remove(); };
+  sh.querySelector('[data-send]').onclick = async () => {
+    const msg = ta.value.trim(); if(!msg && !ctx){ ta.focus(); ta.style.borderColor = 'var(--bad)'; return; }
+    const id = fbId(), label = FB_KINDS.find(x => x[0]===k)[1];
+    let rep = 'Nova feedback '+id+'\nType: '+label+'\nFrom: '+(D.name||'(no name)')+'\nWhen: '+new Date().toLocaleString()+'\n\n'+(msg || '(no message)');
+    if(ctx && sh.querySelector('#fbCtx').checked) rep += '\n\n--- the conversation ---\nThey said: '+String(ctx.q||'').slice(0,600)+'\nNova said: '+String(ctx.a||'').slice(0,1200);
+    if(sh.querySelector('#fbTech').checked) rep += '\n\n--- tech details ---\n'+diag();
+    const sent = await deliverReport('Nova feedback '+id+' ('+label.replace(/^\S+\s/,'')+')', rep);
+    if(!sent) return;
+    bg.remove(); D.feedback = (D.feedback||[]).concat({id, at:Date.now(), kind:k, text:msg.slice(0,200)}).slice(-50); D.errSeen = Date.now(); save(); renderFb();
+    toast(pick(['Sent. Moon has been informed. '+id, 'Feedback '+id+' sent. You\'re officially a tester now.', 'Got it. '+id+' is on its way.']));
+  };
+  document.body.appendChild(bg); setTimeout(() => ta.focus(), 200);
+}
+function renderFb(){ const n = (D.feedback||[]).length; if($('fbInfo')) $('fbInfo').textContent = 'Testing Nova? Tell Moon what\'s broken, confusing or awesome. ' + (n ? 'You\'ve sent '+n+' report'+(n===1?'':'s')+'. Thank you!' : 'Every report helps.'); }
+$('fbBtn').onclick = () => openFeedback('other');
+$('bugBtn').onclick = () => openFeedback('bug');
+$('fbChip').onclick = () => openFeedback('other');
+// 👍 / 👎 on Nova's latest answer
+function rateBar(t, raw, q){
+  log.querySelectorAll('.fbk').forEach(x => x.remove());
+  const bar = document.createElement('div'); bar.className = 'fbk';
+  bar.innerHTML = '<button aria-label="Good answer">👍</button><button aria-label="Bad answer">👎</button>';
+  const [up, down] = bar.querySelectorAll('button');
+  up.onclick = () => { up.classList.add('on'); D.ratings = Object.assign({up:0, down:0}, D.ratings); D.ratings.up++; save(); toast(pick(['Noted. I\'ll try to stay this brilliant.','Thanks! Logged as a W.','Appreciated. I\'m framing this.'])); setTimeout(() => bar.remove(), 1200); };
+  down.onclick = () => { D.ratings = Object.assign({up:0, down:0}, D.ratings); D.ratings.down++; save(); openFeedback('bug', '', {q, a:raw}); };
+  let anchor = t; while(anchor.nextElementSibling && /\b(act|src|draft|bar)\b/.test(anchor.nextElementSibling.className)) anchor = anchor.nextElementSibling;
+  anchor.after(bar);
+}
+// crash prompt: Nova hit an error since the last report
+function crashPrompt(){
+  const c = newCrashes(); if(!c.length) return;
+  const n = document.createElement('div'); n.className = 'msg nova checkin';
+  n.innerHTML = '<b>🛠️ I hit a snag recently</b><div class="muted" style="font-size:13px;margin-top:2px"></div><div class="row"><button class="btn sm">📨 Send crash report</button><button class="btn sm ghost">Not now</button></div>';
+  n.querySelector('.muted').textContent = c.length + ' error' + (c.length===1?'':'s') + ' happened. Sending a report (no chats, no keys) helps Moon fix it.';
+  const [go, no] = n.querySelectorAll('button');
+  go.onclick = async () => { const id = fbId(); const ok = await deliverReport('Nova crash report '+id, 'Nova crash report '+id+'\nFrom: '+(D.name||'(no name)')+'\n\n'+diag()); if(ok){ D.errSeen = Date.now(); save(); n.remove(); toast('Crash report '+id+' sent. Thank you!'); } };
+  no.onclick = () => { D.errSeen = Date.now(); save(); n.remove(); };
+  log.appendChild(n); scrollDown(true);
+}
+// check-ins: after a few days of use, then every 2 weeks, and the day after an update
+function checkIn(){
+  const today = keyOf(); D.useDays = [...new Set([...(D.useDays||[]), today])].slice(-60); save();
+  if(!(D.key || D.groqKey) || D.checkDay === today) return;
+  const last = (D.checkins||[]).slice(-1)[0];
+  const dueFirst = !last && D.useDays.length >= 3;
+  const dueAgain = last && Date.now() - last.at > 14*864e5;
+  const dueUpdate = last && last.v !== VERSION && D.verSince && D.verSince.v === VERSION && Date.now() - D.verSince.at > 864e5;
+  if(!(dueFirst || dueAgain || dueUpdate)) return;
+  D.checkDay = today; save();
+  const n = document.createElement('div'); n.className = 'msg nova checkin';
+  n.innerHTML = '<b></b><div class="em"></div>';
+  n.querySelector('b').textContent = dueUpdate ? 'Quick one: how\'s v'+VERSION+' treating you?' : pick(['Quick check-in: how am I doing?','Be honest. How\'s Nova working for you?','Performance review time. Rate me.']);
+  ['😡','😕','😐','🙂','🤩'].forEach((em, i) => { const b = document.createElement('button'); b.textContent = em; b.onclick = () => {
+    D.checkins = (D.checkins||[]).concat({at:Date.now(), v:VERSION, score:i+1}).slice(-30); save();
+    if(i <= 2){ n.innerHTML = '<b>Ouch. What\'s bugging you?</b>'; openFeedback('bug', ''); }
+    else { n.innerHTML = '<b>'+(i===4 ? 'Stop, I\'m blushing. ' : 'Solid. ')+'Anything you\'d add or change?</b><div class="row"><button class="btn sm">💡 Suggest something</button><button class="btn sm ghost">Nope, all good</button></div>';
+      const [s1, s2] = n.querySelectorAll('button'); s1.onclick = () => { n.remove(); openFeedback('idea'); }; s2.onclick = () => { n.remove(); toast('Love that for us.'); }; }
+  }; n.querySelector('.em').appendChild(b); });
+  setTimeout(() => { log.appendChild(n); scrollDown(true); }, 1500);
 }
 // ---------------- photos ----------------
 function clearPhoto(){ photo = null; $('photoPrev').hidden = true; $('photoI').value = ''; }
@@ -1641,9 +1776,8 @@ async function maybeSummarize(){
 function grow(){ const t=$('inp'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,120)+'px'; }
 $('inp').addEventListener('input', grow);
 $('inp').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
-$('inp').addEventListener('focus', stopWake); $('inp').addEventListener('blur', () => setTimeout(resumeWake, 300));
-$('sendBtn').onclick = () => { if(busy){ if(stopCtl) stopCtl.abort(); return; } send(); };
-document.querySelectorAll('#chips .chip').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
+$('sendBtn').onclick = () => { if(busy){ if(stopCtl && Date.now() - sentAt > 1500) stopCtl.abort(); return; } send(); };
+document.querySelectorAll('#chips .chip:not(#fbChip)').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
 
 // ---------------- tabs & screens ----------------
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -1667,7 +1801,7 @@ function renderGlance(){
   const topStreak = Math.max(0, ...D.tasks.map(streakOf));
   $('gtT').textContent = done + '/' + D.tasks.length; $('gtS').textContent = D.tasks.length ? (topStreak>1 ? '🔥 '+topStreak+'-day streak' : done===D.tasks.length ? 'all done 🎉' : 'tasks done') : 'no tasks yet';
   const up = [...D.tasks.filter(t=>t.time && t.done!==k && t.time>=now).map(t=>({time:t.time, title:t.text})),
-              ...D.events.filter(e=>e.date===k && e.time && e.time>=now).map(e=>({time:e.time, title:e.title}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
+              ...D.events.filter(e=>e.date===k && e.time && (e.time>=now || (e.end && e.end>now && e.end>e.time))).map(e=>({time:e.time, title:e.title+(e.time<now ? ' (now)' : '')}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
   $('gnT').textContent = up ? fmt12(up.time) : '—'; $('gnS').textContent = up ? up.title : 'Nothing planned';
   const w = D.lastWeather;
   if(w && Date.now()-w.at < 3*3600000){ $('gwT').textContent = Math.round(w.temp)+'°'; $('gwS').textContent = ((w.rain||0)>=50 ? '☔ '+w.rain+'% · ' : '') + w.sky; }
@@ -1688,19 +1822,25 @@ function weatherHeadsUp(){
   D.wxWarned = keyOf(); save();
   queue.push({id:'wx', kind:'weather', text:msg}); showBanner();
 }
-async function refreshWeather(){
-  $('gwS').textContent = 'Checking…';
+async function refreshWeather(quiet){
+  if(!quiet) $('gwS').textContent = 'Checking…';
   try{ const w = await getWeather(''); const td = w.days && w.days[0] || {};
-    D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
-  catch(e){ $('gwS').textContent = 'Tap to retry'; }
+    D.locOk = true; D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
+  catch(e){ if(e && e.code === 1) D.locOk = false; if(!quiet || !D.lastWeather) $('gwS').textContent = e && e.code === 1 ? 'Location off · tap' : 'Tap to retry'; }
 }
-$('glWeather').onclick = refreshWeather;
+$('glWeather').onclick = () => refreshWeather();
 $('glNext').onclick = () => document.querySelector('nav button[data-v="sched"]').click();
 $('glTasks').onclick = () => document.querySelector('nav button[data-v="tasks"]').click();
 applyTheme();
-try{ navigator.permissions && navigator.permissions.query({name:'geolocation'}).then(p => { if(p.state==='granted' && D.useLoc!==false && !(D.lastWeather && Date.now()-D.lastWeather.at < 30*60000)) refreshWeather(); }).catch(()=>{}); }catch(e){}
+function autoWeather(){ if(D.useLoc===false || document.hidden || (D.lastWeather && Date.now()-D.lastWeather.at < 30*60000)) return;
+  if(D.locOk) return refreshWeather(true);
+  try{ navigator.permissions && navigator.permissions.query({name:'geolocation'}).then(p => { if(p.state==='granted') refreshWeather(true); }).catch(()=>{}); }catch(e){} }
+autoWeather(); setInterval(autoWeather, 10*60000); document.addEventListener('visibilitychange', autoWeather);
 
+function updateTimerText(){ document.querySelectorAll('.tleft').forEach(el => { const ms = +el.dataset.at - Date.now(); const m = Math.max(0, Math.ceil(ms/60000));
+  el.textContent = (m >= 60 ? Math.floor(m/60)+' h '+(m%60)+' min' : m+' min') + ' left · goes off at ' + new Date(+el.dataset.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + (D.sync && D.sync.code ? '' : ' (keep Nova open)'); }); }
 function renderTasks(){
+  try{ renderGlance(); }catch(e){}
   const k = keyOf(), list = $('tList');
   const ts = [...D.tasks].sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
   const left = ts.filter(t=>t.done!==k).length;
@@ -1721,15 +1861,15 @@ function renderTasks(){
     el.querySelector('.check').onclick = () => { const was = streakOf(t); const turningOn = t.done!==k; markDone(t, turningOn); save(); renderTasks(); renderGlance(); if(turningOn) playClip('done');
       const now = streakOf(t); if(t.done===k && now>1 && now>was && [3,7,14,21,30,50,100,365].includes(now)) bubble('nova', pick(['🔥 '+now+' days straight on "'+t.text+'". Who even are you?','🔥 '+now+'-day streak on "'+t.text+'". I\'m almost impressed. Almost.','🔥 '+now+' days in a row. At this point "'+t.text+'" is a personality trait.'])); };
     el.querySelector('.mini').onclick = () => addToCalendar({title:t.text, start:startFor(t.time), daily:true});
-    el.querySelector('.del').onclick = () => { D.tasks = D.tasks.filter(x=>x.id!==t.id); save(); renderTasks(); };
+    el.querySelector('.del').onclick = () => { const i = D.tasks.indexOf(t); D.tasks = D.tasks.filter(x=>x.id!==t.id); save(); renderTasks(); toast('Deleted "'+t.text.slice(0,30)+'"', () => { D.tasks.splice(Math.max(0,i), 0, t); save(); renderTasks(); }); };
     list.appendChild(el);
   });
   const tb = $('timerBox'); tb.innerHTML = '';
   const live = D.timers.filter(x=>x.at>Date.now());
   if(live.length){ tb.innerHTML = '<div class="sec">Timers</div>';
     live.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b><small></small></div><button class="del">×</button>';
-      el.querySelector('b').textContent = x.label; el.querySelector('small').textContent = 'Goes off at '+new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
-      el.querySelector('.del').onclick = () => { D.timers = D.timers.filter(y=>y.id!==x.id); save(); renderTasks(); }; tb.appendChild(el); }); }
+      el.querySelector('b').textContent = x.label; el.querySelector('small').dataset.at = x.at; el.querySelector('small').className = 'tleft';
+      el.querySelector('.del').onclick = () => { D.timers = D.timers.filter(y=>y.id!==x.id); save(); renderTasks(); }; tb.appendChild(el); }); updateTimerText(); }
 }
 $('tAdd').onclick = () => { const v=$('tText').value.trim(); if(!v) return; D.tasks.push({id:uid(), text:v.slice(0,140), time:$('tTime').value, done:''}); save(); $('tText').value=''; $('tTime').value=''; renderTasks(); };
 
@@ -1740,6 +1880,7 @@ function rangeOf(e){ if(!e.time) return null; const s0 = toMin(e.time); let e0 =
 function clashesFor(e){ const r = rangeOf(e); if(!r) return []; return D.events.filter(x => x.id!==e.id && x.date===e.date && (() => { const q = rangeOf(x); return q && r[0] < q[1] && q[0] < r[1]; })()); }
 const timeLabel = e => e.time ? fmt12(e.time) + (e.end ? '–' + fmt12(e.end) : '') : 'Any time';
 function renderSched(){
+  try{ renderGlance(); }catch(e){}
   document.querySelectorAll('#sMode button').forEach(b => b.classList.toggle('on', b.dataset.m===schedMode));
   $('dayView').hidden = schedMode!=='day'; $('weekView').hidden = schedMode!=='week'; $('days').hidden = schedMode!=='day';
   const strip = $('days'); strip.innerHTML = '';
@@ -1761,7 +1902,7 @@ function renderSched(){
     el.querySelector('small').textContent = timeLabel(e) + (c.length ? '  ⚠ overlaps '+(c.length===1 ? c[0].title.slice(0,24) : c.length) : '');
     el.querySelector('b').textContent = e.title;
     el.querySelector('.mini').onclick = () => addToCalendar({title:e.title, start:startFor(e.time, e.date), end:e.end ? endFor(e) : null, daily:false});
-    el.querySelector('.del').onclick = () => { D.events = D.events.filter(x=>x.id!==e.id); save(); renderSched(); };
+    el.querySelector('.del').onclick = () => { D.events = D.events.filter(x=>x.id!==e.id); save(); renderSched(); toast('Deleted "'+e.title.slice(0,30)+'"', () => { D.events.push(e); save(); renderSched(); }); };
     list.appendChild(el);
   });
   renderTpls();
@@ -1832,18 +1973,16 @@ $('planBtn').onclick = () => {
 function renderMe(){
   try{ renderLink(); }catch(e){}
   if(document.activeElement!==$('nameI')) $('nameI').value = D.name||'';
-  $('voiceT').checked = !!D.voice; $('wxT').checked = D.wxAlerts!==false; $('thinkT').checked = !!D.think; $('wakeT').checked = !!D.wake; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
+  $('voiceT').checked = !!D.voice; $('wxT').checked = D.wxAlerts!==false; $('thinkT').checked = !!D.think; $('soundT').checked = D.sound!==false; $('locT').checked = D.useLoc!==false; $('fastT').checked = !!(D.fast && D.groqKey);
   const f=$('facts'); f.innerHTML='';
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
-    el.querySelector('b').textContent=x.text; el.querySelector('.del').onclick=()=>{ D.facts=D.facts.filter(y=>y.id!==x.id); save(); renderMe(); }; f.appendChild(el); });
+    el.querySelector('b').textContent=x.text; el.querySelector('.del').onclick=()=>{ D.facts=D.facts.filter(y=>y.id!==x.id); save(); renderMe(); toast('Forgotten', () => { D.facts.push(x); save(); renderMe(); }); }; f.appendChild(el); });
   $('brainInfo').innerHTML = (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : (D.groqKey ? 'Google: not set (Groq is doing the thinking)' : '<span class="bad">No key yet.</span>'))
     + '<br>Backup: ' + (D.groqKey ? '<span class="ok">Groq ready</span>' : 'none');
 }
 $('nameI').addEventListener('change', () => { D.name = $('nameI').value.trim().slice(0,40); save(); tick(); });
 $('voiceT').onchange = e => { D.voice = e.target.checked; save(); if(D.voice) speak('Voice on. Try not to get too attached.'); };
-$('wakeT').onchange = e => { if(e.target.checked && !SR){ e.target.checked = false; bubble('note','This browser can\'t listen for a wake word. Try Chrome or Edge on a computer.'); return; }
-  D.wake = e.target.checked; save(); if(D.wake) resumeWake(); else { stopWake(); tick(); } };
 $('soundT').onchange = e => { D.sound = e.target.checked; save(); if(D.sound) beep(); };
 $('nightT').onchange = e => { D.night = e.target.checked; save(); applyTheme(); };
 $('thinkT').onchange = e => { D.think = e.target.checked; save(); bubble('note', D.think ? 'Think harder: on. Extra brainpower engaged. Judging your sleep schedule at twice the speed.' : 'Think harder: off. Back to quick-and-witty mode.'); };
@@ -1861,7 +2000,8 @@ $('restoreBtn').onclick = () => $('restoreF').click();
 $('restoreF').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
   try{ const j = JSON.parse(await f.text()); if(!Array.isArray(j.tasks)) throw 0;
-    D = Object.assign(D, {tasks:j.tasks, events:j.events||[], facts:j.facts||[], name:j.name||D.name}); save(); renderAll(); bubble('note','Backup restored.'); }
+    const keep = {key:D.key, groqKey:D.groqKey, groqModels:D.groqModels, models:D.models, model:D.model, sync:D.sync, seenVersion:D.seenVersion};
+    D = Object.assign(D, j, keep, {fired:{}}); save(); applyTheme(); renderAll(); bubble('note','Backup restored: tasks, schedule, memories, templates, streaks, game progress and settings.'); }
   catch(err){ bubble('note','That file doesn\'t look like a Nova backup.'); }
   e.target.value='';
 };
@@ -2544,7 +2684,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '5.4';
+const VERSION = '5.5'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -2554,6 +2694,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.5': 'Update installed: v5.5, the soft-launch edition. The mic finally behaves: tap it (or me), talk, pause, and I send it. No more listening forever. When you ask for a game, it actually opens. And there\'s 👍 👎 on my answers plus a Send feedback button in the You tab, so you can tell Moon exactly what I got wrong. Be honest. I can take it. Probably.',
   '5.4': 'Update installed: v5.4. Nova Run has a soundtrack now: 6 original songs in a lo-fi house style (one per level plus the menu), sound effects for jumps, power-ups and crashes, and the music slows down in Slow-mo. Tap 🔊 in the game to mute. I composed it myself. Live. In your phone.',
   '5.3': 'Update installed: v5.3. Nova Run got serious: 5 levels from Cruise to Event Horizon, power-ups (🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump), scenery that actually rushes at you, and I fixed the jump. It wasn\'t you. Mostly.',
   '5.2': 'Update installed: v5.2. New game: Nova Run. Tap 🏃 above the chat, swipe to dodge, jump and slide down a neon track that keeps changing colors. Collect ⚡, avoid walls, and try not to make me watch you crash. Again.',
@@ -2575,7 +2716,6 @@ else {
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
     'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
 }
-resumeWake();
 loadClipFlags();
 setTimeout(() => { try{ if(D.key) fetch(API + '/models?pageSize=1', {headers:{'x-goog-api-key':D.key}}).catch(()=>{}); if(D.groqKey) fetch(GROQ + '/models', {headers:{'Authorization':'Bearer '+D.groqKey}}).catch(()=>{}); }catch(e){} }, 300);
 flushOutbox();
@@ -2583,9 +2723,12 @@ if(D.sync && D.sync.code) doSync();
 if(D.seenVersion !== VERSION){
   const note = WHATS_NEW[VERSION];
   if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note); history.push({role:'model', parts:[{text:note}]}); saveChat(); speak(note); }, 600); }
-  D.seenVersion = VERSION; save();
+  D.seenVersion = VERSION; D.verSince = {v:VERSION, at:Date.now()}; save();
 }
+renderFb();
+if(D.key || D.groqKey){ setTimeout(crashPrompt, 1200); checkIn(); }
 if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+window.__novaBooted = true;
 })();
 </script>
 </body>
