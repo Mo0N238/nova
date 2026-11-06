@@ -56,6 +56,8 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 @keyframes pop{from{opacity:0;transform:translateY(4px)}}
 .msg.nova{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
 .msg.me{background:var(--user);color:var(--userText);margin-left:auto;border-bottom-right-radius:5px}
+.msg.me.unsent{opacity:.55}
+.msg.me.unsent.unsent[data-time]::after{content:'Not sent · ' attr(data-time);opacity:.8}
 .msg.note{background:none;color:var(--muted);font-size:12px;text-align:center;max-width:100%;padding:2px}
 .act{font-size:11px;color:var(--accent2);font-family:var(--mono);margin:-2px 0 4px 6px}
 .src{font-size:12px;margin:-2px 0 6px 6px}
@@ -642,7 +644,7 @@ input[type=time]{min-height:38px}
     d.setAttribute('style', 'position:fixed;inset:0;z-index:999;background:#070b14;color:#e8f1ff;font:16px/1.5 -apple-system,system-ui,sans-serif;padding:60px 24px;display:flex;flex-direction:column;gap:12px');
     d.innerHTML = '<div style="font-size:42px">🛠️</div><b style="font-size:20px">Nova hit a problem starting up.</b><div style="color:#8ea3c4">Your tasks, schedule and memories are safe. Sending a crash report helps fix it fast.</div>';
     function btn(t, f, main){ var b = document.createElement('button'); b.textContent = t; b.onclick = f; b.setAttribute('style', 'height:48px;border-radius:14px;border:1px solid #1f2b42;font:inherit;font-weight:600;' + (main ? 'background:#3fc6ff;color:#04121c;border:none' : 'background:#0e1524;color:#e8f1ff')); d.appendChild(b); }
-    btn('📨 Send crash report', function(){ if(navigator.share) navigator.share({title:'Nova crash report', text:rep}).catch(function(){}); else location.href = 'mailto:?subject=' + encodeURIComponent('Nova crash report') + '&body=' + encodeURIComponent(rep); }, true);
+    btn('📨 Send crash report to Moon', function(){ location.href = 'sms:+18038459158&body=' + encodeURIComponent(rep.slice(0, 3000)); }, true);
     btn('↻ Try again', function(){ location.reload(); });
     btn('🧹 Clear chat history and restart', function(){ try{ localStorage.removeItem('nova_chat'); }catch(x){} location.reload(); });
     document.body.appendChild(d);
@@ -1041,7 +1043,9 @@ const TOOLS = {
       if(D.key){ try{ const T = timed(12000); const r = await fetch(`${API}/models/${D.model||'gemini-flash-latest'}:generateContent`, {method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify({contents:[{role:'user',parts:[{text:'Reply: ok'}]}], generationConfig:{maxOutputTokens:5}})}); T.done(); out.google = r.ok ? 'working ('+D.model+')' : 'error '+r.status+(r.status===429?' (daily free limit used up)':''); }catch(e){ out.google = 'not responding'; } } else out.google = 'not set up';
       if(D.groqKey){ try{ const T = timed(12000); const r = await fetch(GROQ+'/models', {signal:T.signal, headers:{'Authorization':'Bearer '+D.groqKey}}); T.done(); out.groq = r.ok ? 'working' : 'error '+r.status+(r.status===401?' (key invalid)':''); }catch(e){ out.groq = 'not responding'; } } else out.groq = 'not set up (add a free key in the You tab under Backup brain)';
       return out; } },
-  get_time: { d:'Get the current local date and time.', p:{}, run(){ const n=new Date(); return {date:keyOf(n), time:hhmm(n), pretty:n.toLocaleString([], {weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'})}; } },
+  get_time: { d:'Current date and time here, or in another place: pass tz as an IANA time zone (e.g. Asia/Tokyo, Europe/London, America/Los_Angeles). Always use this for "what time is it in X"; never work it out yourself.', p:{tz:'STRING'},
+    run(a){ const n=new Date(); if(a && a.tz){ try{ return {place_tz:a.tz, pretty:n.toLocaleString([], {timeZone:a.tz, weekday:'long', month:'long', day:'numeric', hour:'numeric', minute:'2-digit'})}; }catch(e){ throw new Error('unknown time zone '+a.tz); } }
+      return {date:keyOf(n), time:hhmm(n), pretty:n.toLocaleString([], {weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'})}; } },
   list_tasks: { d:'List the user\'s daily recurring tasks/reminders and whether each is done today.', p:{}, run(){ const k=keyOf(); return D.tasks.map(t=>({id:t.id, text:t.text, time:t.time||null, done_today:t.done===k, streak:streakOf(t)})); } },
   add_task: { d:'Add a daily recurring task/reminder. time optional, 24h HH:MM.', p:{text:'STRING', time:'STRING'}, r:['text'],
     run(a){ const t={id:uid(), text:String(a.text).slice(0,140), time:vTime(a.time), done:''}; D.tasks.push(t); D.calTips=(D.calTips||0)+1; save(); renderTasks();
@@ -1380,7 +1384,7 @@ $('groqDel').onclick = () => { D.groqKey=''; D.groqModels=[]; save(); $('groqInf
 // ---------------- chat UI ----------------
 const log = $('log');
 // small, safe markdown: tables, **bold**, *italic*, `code`, bullet/numbered lists, headings
-function mdInline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s).,!?]|$)/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }
+function mdInline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*(?=[A-Za-z])([^*\n]*?[A-Za-z.!?])\*(?=[\s).,!?:;]|$)/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }
 function renderRich(el, text){
   const lines = String(text||'').replace(/\r/g,'').split('\n');
   if(!lines.some(l => /^\s*\|.*\|\s*$/.test(l) || /^\s*([-*•]|\d+[.)])\s+/.test(l) || /\*\*|`|^#{1,4}\s/.test(l))){ el.classList.remove('rich'); el.textContent = text; return; }
@@ -1559,6 +1563,7 @@ async function send(given, opts={}){
     return '';
   }
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick, opts.voice); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
+  const h0 = history.length, forget = () => { history.length = Math.min(history.length, h0); saveChat(); };
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
   pendingDrafts = []; pendingGame = null;
   busy = true; sentAt = Date.now(); $('orb').classList.add('busy'); $('sendBtn').classList.add('stop'); $('sendBtn').setAttribute('aria-label','Stop');
@@ -1573,20 +1578,21 @@ async function send(given, opts={}){
       r = await seePhoto(text, img, live);
     } else if((D.fast || !D.key) && D.groqKey){
       try{ r = await thinkGroq(text, step); }
-      catch(e){ history.pop(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null;
+      catch(e){ forget(); r = (e && e.actions && e.actions.length) ? {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions} : null;
         if(e && e.stopped) throw e;
         if(!r && !D.key) throw (e && e.friendly ? e : {friendly:'Groq isn\'t answering right now. Try again in a minute, or add a Google key in the You tab as a backup.'}); }
     }
     if(!r) try{ r = await think(text, step, live); }
     catch(e){
       if(e && e.actions && e.actions.length){ // something was already done; don't redo it with the backup
-        history.pop(); saveChat();
+        forget();
         r = {reply:'Done, but my brain cut out before I could say anything clever about it.', actions:e.actions};
       } else {
       if(!D.groqKey || !e || !e.friendly || e.stopped || /key first|key isn/.test(e.friendly)) throw e;
-      history.pop(); r = await thinkGroq(text, step); r.backup = true;
+      forget(); r = await thinkGroq(text, step); r.backup = true;
       }
     }
+    if(history.length === h0){ history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:r.reply}]}); saveChat(); }
     renderRich(t, r.reply);
     t.dataset.time = new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
     let after = t;
@@ -1605,16 +1611,18 @@ async function send(given, opts={}){
     maybeSummarize();
     return r.reply;
   }catch(e){
-    if(e && e.stopped){ t.textContent = pick(['Stopped. I was about to say something brilliant, but fine.','Okay, stopped.','Stopped. Consider that thought unthought.']); if(!img) history.pop(); return ''; }
-    t.textContent = (e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic. Try again when you\'re back online.','I can\'t reach my brain right now. Check your connection?']);
-    if(!img) history.pop();
+    forget();
+    if(e && e.stopped){ t.textContent = pick(['Stopped. I was about to say something brilliant, but fine.','Okay, stopped.','Stopped. Consider that thought unthought.']); return ''; }
+    t.textContent = ((e && e.friendly) || pick(['No internet, it seems. I\'m good, but I\'m not psychic.','I can\'t reach my brain right now. Check your connection?'])).replace(/\s*Try again[^.]*\.?\s*$/i,'')
+      + '\n\n' + pick(['That message didn\'t go through, so I let it go. Tap ↻ Try again.','Your message didn\'t make it. Tap ↻ Try again and I\'ll take another swing.']);
+    mine.classList.add('unsent'); if(!$('inp').value.trim()){ $('inp').value = text; grow(); }
     t.classList.add('failed');
-    actionBar(t, [['↻ Retry', b => { b.parentElement.remove(); t.remove(); mine.remove(); send(text); }]]);
+    actionBar(t, [['↻ Try again', b => { b.parentElement.remove(); t.remove(); mine.remove(); if($('inp').value.trim() === text) $('inp').value = ''; send(text); }]]);
     return t.textContent;
   }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); }
 }
 // ---------------- feedback, crash reports, check-ins ----------------
-const FEEDBACK_TO = { email:'', sms:'' }; // where testers' reports go. Empty = the iPhone share sheet (Messages, Mail, etc.)
+const FEEDBACK_TO = { email:'', sms:'+18038459158' }; // where testers' reports go. Empty = the iPhone share sheet (Messages, Mail, etc.)
 function logIssue(kind, msg){ try{ window.__novaErr && window.__novaErr({t:Date.now(), kind, msg:String(msg||'').slice(0,300)}); }catch(e){} }
 const errLog = () => store.get('nova_errors', []);
 function newCrashes(){ return errLog().filter(e => (e.kind==='error' || e.kind==='promise') && e.t > (D.errSeen||0)); }
@@ -1629,9 +1637,10 @@ function diag(){
     'Recent errors:' + (errs.length ? '\n' + errs.join('\n') : ' none')].join('\n');
 }
 async function deliverReport(title, text){
-  if(FEEDBACK_TO.sms) { location.href = 'sms:' + FEEDBACK_TO.sms + '&body=' + encodeURIComponent(text); return true; }
+  const go = u => window.__openUrl ? window.__openUrl(u) : (location.href = u);
+  if(FEEDBACK_TO.sms) { go('sms:' + FEEDBACK_TO.sms + '&body=' + encodeURIComponent(text)); return true; }
   try{ if(navigator.share){ await navigator.share({title, text}); return true; } }catch(e){ if(e && e.name === 'AbortError') return false; }
-  if(FEEDBACK_TO.email || !navigator.share){ location.href = 'mailto:' + encodeURIComponent(FEEDBACK_TO.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(text); return true; }
+  if(FEEDBACK_TO.email || !navigator.share){ go('mailto:' + encodeURIComponent(FEEDBACK_TO.email) + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(text)); return true; }
   await copyText(text); toast('Copied. Paste it in a message to Moon.'); return true;
 }
 const FB_KINDS = [['bug','🐞 Bug'],['idea','💡 Idea'],['love','❤️ Love it'],['other','💬 Other']];
@@ -2722,7 +2731,7 @@ flushOutbox();
 if(D.sync && D.sync.code) doSync();
 if(D.seenVersion !== VERSION){
   const note = WHATS_NEW[VERSION];
-  if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note); history.push({role:'model', parts:[{text:note}]}); saveChat(); speak(note); }, 600); }
+  if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note); history.push({role:'model', parts:[{text:note}]}); saveChat(); if(D.voice){ const say = () => speak(note); document.addEventListener('touchend', say, {once:true}); document.addEventListener('click', say, {once:true}); } }, 600); }
   D.seenVersion = VERSION; D.verSince = {v:VERSION, at:Date.now()}; save();
 }
 renderFb();
