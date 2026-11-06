@@ -310,6 +310,28 @@ html.night .app::before{opacity:.6}
 .rstats small{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#8798b3}
 .rstats b{font-family:var(--mono);font-size:15px;color:#eaf3ff}
 .rhint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 24px);text-align:center;color:#c9d4e3;font-size:13px;opacity:.85;transition:opacity .6s;pointer-events:none}
+.rlvbar{position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top) + 58px);display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.12em;color:#c9d4e3;font-weight:600}
+.rtrack{flex:1;height:5px;border-radius:3px;background:rgba(140,170,220,.18);overflow:hidden}
+.rtrack i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3fc6ff,#ff79d6);border-radius:3px}
+.rpu{position:absolute;left:14px;top:calc(env(safe-area-inset-top) + 80px);display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.rpu span{position:relative;overflow:hidden;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:10px;background:rgba(5,10,20,.65);border:1px solid var(--c);color:#eaf3ff;font-size:12px}
+.rpu i{font-style:normal} .rpu b{font-family:var(--mono);color:var(--c)}
+.rpu em{position:absolute;left:0;bottom:0;height:2px;background:var(--c)}
+.rlevels{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,.6);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);padding:16px}
+.rlevels[hidden]{display:none}
+.rlevels>div{width:min(380px,100%)}
+.rlvhead{display:flex;justify-content:space-between;align-items:center}
+.rlvhead h2{letter-spacing:.3em;font-size:22px;color:#eaf3ff} .rlvhead h2 b{color:#ff79d6}
+.rsub{color:#8798b3;font-size:13px;margin:4px 0 12px}
+.rlv{width:100%;display:flex;align-items:center;gap:12px;padding:11px 12px;margin-bottom:8px;border-radius:16px;border:1px solid hsla(var(--h),90%,60%,.5);background:linear-gradient(120deg,hsla(var(--h),90%,50%,.18),rgba(10,16,30,.85));color:#eaf3ff;font:inherit;text-align:left;box-shadow:0 0 18px hsla(var(--h),90%,55%,.15)}
+.rlv>b{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:11px;background:hsla(var(--h),90%,55%,.25);font-size:16px}
+.rlv span{flex:1;min-width:0} .rlv strong{display:block;font-size:15px} .rlv small{color:#8798b3;font-size:12px}
+.rlv em{font-style:normal;font-size:9px;color:hsl(var(--h),95%,62%);letter-spacing:1px} .rlv em i{font-style:normal;color:rgba(140,170,220,.25)}
+.rlv.locked{opacity:.5;filter:saturate(.3)}
+.rlv.shake{animation:shk .35s}
+@keyframes shk{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.rlegend{display:flex;flex-direction:column;gap:3px;margin-top:8px;font-size:12px;color:#8798b3}
+.rbtns{display:flex;flex-direction:column;gap:8px}
 #run .gover{position:absolute}
 /* iPhone-style switches */
 .toggle input[type=checkbox]{-webkit-appearance:none;appearance:none;width:51px;height:31px;min-height:0;padding:0;flex:none;border-radius:16px;border:none;
@@ -398,8 +420,16 @@ input[type=time]{min-height:38px}
     <div class="rstats"><span><small>Score</small><b id="rScore">0</b></span><span><small>⚡</small><b id="rCells">0</b></span><span><small>Best</small><b id="rBest">0</b></span></div>
     <button class="gbtn" id="rPause" aria-label="Pause">❚❚</button>
   </div>
+  <div class="rlvbar"><span id="rLvl">LV 1</span><div class="rtrack"><i id="rProg"></i></div><span>🏁</span></div>
+  <div class="rpu" id="rPU"></div>
   <div class="rhint" id="rHint">Swipe ← → to switch lanes · ↑ to jump · ↓ to slide</div>
-  <div class="gover" id="rOver" hidden><div><h2 id="rOverT">Crashed</h2><p id="rOverS"></p><button class="btn" id="rAgain">Run again</button><button class="btn ghost" id="rQuit" style="margin-top:8px">Back to Nova</button></div></div>
+  <div class="rlevels" id="rLevels" hidden><div>
+    <div class="rlvhead"><h2>NOVA <b>RUN</b></h2><button class="gbtn" id="rLvClose" aria-label="Close">✕</button></div>
+    <p class="rsub">Pick a level. Reach the 🏁 to unlock the next one.</p>
+    <div id="rLvList"></div>
+    <div class="rlegend"><span>🛡 Invincible: smash through anything</span><span>⏳ Slow-mo: everything slows down</span><span>⏫ Double jump: jump again mid-air</span></div>
+  </div></div>
+  <div class="gover" id="rOver" hidden><div><h2 id="rOverT">Crashed</h2><p id="rOverS" style="white-space:pre-line"></p><div id="rOverB" class="rbtns"></div></div></div>
 </div>
 <div id="setup"><div class="box">
   <div class="orb"></div>
@@ -1068,7 +1098,7 @@ About yourself (be accurate, never make things up about your own setup):
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
 - More wishes that came true: on Nov 6, 2026 you suggested UI ideas and ${D.name||'they'} built them in v5.0: a Week view with double-booking warnings, one-tap shift templates, rule-check badges (your "Check:" line now shows as green/red badges, so write it as "Check: rule ✓ · rule ✓"), quick shift stats under roster tables, the Humor setting (Chill/Witty/Roast, now: ${D.humor||'witty'}), night mode, and one-tap "Export week" to the iPhone Calendar. Plus: tables you make with days and shift times get an "Add to schedule" button, messages can be copied, retried or deleted with a long-press, and you summarize long chats so you don't forget. Your "voice-line preview" idea already existed (▶ buttons in the You tab). Be pleased about it.
 - Nova Blocks (v5.1): a falling-blocks puzzle game built into you (🎮 button above the chat, or the user says "play blocks"). Their best score: ${D.blocksBest||0}${D.blocksLast ? ', last game: '+D.blocksLast.score+' points, level '+D.blocksLast.level : ''}. Trash-talk lightly about it when relevant. It is your own game, not Tetris.
-- Nova Run (v5.2): your endless runner game (🏃 button above the chat, or "play nova run"): a glowing orb races down a neon track that cycles through colors; swipe to switch lanes, jump and slide, collect ⚡ cells. Their best: ${D.runBest||0}. It's your own game, not a copy of any other.
+- Nova Run (v5.3): your runner game (🏃 button above the chat, or "play nova run"): a glowing orb races down a neon track that cycles colors, with towers, arches and mountains rushing past. 5 levels (Cruise, Warp, Nebula, Hyperdrive, Event Horizon), each unlocked by reaching the finish flag. Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump. Unlocked: level ${(D.runLv&&D.runLv.unlocked)||1}. Overall best: ${D.runBest||0}. It's your own game, not a copy of any other.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
 - Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish.
 
@@ -1996,140 +2026,213 @@ $('gameChip').onclick = () => Blocks.open();
 
 // ---------------- Nova Run (endless runner) ----------------
 const Run = (() => {
-  const LANES = [-1, 0, 1], F = 3.2, FAR = 70, PD = 1.4;
-  let cv, g, Wd, Ht, dpr, raf = null, last = 0, paused = false, over = true;
-  let lane, laneX, h, vh, slide, speed, dist, cells, objs, nextSpawn, hue, t0, stars, hills, shoot, dust;
+  const LANES = [-1, 0, 1], F = 3.2, FAR = 70, PD = 1.4, G = 10, JUMP = 4.0, JUMP2 = 3.7, SLIDE = 0.75;
+  const LEVELS = [
+    {name:'Cruise',        start:11, max:19, accel:.16, goal:600,  dbl:.12, wall:.12, gap:15, pu:.22, hue:190},
+    {name:'Warp',          start:14, max:24, accel:.22, goal:900,  dbl:.30, wall:.25, gap:13, pu:.18, hue:270},
+    {name:'Nebula',        start:17, max:29, accel:.28, goal:1250, dbl:.45, wall:.32, gap:12, pu:.15, hue:320},
+    {name:'Hyperdrive',    start:20, max:34, accel:.33, goal:1650, dbl:.60, wall:.38, gap:11, pu:.13, hue:20},
+    {name:'Event Horizon', start:24, max:40, accel:.40, goal:2200, dbl:.75, wall:.45, gap:10, pu:.11, hue:0},
+  ];
+  const PU = { shield:{icon:'🛡', name:'Invincible', dur:6, col:'#5cf7ff'}, slow:{icon:'⏳', name:'Slow-mo', dur:6, col:'#ffd166'}, double:{icon:'⏫', name:'Double jump', dur:10, col:'#7dff9a'} };
+  let cv, g, Wd, Ht, dpr, raf = null, last = 0, paused = false, over = true, L, lvl = 0;
+  let lane, laneX, h, vh, slide, speed, dist, cells, smashed, objs, nextSpawn, hue, stars, hills, shoot, dust, warp, active, usedDouble, flash, decor;
+  const prog = () => { D.runLv = D.runLv || {unlocked:1, best:{}}; return D.runLv; };
   function size(){ cv = $('rCanvas'); dpr = window.devicePixelRatio || 1; Wd = innerWidth; Ht = innerHeight; cv.width = Wd*dpr; cv.height = Ht*dpr; g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); }
   const horizon = () => Ht * 0.34, base = () => Ht * 0.92, roadHalf = () => Math.min(Wd*0.48, 260);
   function proj(x, d, y=0){ const p = F/(F+d); return { x: Wd/2 + x*roadHalf()*0.66*p, y: horizon() + (base()-horizon())*p - y*roadHalf()*0.66*p, s:p }; }
-  const col = (o, l=55, a=1) => `hsla(${(hue+o)%360},95%,${l}%,${a})`;
-  function reset(){ lane = 1; laneX = 0; h = 0; vh = 0; slide = 0; speed = 13; dist = 0; cells = 0; objs = []; nextSpawn = 18; hue = 190; t0 = performance.now();
-    stars = Array.from({length:90}, () => ({x:Math.random(), y:Math.random()*0.34, r:Math.random()*1.4+.3, tw:Math.random()*6}));
-    const ridge = (n, lo, hi) => Array.from({length:n+1}, (_, i) => lo + Math.random()*(hi-lo) * (0.55 + 0.45*Math.abs(Math.sin(i*1.7))));
-    hills = { far: ridge(26, .05, .16), near: ridge(18, .03, .11) };
-    shoot = null; dust = Array.from({length:26}, () => ({x:(Math.random()<.5?-1:1)*(1.8+Math.random()*3), d:Math.random()*FAR, y:Math.random()*2.2})); }
+  const col = (o, l=55, a=1) => `hsla(${((hue+o)%360+360)%360},95%,${l}%,${a})`;
+  const ridge = (n, lo, hi) => Array.from({length:n+1}, (_, i) => lo + Math.random()*(hi-lo) * (0.55 + 0.45*Math.abs(Math.sin(i*1.7))));
+  function reset(){
+    L = LEVELS[lvl]; lane = 1; laneX = 0; h = 0; vh = 0; slide = 0; speed = L.start; dist = 0; cells = 0; smashed = 0; objs = []; nextSpawn = 22; hue = L.hue;
+    active = {}; usedDouble = false; flash = 0;
+    stars = Array.from({length:80}, () => ({x:Math.random(), y:Math.random()*0.34, r:Math.random()*1.4+.3, tw:Math.random()*6}));
+    hills = [0, 1/3, 2/3].map(ph => ({ph, pts:ridge(22, .04, .15)}));
+    warp = Array.from({length:36}, () => newWarp(Math.random()));
+    shoot = null; dust = Array.from({length:22}, () => ({x:(Math.random()<.5?-1:1)*(1.8+Math.random()*3), d:Math.random()*FAR, y:Math.random()*2.2}));
+    decor = []; for(let d = 6; d < FAR; d += 7) addDecor(d);
+  }
+  function newWarp(r){ const a = Math.PI + Math.random()*Math.PI; return {a, r: r*0.6, sp: 0.4 + Math.random()*0.8}; }
+  function addDecor(d){ // side towers + occasional arches over the track, all rushing toward you
+    if(Math.random() < 0.16) decor.push({k:'arch', d});
+    [-1, 1].forEach(sd => { if(Math.random() < 0.75) decor.push({k:'tower', d: d + Math.random()*3, x: sd*(3.3 + Math.random()*4.5), hgt: 1.5 + Math.random()*4.5, w: 0.7 + Math.random()*1.1, o: Math.random()*360}); });
+  }
   function spawn(){
-    const free = Math.floor(Math.random()*3), kinds = ['low','high','wall'];
-    const n = dist < 150 ? 1 : Math.random() < .55 ? 2 : 1;
-    const used = new Set([free]);
-    for(let i=0;i<n;i++){ let l; do{ l = Math.floor(Math.random()*3); }while(used.has(l) && used.size < 3); if(used.has(l)) break; used.add(l);
-      const k = dist < 80 ? (Math.random()<.5?'low':'high') : kinds[Math.floor(Math.random()*3)]; objs.push({k, l, d:FAR}); }
-    if(Math.random() < .7){ const l = free, nC = 3 + Math.floor(Math.random()*4); for(let i=0;i<nC;i++) objs.push({k:'cell', l, d:FAR + i*2.2, y: Math.random()<.25 ? 1.1 : .35}); }
-    nextSpawn = Math.max(9, 17 - speed*0.18) + Math.random()*6;
+    const free = Math.floor(Math.random()*3), used = new Set([free]);
+    const n = dist < 60 ? 1 : (Math.random() < L.dbl ? 2 : 1);
+    for(let i=0;i<n;i++){ const opts = [0,1,2].filter(l => !used.has(l)); if(!opts.length) break; const l = opts[Math.floor(Math.random()*opts.length)]; used.add(l);
+      const k = dist > 60 && Math.random() < L.wall ? 'wall' : (Math.random() < .5 ? 'low' : 'high'); objs.push({k, l, d:FAR}); }
+    const want = Object.keys(PU).filter(k => !(active[k] > 0) && !objs.some(o => o.k==='pu' && o.t===k));
+    if(want.length && Math.random() < L.pu) objs.push({k:'pu', t: want[Math.floor(Math.random()*want.length)], l:free, d:FAR + 1, y:.55});
+    else if(Math.random() < .7){ const nC = 3 + Math.floor(Math.random()*4); for(let i=0;i<nC;i++) objs.push({k:'cell', l:free, d:FAR + i*2.2, y: Math.random()<.25 ? 1.1 : .35}); }
+    nextSpawn = Math.max(L.gap, 18 - speed*0.15) + Math.random()*5;
   }
   function act(k){ if(over || paused) return; $('rHint').style.opacity = 0;
     if(k==='left' && lane>0) lane--; else if(k==='right' && lane<2) lane++;
-    else if(k==='up' && h <= 0.01){ vh = 3.1; slide = 0; } else if(k==='down'){ if(h > 0.05) vh = -5; slide = 0.6; } }
+    else if(k==='up'){ if(h <= 0.01){ vh = JUMP; slide = 0; usedDouble = false; } else if(active.double > 0 && !usedDouble){ vh = JUMP2; usedDouble = true; } }
+    else if(k==='down'){ if(h > 0.05) vh = -7; slide = SLIDE; } }
+  function burst(x, d, c){ for(let i=0;i<10;i++) dust.push({x: x + (Math.random()-.5)*.8, d: d + Math.random(), y: Math.random()*1.2, spark:true, life:1, c}); }
   function update(dt){
-    speed = Math.min(38, speed + dt*0.32); const dd = speed*dt; dist += dd;
-    hue = (190 + dist*0.9) % 360; // the track slowly cycles through colors as you run
+    for(const k in active){ active[k] -= dt; if(active[k] <= 0) delete active[k]; }
+    speed = Math.min(L.max, speed + L.accel*dt);
+    const sp = speed * (active.slow > 0 ? 0.55 : 1), dd = sp*dt; dist += dd;
+    hue = L.hue + dist*0.9;
     laneX += (LANES[lane] - laneX) * Math.min(1, dt*14);
-    if(h > 0 || vh > 0){ vh -= 9.8*dt; h = Math.max(0, h + vh*dt); if(h === 0) vh = 0; }
+    if(h > 0 || vh > 0){ vh -= G*dt; h = Math.max(0, h + vh*dt); if(h === 0){ vh = 0; usedDouble = false; } }
     if(slide > 0) slide -= dt;
+    if(flash > 0) flash -= dt*2;
     nextSpawn -= dd; if(nextSpawn <= 0) spawn();
-    for(const o of objs){ o.d -= dd;
-      if(!o.hit && Math.abs(o.d - PD) < 0.55 && Math.abs(LANES[o.l] - laneX) < 0.45){
-        if(o.k==='cell'){ if(Math.abs(o.y - (h+0.35)) < 0.75){ o.hit = true; cells++; } continue; }
-        const safe = o.k==='low' ? h > 0.42 : o.k==='high' ? slide > 0 : false;
-        if(!safe){ o.hit = true; return crash(o.k); } } }
-    objs = objs.filter(o => o.d > -2 && !(o.k==='cell' && o.hit));
+    decor.forEach(o => o.d -= dd); decor = decor.filter(o => o.d > -3); const far = decor.reduce((m,o) => Math.max(m,o.d), 0); if(far < FAR - 7) addDecor(far + 7);
+    hills.forEach(hl => { hl.ph += dd*0.0016; if(hl.ph >= 1){ hl.ph -= 1; hl.pts = ridge(22, .04, .15); } });
+    warp.forEach((w, i) => { w.r += w.sp*dt*(0.25 + sp/40); if(w.r > 1.1) warp[i] = newWarp(0); });
+    for(const o of objs){
+      const prev = o.d; o.d -= dd;
+      if(o.hit || !(prev > PD && o.d <= PD)) continue;                      // only check at the exact moment it reaches you
+      if(Math.abs(LANES[o.l] - laneX) > 0.5) continue;                      // not in your lane
+      if(o.k==='cell'){ if(Math.abs(o.y - (h+0.35)) < 0.8){ o.hit = true; cells++; } continue; }
+      if(o.k==='pu'){ if(Math.abs(o.y - (h+0.35)) < 0.95){ o.hit = true; active[o.t] = PU[o.t].dur; flash = 1; try{ navigator.vibrate && navigator.vibrate(25); }catch(e){} } continue; }
+      const safe = o.k==='low' ? h > 0.28 : o.k==='high' ? (slide > 0 && h < 0.3) : false;
+      if(safe) continue;
+      if(active.shield > 0){ o.hit = true; smashed++; burst(LANES[o.l], PD, 330); try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} continue; }
+      o.hit = true; return crash(o.k);
+    }
+    objs = objs.filter(o => o.d > -2 && !(o.hit && (o.k==='cell' || o.k==='pu')));
     $('rScore').textContent = score(); $('rCells').textContent = cells;
+    $('rProg').style.width = Math.min(100, dist/L.goal*100) + '%';
+    renderPU();
+    if(dist >= L.goal) complete();
   }
-  const score = () => Math.floor(dist*1.5) + cells*25;
+  const score = () => Math.floor(dist*1.5) + cells*25 + smashed*50;
+  function renderPU(){ const box = $('rPU'); const keys = Object.keys(active);
+    const html = keys.map(k => '<span style="--c:'+PU[k].col+'"><i>'+PU[k].icon+'</i>'+PU[k].name+' <b>'+Math.ceil(active[k])+'s</b><em style="width:'+(active[k]/PU[k].dur*100)+'%"></em></span>').join('');
+    if(box.dataset.h !== html){ box.innerHTML = html; box.dataset.h = html; } }
   function draw(t){
     const hy = horizon(), by = base();
-    // sky
     const sky = g.createLinearGradient(0,0,0,hy); sky.addColorStop(0,'#02030a'); sky.addColorStop(1, col(40, 14)); g.fillStyle = sky; g.fillRect(0,0,Wd,hy+1);
-    stars.forEach(s => { g.globalAlpha = .4 + .4*Math.sin(t/600 + s.tw); g.fillStyle = '#dfe9ff'; g.beginPath(); g.arc(s.x*Wd, s.y*Ht, s.r, 0, 7); g.fill(); }); g.globalAlpha = 1;
-    // shooting stars
+    stars.forEach(s => { g.globalAlpha = .35 + .35*Math.sin(t/600 + s.tw); g.fillStyle = '#dfe9ff'; g.beginPath(); g.arc(s.x*Wd, s.y*Ht, s.r, 0, 7); g.fill(); }); g.globalAlpha = 1;
+    // warp streaks flying out of the horizon toward you
+    const vx = Wd/2, R = Math.hypot(Wd/2, hy);
+    warp.forEach(w => { const r1 = w.r*w.r*R, r2 = Math.max(0, (w.r-0.06)*(w.r-0.06))*R; const x1 = vx + Math.cos(w.a)*r1, y1 = hy + Math.sin(w.a)*r1, x2 = vx + Math.cos(w.a)*r2, y2 = hy + Math.sin(w.a)*r2;
+      g.strokeStyle = `rgba(225,235,255,${Math.min(.8, w.r)})`; g.lineWidth = 0.6 + w.r*1.6; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x1, y1); g.stroke(); });
     if(!shoot && Math.random() < 0.006) shoot = {x:Math.random()*Wd, y:Math.random()*hy*0.5, life:1};
-    if(shoot){ g.strokeStyle = `rgba(230,240,255,${shoot.life})`; g.lineWidth = 1.6; g.beginPath(); g.moveTo(shoot.x, shoot.y); g.lineTo(shoot.x - 70*shoot.life, shoot.y - 26*shoot.life); g.stroke();
-      shoot.x += 9; shoot.y += 3.4; shoot.life -= 0.03; if(shoot.life <= 0) shoot = null; }
-    const par = -laneX * 14; // scenery shifts a little when you change lanes
-    // ringed planet
+    if(shoot){ g.strokeStyle = `rgba(230,240,255,${shoot.life})`; g.lineWidth = 1.6; g.beginPath(); g.moveTo(shoot.x, shoot.y); g.lineTo(shoot.x - 70*shoot.life, shoot.y - 26*shoot.life); g.stroke(); shoot.x += 9; shoot.y += 3.4; shoot.life -= 0.03; if(shoot.life <= 0) shoot = null; }
+    const par = -laneX * 14;
     const px = Wd*0.2 + par*0.4, py = hy*0.38, pr = Math.min(Wd, Ht)*0.11;
     const pg = g.createRadialGradient(px - pr*.4, py - pr*.4, pr*.1, px, py, pr); pg.addColorStop(0, col(180, 62)); pg.addColorStop(1, col(200, 16));
     g.save(); g.translate(px, py); g.rotate(-0.35); g.strokeStyle = col(170, 70, .35); g.lineWidth = pr*0.08; g.beginPath(); g.ellipse(0, 0, pr*1.75, pr*0.42, 0, Math.PI, 2*Math.PI); g.stroke(); g.restore();
     g.fillStyle = pg; g.beginPath(); g.arc(px, py, pr, 0, 7); g.fill();
     g.save(); g.translate(px, py); g.rotate(-0.35); g.strokeStyle = col(170, 75, .55); g.lineWidth = pr*0.08; g.beginPath(); g.ellipse(0, 0, pr*1.75, pr*0.42, 0, 0, Math.PI); g.stroke(); g.restore();
-    // glowing sun with stripes, sitting on the horizon
     const sr = roadHalf()*0.62, sx = Wd/2 + par*0.2;
     const halo = g.createRadialGradient(sx, hy, 4, sx, hy, sr*2); halo.addColorStop(0, col(60, 70, .55)); halo.addColorStop(1, col(60, 50, 0)); g.fillStyle = halo; g.fillRect(0, hy - sr*2, Wd, sr*2);
     g.save(); g.beginPath(); g.rect(0, 0, Wd, hy); g.clip();
     const sg = g.createLinearGradient(0, hy - sr, 0, hy); sg.addColorStop(0, col(50, 72)); sg.addColorStop(1, col(0, 58)); g.fillStyle = sg; g.beginPath(); g.arc(sx, hy, sr, Math.PI, 0); g.fill();
-    g.fillStyle = '#02030a'; for(let k=0;k<6;k++){ const yy = hy - sr*0.08 - k*sr*0.13, th = sr*0.035*(6-k)/6 + 1; g.fillRect(sx - sr, yy, sr*2, th); }
+    g.fillStyle = '#02030a'; const so = (dist*0.02) % 1; for(let k=0;k<7;k++){ const f = (k + so)/7, yy = hy - sr*0.02 - f*sr*0.8, th = sr*0.045*(1-f) + 0.6; g.fillRect(sx - sr, yy, sr*2, th); }
+    // mountains: layers grow and fade as they come toward you, new ones appear in the distance
+    [...hills].sort((a,b) => a.ph - b.ph).forEach(hl => { const ph = hl.ph, a = Math.min(1, ph/0.15) * Math.min(1, (1-ph)/0.2);
+      const span = Wd*(1.2 + ph*1.4), sc = 0.55 + ph*0.75, x0 = (Wd - span)/2 + par*(0.3 + ph); const n = hl.pts.length - 1;
+      g.globalAlpha = a; g.beginPath(); g.moveTo(x0, hy); hl.pts.forEach((v, i) => g.lineTo(x0 + span*i/n, hy - v*Ht*sc)); g.lineTo(x0 + span, hy); g.closePath();
+      g.fillStyle = `hsla(${((hue + 30 - ph*30)%360+360)%360},50%,${11 - ph*6}%,1)`; g.fill(); g.strokeStyle = col(ph*-40, 60, .8); g.lineWidth = 1 + ph*1.4; g.shadowBlur = 10; g.shadowColor = col(0, 60); g.stroke(); g.shadowBlur = 0; g.globalAlpha = 1; });
     g.restore();
-    // two layers of mountains with neon ridgelines
-    [['far', .5, 14, .55], ['near', .9, 8, .9]].forEach(([k, pf, l, a]) => { const pts = hills[k], n = pts.length - 1, span = Wd*1.3, x0 = (Wd - span)/2 + par*pf;
-      g.beginPath(); g.moveTo(x0, hy); pts.forEach((v, i) => g.lineTo(x0 + span*i/n, hy - v*Ht)); g.lineTo(x0 + span, hy); g.closePath();
-      g.fillStyle = `hsla(${(hue + (k==='far'?30:0))%360},${k==='far'?55:45}%,${k==='far'?11:6}%,1)`; g.fill(); g.strokeStyle = col(k==='far'?200:0, 60, a*0.8); g.lineWidth = k==='far' ? 1.2 : 2; g.shadowBlur = 10; g.shadowColor = col(0, 60); g.stroke(); g.shadowBlur = 0; });
     g.fillStyle = '#03050c'; g.fillRect(0, hy, Wd, Ht-hy);
-    // neon floor grid beyond the track
-    const goff = dist % 4;
-    g.lineWidth = 1;
+    const goff = dist % 4; g.lineWidth = 1;
     for(let z = 4 - goff; z < FAR; z += 4){ const l = proj(-14, z), r = proj(14, z); g.strokeStyle = col(140, 55, Math.max(0, .22 - z/FAR*0.25)); g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(r.x, r.y); g.stroke(); }
     for(let x = -13; x <= 13; x += 2){ if(Math.abs(x) < 2) continue; const n = proj(x, -0.9), f = proj(x, FAR); g.strokeStyle = col(140, 55, .12); g.beginPath(); g.moveTo(n.x, n.y); g.lineTo(f.x, f.y); g.stroke(); }
-    // light pillars rushing past both sides
-    const poff = dist % 9;
-    for(let z = FAR - ((FAR - 9 + poff) % 9); z > -0.8; z -= 9){ [-2.3, 2.3].forEach(x => { const b0 = proj(x, z), t0_ = proj(x, z, 2.6 + (Math.floor((dist - poff + z)/9) % 3)*0.5);
-      const w = Math.max(1.5, 7*b0.s); g.shadowBlur = 20*b0.s + 4; g.shadowColor = col(z*4, 60);
-      const pgr = g.createLinearGradient(0, t0_.y, 0, b0.y); pgr.addColorStop(0, col(z*4, 70, .95)); pgr.addColorStop(1, col(z*4, 40, .15));
-      g.fillStyle = pgr; g.fillRect(b0.x - w/2, t0_.y, w, b0.y - t0_.y);
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(t0_.x, t0_.y, w*0.7, 0, 7); g.fill(); g.shadowBlur = 0; }); }
-    // drifting sparks for a sense of speed
-    dust.forEach(p => { p.d -= speed*0.016; if(p.d < -1){ p.d = FAR; p.x = (Math.random()<.5?-1:1)*(1.8+Math.random()*3); p.y = Math.random()*2.2; }
-      const q = proj(p.x, p.d, p.y), q2 = proj(p.x, p.d + 1.4, p.y); g.strokeStyle = col(90, 75, Math.min(.8, q.s*1.2)); g.lineWidth = Math.max(1, 2.2*q.s); g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(q2.x, q2.y); g.stroke(); });
-    // road
+    // towers beside the track
+    [...decor].filter(o => o.k==='tower').sort((a,b) => b.d - a.d).forEach(o => { if(o.d < -1) return; const b0 = proj(o.x - o.w/2, o.d), b1 = proj(o.x + o.w/2, o.d), tp = proj(o.x, o.d, o.hgt);
+      const fade = Math.min(1, (FAR - o.d)/12); g.globalAlpha = fade; g.fillStyle = `hsla(${(hue + o.o*0.1 + 220)%360},45%,7%,1)`; g.fillRect(b0.x, tp.y, b1.x - b0.x, b0.y - tp.y);
+      g.strokeStyle = col(o.o, 60, .7); g.lineWidth = Math.max(1, 2*b0.s); g.strokeRect(b0.x, tp.y, b1.x - b0.x, b0.y - tp.y);
+      g.fillStyle = col(o.o + 60, 70, .55); const rows = Math.floor(o.hgt*2); for(let r=1;r<rows;r++){ const wy = tp.y + (b0.y - tp.y)*r/rows; g.fillRect(b0.x + (b1.x-b0.x)*0.2, wy, (b1.x-b0.x)*0.6, Math.max(1, 1.6*b0.s)); } g.globalAlpha = 1; });
     const a = proj(-1.5, FAR), b = proj(1.5, FAR), c = proj(1.5, -0.9), d = proj(-1.5, -0.9);
     const road = g.createLinearGradient(0, hy, 0, by); road.addColorStop(0, col(0, 8)); road.addColorStop(1, col(0, 16)); g.fillStyle = road;
     g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.lineTo(c.x,c.y); g.lineTo(d.x,d.y); g.closePath(); g.fill();
-    // moving cross lines (sense of speed)
     const off = dist % 4;
     for(let z = 4 - off; z < FAR; z += 4){ const l = proj(-1.5, z), r = proj(1.5, z); g.strokeStyle = col(z*2, 60, Math.max(0, .55 - z/FAR)); g.lineWidth = Math.max(1, 3*l.s); g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(r.x, r.y); g.stroke(); }
-    // edges + lane lines
     g.shadowBlur = 16; g.shadowColor = col(0, 60);
     [-1.5, -0.5, 0.5, 1.5].forEach((x, i) => { const n = proj(x, -0.9), f = proj(x, FAR); g.strokeStyle = i===0||i===3 ? col(0, 62) : col(120, 60, .45); g.lineWidth = i===0||i===3 ? 4 : 2; g.beginPath(); g.moveTo(n.x, n.y); g.lineTo(f.x, f.y); g.stroke(); });
     g.shadowBlur = 0;
-    // objects, far to near
-    [...objs].sort((p,q) => q.d - p.d).forEach(o => { if(o.d < -1 || o.d > FAR) return; drawObj(o); });
+    const poff = dist % 9;
+    for(let z = FAR - ((FAR - 9 + poff) % 9); z > -0.8; z -= 9){ [-2.3, 2.3].forEach(x => { const b0 = proj(x, z), t0_ = proj(x, z, 2.8); const w = Math.max(1.5, 7*b0.s); g.shadowBlur = 20*b0.s + 4; g.shadowColor = col(z*4, 60);
+      const pgr = g.createLinearGradient(0, t0_.y, 0, b0.y); pgr.addColorStop(0, col(z*4, 70, .95)); pgr.addColorStop(1, col(z*4, 40, .15)); g.fillStyle = pgr; g.fillRect(b0.x - w/2, t0_.y, w, b0.y - t0_.y);
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(t0_.x, t0_.y, w*0.7, 0, 7); g.fill(); g.shadowBlur = 0; }); }
+    const items = [...objs.filter(o => o.d >= -1 && o.d <= FAR && !(o.hit && o.k!=='low' && o.k!=='high' && o.k!=='wall')).map(o => ({o, d:o.d})), ...decor.filter(o => o.k==='arch' && o.d > -1).map(o => ({a:o, d:o.d}))].sort((p,q) => q.d - p.d);
+    items.forEach(it => it.a ? drawArch(it.a) : drawObj(it.o));
+    dust.forEach(p => { p.d -= speed*0.016*(active.slow > 0 ? .55 : 1); if(p.spark){ p.life -= 0.03; p.y += 0.04; } if(p.d < -1 || (p.spark && p.life <= 0)){ if(p.spark){ p.dead = true; return; } p.d = FAR; p.x = (Math.random()<.5?-1:1)*(1.8+Math.random()*3); p.y = Math.random()*2.2; }
+      const q = proj(p.x, p.d, p.y), q2 = proj(p.x, p.d + (p.spark ? .3 : 1.4), p.y); g.strokeStyle = p.spark ? col(p.c, 65, p.life) : col(90, 75, Math.min(.8, q.s*1.2)); g.lineWidth = Math.max(1, 2.2*q.s); g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(q2.x, q2.y); g.stroke(); });
+    dust = dust.filter(p => !p.dead);
     drawPlayer(t);
+    if(active.slow > 0){ g.fillStyle = 'rgba(255,209,102,.06)'; g.fillRect(0,0,Wd,Ht); }
+    if(flash > 0){ g.fillStyle = `rgba(255,255,255,${flash*0.25})`; g.fillRect(0,0,Wd,Ht); }
   }
+  function drawArch(o){ const l = proj(-1.9, o.d), r = proj(1.9, o.d), top = proj(0, o.d, 2.6), fade = Math.min(1, (FAR - o.d)/10);
+    g.globalAlpha = fade; g.shadowBlur = 18; g.shadowColor = col(200, 60); g.strokeStyle = col(200, 65, .9); g.lineWidth = Math.max(1.5, 6*l.s);
+    g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(l.x, top.y + (l.y-top.y)*0.15); g.quadraticCurveTo(l.x, top.y - (l.y-top.y)*0.1, top.x, top.y - (l.y-top.y)*0.1); g.quadraticCurveTo(r.x, top.y - (l.y-top.y)*0.1, r.x, top.y + (l.y-top.y)*0.15); g.lineTo(r.x, r.y); g.stroke();
+    g.shadowBlur = 0; g.globalAlpha = 1; }
   function drawObj(o){
     const x = LANES[o.l], P = proj(x, o.d), w = roadHalf()*0.66*P.s*0.82;
     if(o.k==='cell'){ const q = proj(x, o.d, o.y); const r = Math.max(2, w*0.16); g.shadowBlur = 14; g.shadowColor = '#ffe066'; g.fillStyle = '#ffe066';
       g.beginPath(); g.moveTo(q.x, q.y-r*1.4); g.lineTo(q.x+r, q.y); g.lineTo(q.x, q.y+r*1.4); g.lineTo(q.x-r, q.y); g.closePath(); g.fill(); g.shadowBlur = 0; return; }
+    if(o.k==='pu'){ const q = proj(x, o.d, o.y + Math.sin(performance.now()/200)*0.06); const r = Math.max(4, w*0.3); const pu = PU[o.t];
+      g.shadowBlur = 22; g.shadowColor = pu.col; g.strokeStyle = pu.col; g.lineWidth = Math.max(1.5, r*0.14); g.fillStyle = 'rgba(5,10,20,.75)';
+      g.beginPath(); for(let i=0;i<6;i++){ const an = Math.PI/6 + i*Math.PI/3 + performance.now()/900; g.lineTo(q.x + Math.cos(an)*r, q.y + Math.sin(an)*r); } g.closePath(); g.fill(); g.stroke(); g.shadowBlur = 0;
+      g.font = Math.round(r*1.05)+'px -apple-system,system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(pu.icon, q.x, q.y + r*0.05); return; }
+    if(o.hit) return;
     const unit = roadHalf()*0.66*P.s;
-    let top, bot; if(o.k==='low'){ bot = 0; top = .38; } else if(o.k==='high'){ bot = .55; top = 1.25; } else { bot = 0; top = 1.25; }
+    let top, bot; if(o.k==='low'){ bot = 0; top = .3; } else if(o.k==='high'){ bot = .62; top = 1.25; } else { bot = 0; top = 1.25; }
     const y1 = P.y - top*unit, y2 = P.y - bot*unit, c0 = o.k==='wall' ? 330 : o.k==='low' ? 20 : 260;
     g.shadowBlur = 18; g.shadowColor = col(c0, 55);
     g.fillStyle = col(c0, 22, .92); g.fillRect(P.x - w/2, y1, w, y2-y1);
     g.strokeStyle = col(c0, 62); g.lineWidth = Math.max(1.5, 3*P.s); g.strokeRect(P.x - w/2, y1, w, y2-y1); g.shadowBlur = 0;
-    if(o.k==='high'){ g.strokeStyle = col(c0, 62, .5); g.lineWidth = Math.max(1, 2*P.s); [-1,1].forEach(sd => { g.beginPath(); g.moveTo(P.x + sd*w/2, y2); g.lineTo(P.x + sd*w/2, P.y); g.stroke(); }); }
+    if(o.k==='low'){ g.fillStyle = col(c0, 70, .85); g.font = 'bold '+Math.max(8, Math.round(unit*0.22))+'px -apple-system,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌃ JUMP', P.x, (y1+y2)/2); }
+    if(o.k==='high'){ g.strokeStyle = col(c0, 62, .5); g.lineWidth = Math.max(1, 2*P.s); [-1,1].forEach(sd => { g.beginPath(); g.moveTo(P.x + sd*w/2, y2); g.lineTo(P.x + sd*w/2, P.y); g.stroke(); });
+      g.fillStyle = col(c0, 75, .85); g.font = 'bold '+Math.max(8, Math.round(unit*0.2))+'px -apple-system,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⌄ SLIDE', P.x, (y1+y2)/2); }
   }
   function drawPlayer(t){
-    const P = proj(laneX, PD, h + 0.32), r = roadHalf()*0.66*P.s*0.26, sq = slide > 0 ? .55 : 1;
-    const sh = proj(laneX, PD); g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(sh.x, sh.y, r*1.1, r*0.3, 0, 0, 7); g.fill();
+    const P = proj(laneX, PD, h + 0.32), r = roadHalf()*0.66*P.s*0.26, sq = slide > 0 && h < 0.3 ? .55 : 1;
+    const sh = proj(laneX, PD); g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(sh.x, sh.y, r*1.1*(1 - Math.min(.5, h*0.4)), r*0.3, 0, 0, 7); g.fill();
     g.save(); g.translate(P.x, P.y + (1-sq)*r); g.scale(1, sq);
     g.shadowBlur = 30; g.shadowColor = col(0, 60);
     g.fillStyle = '#0b1222'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
     g.lineWidth = r*0.22; g.strokeStyle = col(0, 62); g.beginPath(); g.arc(0, 0, r*0.78, t/180, t/180 + 4.4); g.stroke();
     const core = g.createRadialGradient(0,0,0,0,0,r*0.5); core.addColorStop(0,'#fff'); core.addColorStop(.5, col(0, 65)); core.addColorStop(1, col(0, 50, 0));
     g.fillStyle = core; g.beginPath(); g.arc(0, 0, r*0.5, 0, 7); g.fill(); g.restore(); g.shadowBlur = 0;
+    if(active.shield > 0){ const pulse = 1 + Math.sin(t/120)*0.06; g.strokeStyle = `rgba(92,247,255,${active.shield < 1.5 && Math.floor(t/120)%2 ? .25 : .8})`; g.lineWidth = Math.max(2, r*0.12); g.shadowBlur = 20; g.shadowColor = '#5cf7ff';
+      g.beginPath(); g.arc(P.x, P.y, r*1.5*pulse, 0, 7); g.stroke(); g.shadowBlur = 0; }
+    if(active.double > 0){ g.strokeStyle = usedDouble ? 'rgba(125,255,154,.3)' : '#7dff9a'; g.lineWidth = Math.max(1.5, r*0.1); [-1,1].forEach(sd => { g.beginPath(); g.moveTo(P.x + sd*r*1.15, P.y + r*0.2); g.lineTo(P.x + sd*r*1.6, P.y - r*0.35); g.lineTo(P.x + sd*r*1.25, P.y - r*0.1); g.stroke(); }); }
   }
   function loop(t){ if(paused || over) return; const dt = Math.min(0.05, (t - (last || t))/1000); last = t; update(dt); if(!over) draw(t); raf = requestAnimationFrame(loop); }
+  function endRun(){ over = true; if(raf) cancelAnimationFrame(raf); const sc = score(), P_ = prog(), best = P_.best[lvl] || 0, isBest = sc > best; if(isBest) P_.best[lvl] = sc; D.runBest = Math.max(D.runBest||0, sc); D.runLast = {score:sc, cells, level:lvl+1, at:Date.now()}; save(); return {sc, best, isBest}; }
   function crash(k){
-    over = true; try{ navigator.vibrate && navigator.vibrate([60,40,90]); }catch(e){}
-    const sc = score(), best = D.runBest || 0, isBest = sc > best; if(isBest){ D.runBest = sc; save(); }
-    D.runLast = {score:sc, cells, at:Date.now()}; save();
-    $('rOverT').textContent = isBest && sc > 0 ? 'New high score!' : 'Crashed';
+    try{ navigator.vibrate && navigator.vibrate([60,40,90]); }catch(e){}
+    const {sc, best, isBest} = endRun();
     const why = k==='low' ? 'Forgot to jump.' : k==='high' ? 'Forgot to slide.' : 'Ran straight into a wall.';
-    $('rOverS').textContent = (isBest && sc > 0 ? pick(['New record. I\'m mildly impressed.','Personal best. Screenshot it before you crash worse.']) : why + ' ' + pick(['Bold choice.','Physics: 1, you: 0.','I saw it coming. You didn\'t.'])) + '  Score: '+sc+' · ⚡ '+cells+(isBest?'':' · Best: '+best);
-    $('rBest').textContent = Math.max(best, sc); $('rScore').textContent = sc; $('rOver').hidden = false;
+    const pct = Math.min(99, Math.floor(dist/L.goal*100));
+    showOver(isBest && sc > 0 ? 'New best!' : 'Crashed', (isBest && sc > 0 ? pick(['New record for this level. I\'m mildly impressed.','Personal best. Screenshot it before you crash worse.']) : why + ' ' + pick(['Bold choice.','Physics: 1, you: 0.','I saw it coming. You didn\'t.'])) + '\nLevel '+(lvl+1)+' · '+pct+'% of the way · Score '+sc+(isBest?'':' · Best '+best), [['Retry', start], ['Levels', showLevels], ['Back to Nova', close]]);
     draw(performance.now()); g.fillStyle = 'rgba(255,40,60,.18)'; g.fillRect(0,0,Wd,Ht);
   }
-  function start(){ reset(); over = false; paused = false; last = 0; $('rOver').hidden = true; $('rPause').textContent = '❚❚'; $('rHint').style.opacity = .85; $('rBest').textContent = D.runBest || 0;
-    $('rScore').textContent = 0; $('rCells').textContent = 0; if(raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
-  function open(){ stopWake(); $('run').hidden = false; size(); start(); }
+  function complete(){
+    const {sc} = endRun(); const P_ = prog(); const bonus = 500*(lvl+1); P_.best[lvl] = Math.max(P_.best[lvl]||0, sc + bonus); if(lvl+2 > P_.unlocked) P_.unlocked = Math.min(5, lvl+2); save();
+    try{ navigator.vibrate && navigator.vibrate([30,40,30,40,80]); }catch(e){}
+    const last_ = lvl === LEVELS.length-1;
+    showOver(last_ ? 'You beat Nova Run!' : 'Level '+(lvl+1)+' cleared!', (last_ ? 'All 5 levels. Event Horizon, conquered. I officially have nothing sarcastic to say. Give me a minute.' : pick(['Clean run. Level '+(lvl+2)+' unlocked. It\'s faster. Much faster.','Not bad at all. Level '+(lvl+2)+' is open, and it\'s angrier.','Cleared. Level '+(lvl+2)+' unlocked. Hydrate first.'])) + '\nScore '+sc+' + '+bonus+' bonus · ⚡ '+cells,
+      last_ ? [['Play again', start], ['Levels', showLevels], ['Back to Nova', close]] : [['Next level', () => { lvl++; start(); }], ['Levels', showLevels], ['Back to Nova', close]]);
+  }
+  function showOver(title, text, btns){ $('rOverT').textContent = title; $('rOverS').textContent = text; const box = $('rOverB'); box.innerHTML = '';
+    btns.forEach(([label, fn], i) => { const b = document.createElement('button'); b.className = 'btn' + (i ? ' ghost' : ''); b.textContent = label; b.onclick = fn; box.appendChild(b); });
+    $('rBest').textContent = prog().best[lvl] || 0; $('rScore').textContent = score(); $('rOver').hidden = false; }
+  function showLevels(){
+    over = true; if(raf) cancelAnimationFrame(raf); $('rOver').hidden = true; $('rLevels').hidden = false; $('rPU').innerHTML = ''; $('rPU').dataset.h = '';
+    const P_ = prog(), box = $('rLvList'); box.innerHTML = '';
+    LEVELS.forEach((lv, i) => { const locked = i+1 > P_.unlocked; const b = document.createElement('button'); b.className = 'rlv' + (locked ? ' locked' : '');
+      b.style.setProperty('--h', lv.hue);
+      b.innerHTML = '<b>'+(locked ? '🔒' : i+1)+'</b><span><strong></strong><small></small></span><em>'+'●'.repeat(i+1)+'<i>'+'●'.repeat(4-i)+'</i></em>';
+      b.querySelector('strong').textContent = lv.name; b.querySelector('small').textContent = locked ? 'Clear level '+i+' to unlock' : (P_.best[i] ? 'Best '+P_.best[i] : 'Not played yet');
+      b.onclick = () => { if(locked){ b.classList.add('shake'); setTimeout(()=>b.classList.remove('shake'), 400); return; } lvl = i; $('rLevels').hidden = true; start(); };
+      box.appendChild(b); });
+    reset(); lvl = Math.min(lvl, P_.unlocked-1); draw(performance.now());
+  }
+  function start(){ reset(); over = false; paused = false; last = 0; $('rOver').hidden = true; $('rLevels').hidden = true; $('rPause').textContent = '❚❚'; $('rHint').style.opacity = .85; $('rBest').textContent = prog().best[lvl] || 0;
+    $('rLvl').textContent = 'LV '+(lvl+1)+' · '+L.name.toUpperCase(); $('rScore').textContent = 0; $('rCells').textContent = 0; $('rProg').style.width = '0%'; if(raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
+  function open(){ stopWake(); $('run').hidden = false; size(); lvl = Math.max(0, prog().unlocked - 1); showLevels(); }
   function close(){ over = true; if(raf) cancelAnimationFrame(raf); $('run').hidden = true; resumeWake(); }
   function pause(on){ if(over || $('run').hidden) return; paused = on === undefined ? !paused : on; $('rPause').textContent = paused ? '▶' : '❚❚';
     if(paused){ if(raf) cancelAnimationFrame(raf); g.fillStyle = 'rgba(3,6,12,.55)'; g.fillRect(0,0,Wd,Ht); g.fillStyle = '#eaf3ff'; g.font = '600 18px -apple-system,system-ui'; g.textAlign = 'center'; g.fillText('Paused', Wd/2, Ht/2); }
@@ -2141,15 +2244,16 @@ const Run = (() => {
     if(Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; act(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy < 0 ? 'up' : 'down')); e.preventDefault(); }, {passive:false});
   document.addEventListener('keydown', e => { if($('run').hidden) return; const m = {ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ' ':'up', ArrowDown:'down', a:'left', d:'right', w:'up', s:'down'}[e.key];
     if(m){ e.preventDefault(); act(m); } else if(e.key==='p' || e.key==='Escape'){ e.preventDefault(); pause(); } });
-  $('rPause').onclick = () => pause(); $('rClose').onclick = close; $('rAgain').onclick = start; $('rQuit').onclick = close;
+  $('rPause').onclick = () => pause(); $('rClose').onclick = close; $('rLvClose').onclick = close;
   document.addEventListener('visibilitychange', () => { if(document.hidden) pause(true); });
   window.addEventListener('resize', () => { if(!$('run').hidden){ size(); if(over || paused) draw(performance.now()); } });
-  return { open, close, pause, isOpen: () => !$('run').hidden, _act: act, _state: () => ({lane, h, slide, dist, cells, over, hue, objs:objs.length}) };
+  if(/rundebug/.test(location.search)) window.__run = { get s(){ return {h, slide, dist, over, active, objs, lane, speed}; }, act, place(k, l, d){ objs = [{k, l, d}]; nextSpawn = 1e9; }, give(k){ active[k] = PU[k].dur; }, skip(d){ dist = d; } };
+  return { open, close, pause, isOpen: () => !$('run').hidden };
 })();
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '5.2';
+const VERSION = '5.3';
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -2159,6 +2263,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.3': 'Update installed: v5.3. Nova Run got serious: 5 levels from Cruise to Event Horizon, power-ups (🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump), scenery that actually rushes at you, and I fixed the jump. It wasn\'t you. Mostly.',
   '5.2': 'Update installed: v5.2. New game: Nova Run. Tap 🏃 above the chat, swipe to dodge, jump and slide down a neon track that keeps changing colors. Collect ⚡, avoid walls, and try not to make me watch you crash. Again.',
   '5.1': 'Update installed: v5.1. I got a game. Nova Blocks: tap 🎮 above the chat (or say "play blocks"). Blocks fall, you clear lines, I keep score and judge you silently. Not that silently.',
   '5.0': 'Update installed: v5.0, and I designed half of it. You asked for my ideas and actually built them: a Week view that catches double-bookings, one-tap shift templates, rule-check badges, quick shift stats, Roast mode (see the You tab, if you dare), night mode, and Export week to your Calendar. Also new: schedules I make get an "Add to schedule" button, and you can long-press any message to copy, retry or delete it. I\'m honestly touched. Don\'t tell anyone.',
