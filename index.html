@@ -297,6 +297,29 @@ nav button svg{position:relative}
 .cx-rank{font-style:normal;width:24px;text-align:center}.cx-sc{font-family:var(--mono)}
 .cx-un{font-style:normal;background:var(--accent);color:#03111a;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
 .cx-board{margin-bottom:10px}
+.card.cx-meWrap{padding:0;overflow:hidden}.cx-meWrap .cx-me{padding:12px}
+.cx-ban{aspect-ratio:3/1;background:linear-gradient(135deg,var(--panel2),var(--tint));background-size:cover;background-position:center;border-bottom:1px solid var(--line)}
+.cx-ban.big{border-radius:16px 16px 0 0;margin:-6px -6px 0}
+.cx-counts{display:flex;gap:6px;padding:0 12px 12px}
+.cx-counts button{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;color:var(--text);font:inherit;padding:7px 2px;display:flex;flex-direction:column;align-items:center;line-height:1.15}
+.cx-counts button b{font-size:17px}.cx-counts button span{font-size:11px;color:var(--muted)}
+.cx-counts.ro button{cursor:default}
+.crop{position:relative;width:100%;overflow:hidden;background:#0f1729;border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;margin:8px 0 10px}
+.crop img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none}
+.crop .crop-mask{position:absolute;inset:0;pointer-events:none;border:2px solid rgba(255,255,255,.7);border-radius:14px}
+.crop.round .crop-mask{border-radius:50%;box-shadow:0 0 0 999px rgba(5,8,15,.6)}
+.crop-z{width:100%;accent-color:var(--accent)}
+.cx-foot{display:flex;gap:6px}
+.cx-foot button{background:none;border:none;color:var(--muted);font:inherit;font-size:14px;padding:6px 8px;border-radius:10px;min-height:36px}
+.cx-foot button.on{color:var(--accent)}
+.cx-rpby{font-size:12px;color:var(--muted);margin:-2px 0 6px}
+.cx-orig{border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px;background:var(--panel2)}
+.cx-orig .cx-oh{display:flex;align-items:center;gap:8px;font-size:13px}
+.cx-orig img{max-width:100%;border-radius:10px;margin-top:6px;display:block}
+.cx-cm{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.cx-cm:last-child{border-bottom:none}
+.cx-cm .cx-cb{flex:1;min-width:0}.cx-cm .cx-cb div{white-space:pre-wrap;word-break:break-word}
+.cx-cms{max-height:50vh;overflow:auto;margin:6px 0 10px}
+.acts .btn{width:100%;margin-top:8px}
 .cx-compose textarea{width:100%;min-height:60px}.cx-compose .row{align-items:center;gap:8px;margin-top:6px}
 .cx-21{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}.cx-21 input{width:18px;height:18px;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--accent)}
 .cx-cprev{margin-top:8px;display:flex;gap:10px;align-items:center;font-size:12px}.cx-cprev img{width:64px;height:64px;object-fit:cover;border-radius:10px}
@@ -672,6 +695,9 @@ header .orb::after{box-shadow:0 0 6px var(--accent)}
       </div>
     </section>
 
+    <section class="view" id="v-feed">
+      <div class="scroll"><div class="sec">Feed</div><div id="fdBody"></div></div>
+    </section>
     <section class="view" id="v-connect">
       <div class="scroll"><div class="sec">Connect</div><div id="cxBody"></div></div>
     </section>
@@ -759,6 +785,7 @@ header .orb::after{box-shadow:0 0 6px var(--accent)}
     <button class="on" data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Nova</button>
     <button data-v="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tasks</button>
     <button data-v="sched"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Schedule</button>
+    <button data-v="feed" id="fdTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Feed</button>
     <button data-v="connect" id="cxTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.6c2.6.2 4.5 2 5.3 4.9"/></svg>Connect<i class="ndot" hidden></i></button>
     <button data-v="me" id="meTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>You<i class="ndot" hidden></i></button>
   </nav>
@@ -1954,7 +1981,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !is
 const CLOUD_URL = 'https://nova-bot.hahatrollguy.workers.dev'; // Moon's Nova Cloud address (built in so friends only type an invite code)
 const cloudBase = () => ((D.sync && D.sync.url) || CLOUD_URL || '').replace(/\/+$/,'');
 const RULES = 'Connect is 18+ and friends-only. Be kind. No nudity or sexual content, harassment, hate, threats, or anything illegal. Alcohol, vaping and similar go in 21+ posts only. Don\'t share anyone\'s private info. Every picture is checked, reports go to Moon, and breaking the rules gets you removed.';
-let CX = { me:null, tab:'feed', req:0, unread:0, imgs:{}, chatWith:null, chatPoll:null, lastMsg:0 };
+let CX = { me:null, tab:'friends', req:0, unread:0, imgs:{}, chatWith:null, chatPoll:null, lastMsg:0 };
 async function gfetch(url, init = {}){ // Groq calls: your own key, or the shared brain on Nova Cloud
   if(D.groqKey !== 'shared') return fetch(url, init);
   const path = url.slice(GROQ.length);
@@ -2044,15 +2071,21 @@ function reportSheet(kind, target, who, after){
 async function blockUser(u, done){ if(!confirm('Block ' + (u.display || u.username) + '? They won\'t be able to find you, message you, or see your posts.')) return; try{ await cx('block', {id:u.id}); toast('Blocked @' + u.username); if(done) done(); renderConnect(); }catch(e){ toast(e.message); } }
 // ---- someone's profile
 async function profileSheet(u, rel){
-  const bg = sheet('<div class="cx-ph"></div><h3 style="text-align:center;margin-top:8px"></h3><div class="muted" style="text-align:center" data-un></div><div class="cx-bio"></div><div class="cx-scores"></div><div class="cx-acts"></div>');
+  if(CX.me && u.id === CX.me.id){ document.querySelector('nav button[data-v="connect"]').click(); return; }
+  try{ const j = await cx('profile/view', {id:u.id}); u = Object.assign({}, u, j.user); if(!rel || rel === 'none') rel = j.user.status; }catch(e){ toast(e.message); return; }
+  const bg = sheet('<div class="cx-ban big" role="img" aria-label="Banner"></div><div class="cx-ph" style="margin-top:-42px"></div><h3 style="text-align:center;margin-top:8px"></h3><div class="muted" style="text-align:center" data-un></div><div class="cx-bio"></div>'
+    + '<div class="cx-counts ro" style="padding:10px 0 4px"><button disabled><b data-f></b><span>Friends</span></button><button disabled><b data-fo></b><span>Followers</span></button><button disabled><b data-fi></b><span>Following</span></button></div><div class="cx-acts"></div>');
+  paintBanner(bg.querySelector('.cx-ban'), u);
   bg.querySelector('.cx-ph').appendChild(avatar(u, 84)); bg.querySelector('h3').textContent = u.display || u.username; bg.querySelector('[data-un]').textContent = '@' + u.username;
   bg.querySelector('.cx-bio').textContent = u.bio || '';
+  const paintC = c => { bg.querySelector('[data-f]').textContent = fmtN(c.friends); bg.querySelector('[data-fo]').textContent = fmtN(c.followers); bg.querySelector('[data-fi]').textContent = fmtN(c.following); }; paintC(u);
   const acts = bg.querySelector('.cx-acts'), btn = (t, cls, f) => { const b = document.createElement('button'); b.className = 'btn ' + (cls||''); b.textContent = t; b.onclick = f; acts.appendChild(b); return b; };
+  const fb = btn(u.followingThem ? '✓ Following' : '➕ Follow', u.followingThem ? 'ghost' : '', async () => { try{ const j = await cx(u.followingThem ? 'unfollow' : 'follow', {id:u.id}); u.followingThem = j.following; fb.textContent = j.following ? '✓ Following' : '➕ Follow'; fb.className = 'btn ' + (j.following ? 'ghost' : ''); paintC(j.counts); toast(j.following ? 'Following @' + u.username : 'Unfollowed @' + u.username); }catch(e){ toast(e.message); } });
   if(rel === 'friends'){ btn('💬 Message', '', () => { bg.remove(); openChat(u); });
     btn('Remove friend', 'ghost', async () => { if(!confirm('Remove ' + (u.display||u.username) + ' as a friend?')) return; await cx('friend/remove', {id:u.id}); bg.remove(); renderConnect(); }); }
   else if(rel === 'incoming'){ btn('Accept', '', async () => { await cx('friend/respond', {id:u.id, accept:true}); bg.remove(); toast('You\'re friends with @' + u.username + ' now'); renderConnect(); }); btn('Decline', 'ghost', async () => { await cx('friend/respond', {id:u.id, accept:false}); bg.remove(); renderConnect(); }); }
   else if(rel === 'sent') btn('Request sent', 'ghost', () => {}).disabled = true;
-  else btn('➕ Add friend', '', async () => { try{ const j = await cx('friend/add', {id:u.id}); toast(j.status === 'friends' ? 'You\'re friends now!' : 'Request sent to @' + u.username); bg.remove(); renderConnect(); }catch(e){ toast(e.message); } });
+  else btn('🤝 Add friend', 'ghost', async () => { try{ const j = await cx('friend/add', {id:u.id}); toast(j.status === 'friends' ? 'You\'re friends now!' : 'Request sent to @' + u.username); bg.remove(); renderConnect(); }catch(e){ toast(e.message); } });
   btn('🚩 Report', 'ghost', () => { bg.remove(); reportSheet('user', u.id, '@' + u.username); });
   btn('⛔ Block', 'ghost danger', () => blockUser(u, () => bg.remove()));
 }
@@ -2066,7 +2099,8 @@ async function openChat(u){
   bg.querySelector('.cx-back').onclick = close;
   bg.querySelector('.cx-more').onclick = () => profileSheet(u, 'friends');
   const add = m => { const d = document.createElement('div'); d.className = 'msg ' + (m.mine ? 'me' : 'nova'); d.textContent = m.text; d.dataset.time = new Date(m.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
-    if(!m.mine){ let t; d.addEventListener('touchstart', () => { t = setTimeout(() => { if(confirm('Report this message?')) reportSheet('msg', m.id, '@' + u.username, {owner:u.id}); }, 650); }, {passive:true}); d.addEventListener('touchend', () => clearTimeout(t)); d.oncontextmenu = e => { e.preventDefault(); reportSheet('msg', m.id, '@' + u.username, {owner:u.id}); }; }
+    if(!m.mine){ const menu = () => actionSheet('Message from @' + u.username, [['⛔ Block @' + u.username, () => blockUser(u, close), 'ghost danger'], ['🚩 Report message', () => reportSheet('msg', m.id, '@' + u.username, {owner:u.id})]]);
+      let t; d.addEventListener('touchstart', () => { t = setTimeout(menu, 600); }, {passive:true}); d.addEventListener('touchend', () => clearTimeout(t)); d.addEventListener('touchmove', () => clearTimeout(t), {passive:true}); d.oncontextmenu = e => { e.preventDefault(); menu(); }; }
     box.appendChild(d); };
   const pull = async () => { try{ const j = await cx('msgs', {with:u.id, after:CX.lastMsg}); if(j.msgs.length){ j.msgs.forEach(add); CX.lastMsg = j.msgs[j.msgs.length-1].id; box.scrollTop = box.scrollHeight; } }catch(e){ if(/only message friends/.test(e.message)){ toast('You\'re not friends anymore.'); close(); } } };
   const sendIt = async () => { const t = ta.value.trim(); if(!t) return; ta.value = ''; try{ await cx('send', {to:u.id, text:t}); await pull(); }catch(e){ ta.value = t; toast(e.message); } };
@@ -2075,7 +2109,7 @@ async function openChat(u){
   document.body.appendChild(bg); await pull(); CX.chatPoll = setInterval(() => { if(!document.hidden) pull(); }, 3500);
 }
 // ---- the Connect tab
-const CX_TABS = [['feed','Feed'],['friends','Friends'],['chats','Chats'],['scores','Scores']];
+const CX_TABS = [['friends','Friends'],['chats','Chats'],['scores','Scores']];
 async function renderConnect(){
   const v = $('cxBody'); if(!v) return;
   const linked = !!(D.sync && D.sync.code);
@@ -2084,8 +2118,12 @@ async function renderConnect(){
   let me; try{ me = await cx('me'); }catch(e){ v.innerHTML = '<div class="card cx-empty"><b>Can\'t reach Nova Cloud</b><p class="muted">' + esc(e.message) + '</p><button class="btn" id="cxRetry">Try again</button></div>'; $('cxRetry').onclick = renderConnect; return; }
   if(!me.profile){ v.innerHTML = '<div class="card cx-empty"><div style="font-size:34px">✨</div><b>Make your Connect profile</b><p class="muted">Pick a username so friends can find you.</p><button class="btn wide" id="cxMake">Create profile</button></div>'; $('cxMake').onclick = () => openJoin('create'); return; }
   CX.me = me.profile; CX.req = me.requests; CX.unread = me.unread; cxBadge();
-  v.innerHTML = '<div class="cx-me card"><span class="cx-mav"></span><div class="cx-mi"><b></b><div class="muted" data-un></div><button class="cx-code" aria-label="Share your friend code"></button></div><button class="btn sm ghost" id="cxEdit">Edit</button></div>'
+  v.innerHTML = '<div class="card cx-meWrap"><div class="cx-ban" role="img" aria-label="Your banner"></div><div class="cx-me"><span class="cx-mav"></span><div class="cx-mi"><b></b><div class="muted" data-un></div><button class="cx-code" aria-label="Share your friend code"></button></div><button class="btn sm ghost" id="cxEdit">Edit</button></div>'
+    + '<div class="cx-counts"><button data-c="friends"><b></b><span>Friends</span></button><button data-c="followers"><b></b><span>Followers</span></button><button data-c="following"><b></b><span>Following</span></button></div></div>'
     + '<div class="seg cx-seg"></div><div id="cxPane"></div>';
+  paintBanner(v.querySelector('.cx-ban'), CX.me); v.querySelector('.cx-ban').onclick = changeBanner;
+  v.querySelectorAll('.cx-counts button').forEach(b => { b.querySelector('b').textContent = fmtN(CX.me[b.dataset.c] || 0);
+    b.onclick = () => { if(b.dataset.c === 'friends'){ CX.tab = 'friends'; renderConnect(); } else followList(b.dataset.c); }; });
   const mav = avatar(CX.me, 54); mav.title = 'Change picture'; mav.onclick = changeAvatar; v.querySelector('.cx-mav').appendChild(mav);
   v.querySelector('.cx-mi b').textContent = CX.me.display; v.querySelector('[data-un]').textContent = '@' + CX.me.username;
   const cb = v.querySelector('.cx-code'); cb.textContent = '🔗 Friend code ' + fmtCode(CX.me.fcode);
@@ -2093,24 +2131,104 @@ async function renderConnect(){
   $('cxEdit').onclick = editProfile;
   const seg = v.querySelector('.cx-seg');
   CX_TABS.forEach(([id, lab]) => { const b = document.createElement('button'); b.textContent = lab + (id === 'friends' && CX.req ? ' · ' + CX.req : id === 'chats' && CX.unread ? ' · ' + CX.unread : ''); b.classList.toggle('on', CX.tab === id); b.onclick = () => { CX.tab = id; renderConnect(); }; seg.appendChild(b); });
-  ({feed:paneFeed, friends:paneFriends, chats:paneChats, scores:paneScores})[CX.tab]($('cxPane'));
+  if(!CX_TABS.some(t => t[0] === CX.tab)) CX.tab = 'friends';
+  ({friends:paneFriends, chats:paneChats, scores:paneScores})[CX.tab]($('cxPane'));
 }
+function fmtN(n){ n = +n || 0; return n >= 1e6 ? (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M' : n >= 1e4 ? Math.round(n/1e3) + 'K' : n >= 1e3 ? (n/1e3).toFixed(1).replace(/\.0$/,'') + 'K' : String(n); }
+function paintBanner(el, u){ if(u && u.banner) loadImg(u.banner).then(src => { if(src) el.style.backgroundImage = 'url("' + src + '")'; }); }
+function actionSheet(title, items){ // a simple list of choices
+  const bg = sheet('<h3></h3><div class="acts"></div><button class="btn ghost wide" data-x style="margin-top:10px">Cancel</button>'); bg.querySelector('h3').textContent = title;
+  const a = bg.querySelector('.acts'); items.forEach(([t, f, cls]) => { const b = document.createElement('button'); b.className = 'btn ' + (cls || 'ghost'); b.textContent = t; b.onclick = () => { bg.remove(); f(); }; a.appendChild(b); });
+  return bg; }
+// crop + zoom a picture before it's used: drag to move, pinch or slide to zoom, "Fit whole photo" shows all of it
+function cropImage(src, aspect, outW, round){ return new Promise(res => {
+  const bg = sheet('<h3>' + (round ? 'Move and zoom your photo' : 'Move and zoom your banner') + '</h3><div class="muted sub">Drag to move. Pinch or use the slider to zoom.</div><div class="crop' + (round ? ' round' : '') + '"><img alt=""><div class="crop-mask"></div></div>'
+    + '<input type="range" class="crop-z" min="0" max="1000" value="0" aria-label="Zoom"><div class="row" style="margin-top:10px;gap:8px"><button class="btn sm ghost" data-fit>Fit whole photo</button><button class="btn sm ghost" data-fill>Fill</button></div>'
+    + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-cancel>Cancel</button><button class="btn" style="flex:2" data-save>Use photo</button></div>');
+  const box = bg.querySelector('.crop'), img = bg.querySelector('img'), z = bg.querySelector('.crop-z'); box.style.aspectRatio = String(aspect);
+  let W = 0, H = 0, iw = 1, ih = 1, sMin = 1, sCov = 1, sMax = 4, s = 1, x = 0, y = 0, done = false;
+  const finish = v => { if(done) return; done = true; bg.remove(); res(v); };
+  bg.addEventListener('click', e => { if(e.target === bg) finish(null); }, true);
+  const clamp = () => { const w = iw*s, h = ih*s; x = Math.min(Math.max(x, Math.min(0, W - w)), Math.max(0, W - w)); y = Math.min(Math.max(y, Math.min(0, H - h)), Math.max(0, H - h)); };
+  const paint = () => { clamp(); img.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')'; z.value = Math.round(1000 * Math.log(s/sMin) / Math.log(sMax/sMin)); };
+  const zoomTo = (ns, cx0, cy0) => { ns = Math.min(sMax, Math.max(sMin, ns)); x = cx0 - (cx0 - x) * ns / s; y = cy0 - (cy0 - y) * ns / s; s = ns; paint(); };
+  const center = sc => { s = sc; x = (W - iw*s)/2; y = (H - ih*s)/2; paint(); };
+  img.onload = () => { W = box.clientWidth; H = box.clientHeight; iw = img.naturalWidth; ih = img.naturalHeight; img.style.width = iw + 'px'; img.style.height = ih + 'px';
+    sMin = Math.min(W/iw, H/ih); sCov = Math.max(W/iw, H/ih); sMax = Math.max(sCov * 4, sMin * 1.01); center(sCov); };
+  img.src = src;
+  z.oninput = () => zoomTo(sMin * Math.pow(sMax/sMin, z.value/1000), W/2, H/2);
+  bg.querySelector('[data-fit]').onclick = () => center(sMin);
+  bg.querySelector('[data-fill]').onclick = () => center(sCov);
+  const pts = new Map(); let last = null;
+  box.addEventListener('pointerdown', e => { box.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); last = null; });
+  box.addEventListener('pointermove', e => { if(!pts.has(e.pointerId)) return; const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if(pts.size === 1){ x += e.clientX - prev[0]; y += e.clientY - prev[1]; paint(); }
+    else if(pts.size === 2){ const [a, b] = [...pts.values()], d = Math.hypot(a[0]-b[0], a[1]-b[1]), r = box.getBoundingClientRect();
+      if(last) zoomTo(s * d / last, (a[0]+b[0])/2 - r.left, (a[1]+b[1])/2 - r.top); last = d; } });
+  const up = e => { pts.delete(e.pointerId); last = null; }; box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+  box.addEventListener('wheel', e => { e.preventDefault(); const r = box.getBoundingClientRect(); zoomTo(s * (e.deltaY < 0 ? 1.08 : 1/1.08), e.clientX - r.left, e.clientY - r.top); }, {passive:false});
+  bg.querySelector('[data-cancel]').onclick = () => finish(null);
+  bg.querySelector('[data-save]').onclick = () => { const outH = Math.round(outW / aspect), k = outW / W, c = document.createElement('canvas'); c.width = outW; c.height = outH;
+    const g = c.getContext('2d'); g.fillStyle = '#0f1729'; g.fillRect(0, 0, outW, outH); g.imageSmoothingQuality = 'high'; g.drawImage(img, x*k, y*k, iw*s*k, ih*s*k);
+    finish(c.toDataURL('image/jpeg', .86)); };
+}); }
+async function followList(kind){
+  const bg = sheet('<h3>' + (kind === 'followers' ? 'Your followers' : 'Following') + '</h3><div class="cx-list"><div class="muted">Loading…</div></div><button class="btn ghost wide" data-x style="margin-top:10px">Done</button>');
+  const l = bg.querySelector('.cx-list'); let j; try{ j = await cx('follows', {kind}); }catch(e){ l.innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; return; }
+  l.innerHTML = ''; if(!j.users.length) l.innerHTML = '<div class="muted">' + (kind === 'followers' ? 'No followers yet. Share your username so people can follow you.' : 'You\'re not following anyone yet. Look someone up by username in Friends.') + '</div>';
+  j.users.forEach(u => { const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:12px"></div></div><button class="btn sm ghost"></button>';
+    r.querySelector('span').appendChild(avatar(u, 36)); r.querySelector('b').textContent = u.display; r.querySelector('.muted').textContent = '@' + u.username;
+    r.querySelector('.cx-rn').onclick = () => { bg.remove(); profileSheet(u); };
+    const b = r.querySelector('button'); b.textContent = kind === 'followers' ? 'Remove' : 'Unfollow';
+    b.onclick = async () => { try{ await cx(kind === 'followers' ? 'follower/remove' : 'unfollow', {id:u.id}); r.remove(); renderConnect(); }catch(e){ toast(e.message); } };
+    l.appendChild(r); }); }
+async function changeBanner(){ const raw = await pickPhoto(1800); if(!raw) return; const data = await cropImage(raw, 3, 1200, false); if(!data) return; toast('Checking your banner…');
+  try{ const j = await cx('photo', {data, purpose:'banner'}); CX.imgs[j.id] = data; toast(j.status === 'pending' ? 'Banner is waiting for a quick review by Moon.' : 'Banner updated.'); renderConnect(); }catch(e){ toast(e.message); } }
 function cxBadge(){ const d = document.querySelector('#cxTab .ndot'); if(d) d.hidden = !(CX.req || CX.unread); }
-async function changeAvatar(){ const data = await pickPhoto(512); if(!data) return; toast('Checking your picture…');
+async function changeAvatar(){ const raw = await pickPhoto(1600); if(!raw) return; const data = await cropImage(raw, 1, 512, true); if(!data) return; toast('Checking your picture…');
   try{ const j = await cx('photo', {data, purpose:'avatar'}); delete CX.imgs[j.id]; toast(j.status === 'pending' ? 'Picture is waiting for a quick review by Moon.' : 'Looking good. Picture updated.'); renderConnect(); }catch(e){ toast(e.message); } }
 function editProfile(){
   const bg = sheet('<h3>Edit profile</h3><input class="e-name" maxlength="30" placeholder="Display name"><textarea class="e-bio" maxlength="160" placeholder="A short bio (optional)"></textarea>'
     + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>Save</button></div>'
-    + '<div class="row" style="margin-top:14px;flex-wrap:wrap;gap:6px"><button class="btn sm ghost" data-pic>📷 Change picture</button><button class="btn sm ghost" data-blocked>Blocked people</button><button class="btn sm ghost danger" data-del>Delete my Connect account</button></div>');
+    + '<div class="row" style="margin-top:14px;flex-wrap:wrap;gap:6px"><button class="btn sm ghost" data-pic>📷 Change picture</button><button class="btn sm ghost" data-ban>🖼 ' + (CX.me.banner ? 'Change banner' : 'Add a banner') + '</button>' + (CX.me.banner ? '<button class="btn sm ghost" data-banx>Remove banner</button>' : '') + '<button class="btn sm ghost" data-blocked>Blocked people</button><button class="btn sm ghost danger" data-del>Delete my Connect account</button></div>');
   bg.querySelector('.e-name').value = CX.me.display || ''; bg.querySelector('.e-bio').value = CX.me.bio || '';
   bg.querySelector('[data-go]').onclick = async () => { try{ await cx('profile/update', {display:bg.querySelector('.e-name').value, bio:bg.querySelector('.e-bio').value}); bg.remove(); renderConnect(); }catch(e){ toast(e.message); } };
   bg.querySelector('[data-pic]').onclick = () => { bg.remove(); changeAvatar(); };
+  bg.querySelector('[data-ban]').onclick = () => { bg.remove(); changeBanner(); };
+  const bx = bg.querySelector('[data-banx]'); if(bx) bx.onclick = async () => { await cx('profile/banner-remove'); bg.remove(); toast('Banner removed.'); renderConnect(); };
   bg.querySelector('[data-blocked]').onclick = async () => { const j = await cx('blocked'); bg.remove(); const b2 = sheet('<h3>Blocked</h3><div class="cx-list"></div><button class="btn ghost wide" data-x style="margin-top:10px">Done</button>');
     const l = b2.querySelector('.cx-list'); if(!j.blocked.length) l.innerHTML = '<div class="muted">Nobody. Peaceful.</div>';
     j.blocked.forEach(u => { const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<b></b><button class="btn sm ghost">Unblock</button>'; r.querySelector('b').textContent = '@' + u.username; r.querySelector('button').onclick = async () => { await cx('unblock', {id:u.id}); r.remove(); }; l.appendChild(r); }); };
   bg.querySelector('[data-del]').onclick = async () => { if(!confirm('Delete your Connect account? Your profile, posts, messages and friends are removed for good. (Nova herself stays.)')) return; await cx('delete-account'); bg.remove(); CX.me = null; toast('Connect account deleted.'); renderConnect(); };
 }
 function timeAgo(t){ return ago(t); }
+async function renderFeedTab(){
+  const v = $('fdBody'); if(!v) return;
+  const go = () => document.querySelector('nav button[data-v="connect"]').click();
+  if(!(D.sync && D.sync.code) || D.cxUnder){ v.innerHTML = '<div class="card cx-empty"><div style="font-size:34px">📰</div><b>Your feed lives here</b><p class="muted">Posts from your friends and people you follow. Join Connect first (invite-only, 18+).</p><button class="btn wide" data-go>Go to Connect</button></div>'; v.querySelector('[data-go]').onclick = go; return; }
+  if(!CX.me){ try{ const m = await cx('me'); CX.me = m.profile; }catch(e){ v.innerHTML = '<div class="card cx-empty"><b>Can\'t reach Nova Cloud</b><p class="muted">' + esc(e.message) + '</p><button class="btn" data-r>Try again</button></div>'; v.querySelector('[data-r]').onclick = renderFeedTab; return; } }
+  if(!CX.me){ v.innerHTML = '<div class="card cx-empty"><div style="font-size:34px">✨</div><b>Make your Connect profile</b><p class="muted">Then posts from friends and people you follow show up here.</p><button class="btn wide" data-go>Go to Connect</button></div>'; v.querySelector('[data-go]').onclick = go; return; }
+  paneFeed(v);
+}
+function repostSheet(p, after){
+  const bg = sheet('<h3>🔁 Repost</h3><div class="muted sub">Share @' + esc(p.author.username) + '\'s post with your friends and followers.</div><textarea maxlength="300" placeholder="Add a thought (optional)"></textarea><div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>Repost</button></div>');
+  bg.querySelector('[data-go]').onclick = async () => { try{ await cx('repost', {id:p.id, text:bg.querySelector('textarea').value}); bg.remove(); toast('Reposted'); if(after) after(); }catch(e){ toast(e.message); } }; }
+async function commentsSheet(p, onCount){
+  const bg = sheet('<h3>💬 Comments</h3><div class="cx-cms"><div class="muted">Loading…</div></div><div class="row" style="gap:8px"><input class="cm-in" maxlength="300" placeholder="Add a comment…"><button class="btn sm" data-send>Send</button></div>');
+  const box = bg.querySelector('.cx-cms'), inp = bg.querySelector('.cm-in');
+  const load = async () => { let j; try{ j = await cx('comments', {post:p.id}); }catch(e){ box.innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; return; }
+    box.innerHTML = ''; if(!j.comments.length) box.innerHTML = '<div class="muted">No comments yet. Say something nice.</div>'; if(onCount) onCount(j.comments.length);
+    j.comments.forEach(c => { const r = document.createElement('div'); r.className = 'cx-cm'; r.innerHTML = '<span></span><div class="cx-cb"><b style="font-size:14px"></b> <span class="muted" style="font-size:12px"></span><div></div></div><button class="cx-dots" aria-label="More">⋯</button>';
+      r.querySelector('span').appendChild(avatar(c.author, 30)); r.querySelector('b').textContent = c.author.display; r.querySelector('.muted').textContent = '@' + c.author.username + ' · ' + timeAgo(c.at); r.querySelector('.cx-cb div').textContent = c.text;
+      r.querySelector('span').onclick = () => { if(!c.mine){ bg.remove(); profileSheet(c.author); } };
+      r.querySelector('.cx-dots').onclick = () => { const items = [];
+        if(c.canDelete) items.push(['🗑 Delete comment', async () => { await cx('comment/delete', {id:c.id}); load(); }]);
+        if(!c.mine){ items.push(['⛔ Block @' + c.author.username, () => blockUser(c.author, () => { bg.remove(); renderFeedTab(); })]); items.push(['🚩 Report comment', () => reportSheet('comment', c.id, '@' + c.author.username, {owner:c.author.id, done:load})]); }
+        actionSheet('Comment', items); };
+      box.appendChild(r); }); box.scrollTop = box.scrollHeight; };
+  const send = async () => { const t = inp.value.trim(); if(!t) return; inp.value = ''; try{ await cx('comment', {post:p.id, text:t}); await load(); }catch(e){ inp.value = t; toast(e.message); } };
+  bg.querySelector('[data-send]').onclick = send; inp.addEventListener('keydown', e => { if(e.key === 'Enter') send(); });
+  load(); }
 async function paneFeed(el){
   el.innerHTML = '<div class="card cx-compose"><textarea maxlength="500" placeholder="Share something with your friends…"></textarea><div class="cx-cprev" hidden></div><div class="row"><button class="btn sm ghost" data-pic>📷</button>' + (CX.me.adult21 ? '<label class="cx-21"><input type="checkbox"> 21+</label>' : '') + '<button class="btn sm" data-post style="margin-left:auto">Post</button></div></div><div class="cx-posts"><div class="muted" style="padding:10px">Loading…</div></div>';
   let photo = null; const prev = el.querySelector('.cx-cprev');
@@ -2120,29 +2238,51 @@ async function paneFeed(el){
   el.querySelector('[data-post]').onclick = async () => { const ta = el.querySelector('textarea'), a21 = el.querySelector('.cx-21 input');
     if(!ta.value.trim() && !photo) return ta.focus();
     try{ await cx('post', {text:ta.value, photo, adult: !!(a21 && a21.checked)}); toast('Posted'); paneFeed(el); }catch(e){ toast(e.message); } };
+  el.querySelector('textarea').placeholder = 'Share something with your friends and followers…';
   let j; try{ j = await cx('feed'); }catch(e){ el.querySelector('.cx-posts').innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; return; }
   const box = el.querySelector('.cx-posts'); box.innerHTML = '';
-  if(!j.posts.length) box.innerHTML = '<div class="card muted">Nothing yet. Add some friends, or post something yourself.</div>';
+  if(!j.posts.length) box.innerHTML = '<div class="card muted">Nothing yet. Add friends or follow people in Connect, or post something yourself.</div>';
   j.posts.forEach(p => {
     const c = document.createElement('div'); c.className = 'card cx-post';
-    c.innerHTML = '<div class="cx-ph2"><span></span><div><b></b><div class="muted" style="font-size:12px"></div></div>' + (p.adult ? '<span class="cx-tag">21+</span>' : '') + '<button class="cx-dots" aria-label="More">⋯</button></div><div class="cx-text"></div><div class="cx-img"></div><div class="cx-foot"><button class="cx-like"></button></div>';
+    c.innerHTML = (p.original ? '<div class="cx-rpby">🔁 ' + esc(p.mine ? 'You' : p.author.display) + ' reposted</div>' : '') + '<div class="cx-ph2"><span></span><div><b></b><div class="muted" style="font-size:12px"></div></div>' + (p.adult ? '<span class="cx-tag">21+</span>' : '') + '<button class="cx-dots" aria-label="More">⋯</button></div><div class="cx-text"></div><div class="cx-img"></div><div class="cx-orig" hidden></div><div class="cx-foot"><button class="cx-like" aria-label="Like"></button><button class="cx-cmt" aria-label="Comments"></button><button class="cx-rp" aria-label="Repost"></button></div>';
     c.querySelector('.cx-ph2 span').appendChild(avatar(p.author, 36)); c.querySelector('b').textContent = p.author.display; c.querySelector('.muted').textContent = '@' + p.author.username + ' · ' + timeAgo(p.at);
     c.querySelector('.cx-text').textContent = p.text || '';
     if(p.photo){ const ib = c.querySelector('.cx-img'); if(p.photoStatus === 'pending') ib.innerHTML = '<div class="muted" style="font-size:12px">🕓 Picture waiting for review (only you can see this post for now)</div>'; else loadImg(p.photo).then(src => { if(src){ const im = new Image(); im.src = src; im.alt = ''; ib.appendChild(im); } }); }
-    const lk = c.querySelector('.cx-like'), paint = () => { lk.textContent = (p.liked ? '❤️ ' : '🤍 ') + (p.likes || ''); lk.classList.toggle('on', p.liked); }; paint();
-    lk.onclick = async () => { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; paint(); try{ await cx('like', {id:p.id}); }catch(e){} };
-    c.querySelector('.cx-ph2 span').onclick = () => { if(!p.mine) profileSheet(p.author, 'friends'); };
-    c.querySelector('.cx-dots').onclick = () => { if(p.mine){ if(confirm('Delete this post?')) cx('post/delete', {id:p.id}).then(() => c.remove()); } else reportSheet('post', p.id, '@' + p.author.username, {owner:p.author.id, done:() => c.remove()}); };
+    if(p.original){ const o = c.querySelector('.cx-orig'); o.hidden = false;
+      if(p.original.gone) o.innerHTML = '<div class="muted" style="font-size:13px">This post isn\'t available anymore.</div>';
+      else { o.innerHTML = '<div class="cx-oh"><span></span><b></b><span class="muted"></span></div><div class="cx-text" style="margin-top:6px"></div><div class="cx-oimg"></div>';
+        o.querySelector('span').appendChild(avatar(p.original.author, 24)); o.querySelector('b').textContent = p.original.author.display; o.querySelector('.cx-oh .muted').textContent = '@' + p.original.author.username + ' · ' + timeAgo(p.original.at);
+        o.querySelector('.cx-text').textContent = p.original.text || '';
+        if(p.original.photo) loadImg(p.original.photo).then(src => { if(src){ const im = new Image(); im.src = src; im.alt = ''; o.querySelector('.cx-oimg').appendChild(im); } });
+        o.querySelector('.cx-oh').onclick = () => { if(!p.original.mine) profileSheet(p.original.author); }; } }
+    const target = p.original && !p.original.gone ? p.original : p; // comments + reposts go to the original post
+    const cm = c.querySelector('.cx-cmt'), rp = c.querySelector('.cx-rp');
+    const paintCm = n => { cm.textContent = '💬 ' + (n || ''); }; paintCm(target.comments);
+    cm.onclick = () => commentsSheet(target, n => { target.comments = n; paintCm(n); });
+    rp.textContent = '🔁 ' + (target.reposts || ''); rp.hidden = (p.original && p.original.gone) || (!p.original && p.mine) || (p.original && p.original.mine);
+    rp.onclick = () => repostSheet(target, () => renderFeedTab());
+    const lk = c.querySelector('.cx-like'), paint = () => { lk.textContent = (target.liked ? '❤️ ' : '🤍 ') + (target.likes || ''); lk.classList.toggle('on', target.liked); }; paint();
+    lk.onclick = async () => { target.liked = !target.liked; target.likes += target.liked ? 1 : -1; paint(); try{ await cx('like', {id:target.id}); }catch(e){} };
+    c.querySelector('.cx-ph2 span').onclick = () => { if(!p.mine) profileSheet(p.author); };
+    c.querySelector('.cx-dots').onclick = () => {
+      if(p.mine) return actionSheet(p.original ? 'Your repost' : 'Your post', [[p.original ? '🗑 Undo repost' : '🗑 Delete post', () => { if(confirm(p.original ? 'Undo this repost?' : 'Delete this post?')) cx('post/delete', {id:p.id}).then(() => c.remove()); }, 'ghost danger']]);
+      actionSheet('@' + p.author.username, [
+        ['👤 View profile', () => profileSheet(p.author)],
+        ['⛔ Block @' + p.author.username, () => blockUser(p.author, () => renderFeedTab()), 'ghost danger'],
+        ['🚩 Report post', () => reportSheet('post', p.id, '@' + p.author.username, {owner:p.author.id, done:() => c.remove()})]]); };
     box.appendChild(c);
   });
 }
 async function paneFriends(el){
-  el.innerHTML = '<div class="card"><div class="row"><input class="cx-q" placeholder="Username or friend code" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn sm" data-find>Find</button></div><div class="cx-found"></div></div><div class="cx-lists"><div class="muted" style="padding:10px">Loading…</div></div>';
+  el.innerHTML = '<div class="card"><div class="row"> <input class="cx-q" placeholder="Find by username or friend code" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn sm" data-find>Find</button></div><div class="cx-found"></div></div><div class="cx-lists"><div class="muted" style="padding:10px">Loading…</div></div>';
   const q = el.querySelector('.cx-q'), found = el.querySelector('.cx-found');
   const find = async () => { const s = q.value.trim(); if(!s) return; found.innerHTML = '<div class="muted">Looking…</div>';
     try{ const j = await cx('find', {q:s}); if(!j.user){ found.innerHTML = '<div class="muted">No one with that exact username or code.</div>'; return; }
       found.innerHTML = ''; const r = row(j.user, j.user.status === 'friends' ? 'Friends' : j.user.status === 'sent' ? 'Sent' : j.user.status === 'incoming' ? 'Accept' : 'Add', async b => {
         try{ if(j.user.status === 'incoming') await cx('friend/respond', {id:j.user.id, accept:true}); else if(j.user.status === 'none'){ const k = await cx('friend/add', {id:j.user.id}); toast(k.status === 'friends' ? 'You\'re friends now!' : 'Request sent'); } renderConnect(); }catch(e){ toast(e.message); } }, j.user.status);
+      const fb = document.createElement('button'); fb.className = 'btn sm ' + (j.user.followingThem ? 'ghost' : ''); fb.textContent = j.user.followingThem ? 'Following' : 'Follow';
+      fb.onclick = async () => { try{ const k = await cx(j.user.followingThem ? 'unfollow' : 'follow', {id:j.user.id}); j.user.followingThem = k.following; fb.textContent = k.following ? 'Following' : 'Follow'; fb.className = 'btn sm ' + (k.following ? 'ghost' : ''); }catch(e){ toast(e.message); } };
+      r.insertBefore(fb, r.querySelector('.btn')); r.querySelector('.cx-rn .muted').textContent = '@' + j.user.username + ' · ' + fmtN(j.user.followers) + ' followers';
       found.appendChild(r); }catch(e){ found.innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; } };
   el.querySelector('[data-find]').onclick = find; q.addEventListener('keydown', e => { if(e.key === 'Enter') find(); });
   function row(u, label, act, rel){ const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:12px"></div></div>';
@@ -2155,7 +2295,7 @@ async function paneFriends(el){
   sec('Friend requests', j.incoming, u => { const r = row(u, 'Accept', async () => { await cx('friend/respond', {id:u.id, accept:true}); toast('You\'re friends with @' + u.username); renderConnect(); }, 'incoming'); const d = document.createElement('button'); d.className = 'btn sm ghost'; d.textContent = '✕'; d.setAttribute('aria-label','Decline'); d.onclick = async () => { await cx('friend/respond', {id:u.id, accept:false}); renderConnect(); }; r.appendChild(d); return r; });
   sec('Friends', j.friends, u => row(u, '💬', () => openChat(u), 'friends'));
   sec('Sent', j.outgoing, u => row(u, 'Sent', () => {}, 'sent'));
-  if(!j.friends.length && !j.incoming.length) box.insertAdjacentHTML('beforeend', '<div class="card muted">No friends yet. Share your friend code ' + fmtCode(CX.me.fcode) + ' or type a friend\'s username above.</div>');
+  if(!j.friends.length && !j.incoming.length) box.insertAdjacentHTML('beforeend', '<div class="card muted">No friends yet. Share your friend code ' + fmtCode(CX.me.fcode) + ' or type a username above to add or follow someone.</div>');
 }
 async function paneChats(el){
   el.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>';
@@ -2194,6 +2334,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = null;
 const CHANGELOG = [
+  {v:'6.4', at:'2026-11-07T18:30:00-05:00', t:'Feed, follows and more', items:['New Feed tab: posts from your friends and everyone you follow','Follow anyone by their username, no approval needed','Friends, Followers and Following counts on every profile','Comment on posts, and repost them with your own thought','Crop and zoom your profile photo, or fit the whole picture','Add a profile banner','Block right from a post, comment or chat message, not just report']},
   {v:'6.3', at:'2026-11-07T08:45:00-05:00', t:'Google brain fixed', items:['Fixed: Nova\'s Google brain was turning down every message and quietly switching to the backup. She\'s back on her main brain, so answers are smarter and faster']},
   {v:'6.2', at:'2026-11-07T08:15:00-05:00', t:'Smarter answers', items:['Say "no seriously" or "for real" and Nova drops the jokes and gives straight answers. Laugh and she\'s playful again','Instant math: "what\'s 10+10", "12 x 7", "15% of 80"','Questions with one right answer get the answer first','Fixed: "What time should I wake up?" and "What day is Christmas?" no longer get the current time or date','Fixed: answers that start with a number, empty "Done." replies, and code now shows in a code box','Fixed: Nova now fills the whole screen to the bottom, and the top bar is sharp instead of blurry','The ⭐ Starhop button opens the game instantly','Feedback and crash reports now go straight to Moon\'s admin page','Starhop now works offline from the first launch']},
   {v:'6.1', at:'2026-11-07T03:30:00-05:00', t:'New game: Starhop', items:['Nova\'s main game: a bright platformer that feels nothing like Nova','4 heroes, each with a move: Pip wall-jumps, Bolt hovers, Mochi ground-pounds, Kai double-jumps','3 worlds, 9 levels: Meadow Hills, Sugar Peaks, Cloud Kingdom. Grab stars, find the 3 big stars, bop enemies','On-screen buttons or swipe controls, chiptune music, saves your progress','Your Starhop total shows on the Connect leaderboard']},
@@ -2409,6 +2550,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on', x===b));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+b.dataset.v));
   if(b.dataset.v === 'connect') renderConnect();
+  if(b.dataset.v === 'feed') renderFeedTab();
   renderAll();
 });
 function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); renderHero(); }
@@ -3318,7 +3460,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '6.3'; window.__novaVer = VERSION;
+const VERSION = '6.4'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION+' · © 2026 Moon. All rights reserved.';
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -3330,6 +3472,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '6.4': 'Update installed: v6.4. Big one: Feed has its own tab, you can follow people, comment, repost, crop your profile photo and add a banner. Go show off.',
   '6.3': 'Update installed: v6.3. My main brain was rejecting every message this morning and I was running on the backup. Fixed. Feedback now goes straight to Moon, too.',
   '6.2': 'Update installed: v6.2. I got sharper overnight: say "no seriously" and I\'ll drop the jokes, simple math is instant, and I put the answer first now. Starhop is still waiting for you.',
   '6.1': 'Update installed: v6.1. Starhop is here: my main game. Four heroes, three worlds, nine levels, and absolutely no neon. Tap ⭐ Starhop or say "play starhop". Your score goes on the Connect leaderboard, so no pressure.',

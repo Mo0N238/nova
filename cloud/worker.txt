@@ -7,7 +7,7 @@
 //  © 2026 Moon. All rights reserved. No copying, reuse or redistribution without permission.
 // =====================================================================
 import { connect } from 'cloudflare:sockets';
-const VERSION = '4.1';
+const VERSION = '4.2';
 const DISCORD = 'https://discord.com/api/v10';
 
 export default {
@@ -19,6 +19,9 @@ export default {
       if (url.pathname.startsWith('/api/admin/') && req.method === 'POST') return await adminApi(url.pathname, req, env);
       if ((url.pathname === '/api/info' || url.pathname === '/api/join' || url.pathname === '/api/feedback') && req.method === 'POST') return await publicApi(url.pathname, req, env);
       if (url.pathname.startsWith('/api/') && req.method === 'POST') return await cloudApi(url.pathname, req, env);
+      if (url.pathname === '/api/stats' && req.method === 'GET') { await initDb(env); // public totals for the website counter (numbers only, no names)
+        const n = async q => (await env.DB.prepare(q).first()).n;
+        return new Response(JSON.stringify({ ok: true, members: await n('SELECT COUNT(*) n FROM profiles WHERE banned=0'), friendships: await n("SELECT COUNT(*) n FROM friends WHERE status='accepted'"), follows: await n('SELECT COUNT(*) n FROM follows') }), { headers: Object.assign({ 'content-type': 'application/json', 'cache-control': 'public, max-age=60' }, CORS) }); }
       if (url.pathname === '/admin') return new Response(ADMIN_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
       if (req.method === 'POST') return await interaction(req, env, ctx);
       if (url.pathname === '/setup') return await setupPage(url, env);
@@ -147,7 +150,7 @@ async function initDb(env) {
     env.DB.prepare('CREATE TABLE IF NOT EXISTS subs (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT, created INTEGER)'),
     ...SOCIAL_TABLES.map(q => env.DB.prepare(q)),
   ]);
-  for (const sql of ['ALTER TABLE reminders ADD COLUMN uid TEXT', 'ALTER TABLE reminders ADD COLUMN date TEXT', 'ALTER TABLE reminders ADD COLUMN sent INTEGER DEFAULT 0', 'ALTER TABLE users ADD COLUMN link TEXT']) {
+  for (const sql of ['ALTER TABLE reminders ADD COLUMN uid TEXT', 'ALTER TABLE reminders ADD COLUMN date TEXT', 'ALTER TABLE reminders ADD COLUMN sent INTEGER DEFAULT 0', 'ALTER TABLE users ADD COLUMN link TEXT', 'ALTER TABLE posts ADD COLUMN repost_of INTEGER', 'ALTER TABLE profiles ADD COLUMN banner TEXT']) {
     try { await env.DB.prepare(sql).run(); } catch (e) { /* column already exists */ }
   }
   dbReady = true;
@@ -727,7 +730,10 @@ const SOCIAL_TABLES = [
   'CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, created INTEGER, uses INTEGER DEFAULT 0, max INTEGER DEFAULT 1, note TEXT)',
   'CREATE TABLE IF NOT EXISTS scores (user TEXT, game TEXT, score INTEGER, updated INTEGER, PRIMARY KEY (user,game))',
   'CREATE TABLE IF NOT EXISTS usage (user TEXT, day TEXT, n INTEGER, PRIMARY KEY (user,day))',
-  'CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, text TEXT, created INTEGER, done INTEGER DEFAULT 0)'
+  'CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, text TEXT, created INTEGER, done INTEGER DEFAULT 0)',
+  'CREATE TABLE IF NOT EXISTS follows (a TEXT, b TEXT, created INTEGER, PRIMARY KEY (a,b))',
+  'CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post INTEGER, author TEXT, text TEXT, created INTEGER, removed INTEGER DEFAULT 0)',
+  'CREATE INDEX IF NOT EXISTS com_post ON comments(post)'
 ];
 const rnd = (n, abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => abc[x % abc.length]).join('');
 const now = () => Date.now();
@@ -738,6 +744,32 @@ const clean = (s, n) => String(s || '').replace(/[\u0000-\u0008\u000b\u000c\u000
 const getProf = (env, id) => env.DB.prepare('SELECT * FROM profiles WHERE id=?').bind(id).first();
 async function blockedEither(env, a, b) { return !!(await env.DB.prepare('SELECT 1 FROM blocks WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(a, b, b, a).first()); }
 async function areFriends(env, a, b) { return !!(await env.DB.prepare("SELECT 1 FROM friends WHERE status='accepted' AND ((a=? AND b=?) OR (a=? AND b=?))").bind(a, b, b, a).first()); }
+async function followingIds(env, me) { const { results } = await env.DB.prepare('SELECT b FROM follows WHERE a=?').bind(me).all(); return results.map(r => r.b); }
+async function counts(env, id) {
+  const f = await env.DB.prepare("SELECT COUNT(*) n FROM friends f JOIN profiles p ON p.id = (CASE WHEN f.a=? THEN f.b ELSE f.a END) WHERE status='accepted' AND (f.a=? OR f.b=?) AND p.banned=0").bind(id, id, id).first();
+  const fo = await env.DB.prepare('SELECT COUNT(*) n FROM follows w JOIN profiles p ON p.id=w.a WHERE w.b=? AND p.banned=0').bind(id).first();
+  const fi = await env.DB.prepare('SELECT COUNT(*) n FROM follows w JOIN profiles p ON p.id=w.b WHERE w.a=? AND p.banned=0').bind(id).first();
+  return { friends: f.n, followers: fo.n, following: fi.n };
+}
+async function relation(env, me, id) {
+  const rel = await env.DB.prepare('SELECT * FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, id, id, me).first();
+  const fol = await env.DB.prepare('SELECT 1 FROM follows WHERE a=? AND b=?').bind(me, id).first();
+  return { status: rel ? (rel.status === 'accepted' ? 'friends' : rel.a === me ? 'sent' : 'incoming') : 'none', followingThem: !!fol };
+}
+// can this viewer see this post? (yours, a friend's, or someone you follow; never blocked; 21+ only for 21+)
+async function canSeePost(env, post, me, meProf) {
+  if (!post || post.removed) return false;
+  if (post.author === me) return true;
+  if (post.adult && ageOf(meProf && meProf.dob) < 21) return false;
+  if (await blockedEither(env, me, post.author)) return false;
+  if (await areFriends(env, me, post.author)) return true;
+  if (await env.DB.prepare('SELECT 1 FROM follows WHERE a=? AND b=?').bind(me, post.author).first()) return true;
+  if (post.repost_of) return false;
+  // someone you're connected to reposted it
+  const { results } = await env.DB.prepare('SELECT * FROM posts WHERE repost_of=? AND removed=0').bind(post.id).all();
+  for (const r of results) if (await canSeePost(env, r, me, meProf)) return true;
+  return false;
+}
 async function friendIds(env, me) { const { results } = await env.DB.prepare("SELECT a,b FROM friends WHERE status='accepted' AND (a=? OR b=?)").bind(me, me).all(); return results.map(r => r.a === me ? r.b : r.a); }
 async function rate(env, key, max, windowMs) { // simple counter per time window
   const k = 'rl:' + key + ':' + Math.floor(now() / windowMs), n = (await kvGet(env, k)) || 0;
@@ -745,7 +777,7 @@ async function rate(env, key, max, windowMs) { // simple counter per time window
 }
 function pub(p, viewer, extra) {
   if (!p) return null;
-  return Object.assign({ id: p.id, username: p.username, display: p.display || p.username, bio: p.bio || '', photo: p.photo || null, since: p.created }, p.id === viewer ? { fcode: p.fcode, adult21: ageOf(p.dob) >= 21, age18: ageOf(p.dob) >= 18 } : {}, extra || {});
+  return Object.assign({ id: p.id, username: p.username, display: p.display || p.username, bio: p.bio || '', photo: p.photo || null, banner: p.banner || null, since: p.created }, p.id === viewer ? { fcode: p.fcode, adult21: ageOf(p.dob) >= 21, age18: ageOf(p.dob) >= 18 } : {}, extra || {});
 }
 async function verifyHuman(env, token, ip) {
   if (!env.TURNSTILE_SECRET) return true; // bot check not set up: invite codes still protect sign-up
@@ -777,9 +809,14 @@ async function canSeePhoto(env, ph, me, meProf) {
   if (ph.adult && ageOf(meProf && meProf.dob) < 21) return false;
   if (await blockedEither(env, me, ph.owner)) return false;
   if (await areFriends(env, me, ph.owner)) return true;
-  // profile pictures are visible to people who look you up by exact username / code (so they can add you)
-  const asAvatar = await env.DB.prepare('SELECT 1 FROM profiles WHERE photo=? AND id=?').bind(ph.id, ph.owner).first();
-  return !!asAvatar;
+  // profile pictures + banners are visible to people who look you up by exact username / code (so they can add you)
+  const asAvatar = await env.DB.prepare('SELECT 1 FROM profiles WHERE (photo=? OR banner=?) AND id=?').bind(ph.id, ph.id, ph.owner).first();
+  if (asAvatar) return true;
+  if (await env.DB.prepare('SELECT 1 FROM follows WHERE a=? AND b=?').bind(me, ph.owner).first()) return true;
+  // a picture in a post a friend reposted
+  const { results } = await env.DB.prepare('SELECT * FROM posts WHERE photo=? AND removed=0').bind(ph.id).all();
+  for (const post of results) { const { results: rp } = await env.DB.prepare('SELECT * FROM posts WHERE repost_of=? AND removed=0').bind(post.id).all(); for (const r of rp) if (await canSeePost(env, r, me, meProf)) return true; }
+  return false;
 }
 async function makeProfile(env, uid, b, ip) {
   const username = clean(b.username, 20).toLowerCase(), display = clean(b.display, 30) || username, dob = clean(b.dob, 10), age = ageOf(dob);
@@ -835,6 +872,23 @@ async function brainProxy(env, u, b) {
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + env.GROQ_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   return new Response(await r.text(), { status: r.status, headers: H });
 }
+// ---- one post as the app sees it (likes, comments, reposts, and the original if it's a repost)
+async function postView(env, r, me, meProf, ph) {
+  const one = async (sql, ...a) => (await env.DB.prepare(sql).bind(...a).first()).n;
+  const v = { id: r.id, author: pub(await getProf(env, r.author), me), text: r.text, photo: r.photo, photoStatus: ph ? ph.status : null, adult: !!r.adult, at: r.created, mine: r.author === me,
+    likes: await one('SELECT COUNT(*) n FROM likes WHERE post=?', r.id), liked: !!(await env.DB.prepare('SELECT 1 FROM likes WHERE post=? AND user=?').bind(r.id, me).first()),
+    comments: await one('SELECT COUNT(*) n FROM comments WHERE post=? AND removed=0', r.id), reposts: await one('SELECT COUNT(*) n FROM posts WHERE repost_of=? AND removed=0', r.id) };
+  if (r.repost_of) {
+    const o = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(r.repost_of).first();
+    const blocked = o && o.author !== me && await blockedEither(env, me, o.author);
+    if (!o || o.removed || blocked || (o.adult && ageOf(meProf && meProf.dob) < 21)) v.original = { gone: true };
+    else { const oph = o.photo ? await env.DB.prepare('SELECT status FROM photos WHERE id=?').bind(o.photo).first() : null;
+      v.original = { id: o.id, author: pub(await getProf(env, o.author), me), text: o.text, photo: oph && oph.status === 'ok' ? o.photo : null, adult: !!o.adult, at: o.created, mine: o.author === me,
+        likes: await one('SELECT COUNT(*) n FROM likes WHERE post=?', o.id), liked: !!(await env.DB.prepare('SELECT 1 FROM likes WHERE post=? AND user=?').bind(o.id, me).first()),
+        comments: await one('SELECT COUNT(*) n FROM comments WHERE post=? AND removed=0', o.id), reposts: await one('SELECT COUNT(*) n FROM posts WHERE repost_of=? AND removed=0', o.id) }; }
+  }
+  return v;
+}
 // ---- Connect (signed in)
 async function connectApi(path, b, u, env, req) {
   const me = u.id; let p = await getProf(env, me);
@@ -842,7 +896,7 @@ async function connectApi(path, b, u, env, req) {
     if (!p) return jr({ ok: true, profile: null });
     const inc = await env.DB.prepare("SELECT COUNT(*) n FROM friends WHERE b=? AND status='pending'").bind(me).first();
     const unread = await env.DB.prepare('SELECT COUNT(*) n FROM msgs WHERE b=? AND seen=0 AND removed=0').bind(me).first();
-    return jr({ ok: true, profile: pub(p, me), banned: !!p.banned, requests: inc.n, unread: unread.n, turnstile: env.TURNSTILE_SITE_KEY || null });
+    return jr({ ok: true, profile: pub(p, me, await counts(env, me)), banned: !!p.banned, requests: inc.n, unread: unread.n, turnstile: env.TURNSTILE_SITE_KEY || null });
   }
   if (path === '/api/c/profile/create') { if (p) return jr({ error: 'You already have a profile.' }, 400); const r = await makeProfile(env, me, b, req.headers.get('CF-Connecting-IP')); return r.error ? jr(r, 400) : jr({ ok: true, profile: pub(await getProf(env, me), me) }); }
   if (!p) return jr({ error: 'Create your Connect profile first.' }, 400);
@@ -857,11 +911,12 @@ async function connectApi(path, b, u, env, req) {
     if (data.length > 600000) return jr({ error: 'Picture too big.' }, 400);
     if (!(await rate(env, 'photo:' + me, 20, 86400000))) return jr({ error: 'That\'s a lot of pictures today. Try tomorrow.' }, 429);
     const v = await checkImage(env, data), id = 'p_' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789');
-    const avatar = b.purpose === 'avatar';
+    const avatar = b.purpose === 'avatar' || b.purpose === 'banner';
     let status = v.verdict === 'ok' ? 'ok' : v.verdict === '21plus' ? (avatar || ageOf(p.dob) < 21 ? 'rejected' : 'ok') : v.verdict === 'pending' ? 'pending' : 'rejected';
     await env.DB.prepare('INSERT INTO photos (id,owner,data,status,adult,reason,created) VALUES (?,?,?,?,?,?,?)').bind(id, me, status === 'rejected' ? '' : data, status, v.verdict === '21plus' ? 1 : 0, v.reason || '', now()).run();
-    if (status === 'rejected') return jr({ error: v.verdict === '21plus' ? (avatar ? 'Profile pictures have to be all-ages (no alcohol, smoking, etc.).' : 'That picture is 21+ only.') : 'That picture breaks the rules, so it wasn\'t posted.', rejected: true }, 400);
-    if (avatar) await env.DB.prepare('UPDATE profiles SET photo=? WHERE id=?').bind(id, me).run();
+    if (status === 'rejected') return jr({ error: v.verdict === '21plus' ? (avatar ? 'Profile pictures and banners have to be all-ages (no alcohol, smoking, etc.).' : 'That picture is 21+ only.') : 'That picture breaks the rules, so it wasn\'t posted.', rejected: true }, 400);
+    if (b.purpose === 'avatar') await env.DB.prepare('UPDATE profiles SET photo=? WHERE id=?').bind(id, me).run();
+    if (b.purpose === 'banner') await env.DB.prepare('UPDATE profiles SET banner=? WHERE id=?').bind(id, me).run();
     return jr({ ok: true, id, status, adult: v.verdict === '21plus' });
   }
   if (path === '/api/c/img') {
@@ -874,8 +929,26 @@ async function connectApi(path, b, u, env, req) {
     if (!(await rate(env, 'find:' + me, 60, 3600000))) return jr({ error: 'Slow down a little.' }, 429);
     const t = await env.DB.prepare('SELECT * FROM profiles WHERE (username=? OR fcode=?) AND banned=0').bind(q.toLowerCase(), q.toUpperCase().replace(/[^A-Z0-9]/g, '')).first();
     if (!t || t.id === me || await blockedEither(env, me, t.id)) return jr({ ok: true, user: null });
-    const rel = await env.DB.prepare('SELECT * FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, t.id, t.id, me).first();
-    return jr({ ok: true, user: pub(t, me, { status: rel ? (rel.status === 'accepted' ? 'friends' : rel.a === me ? 'sent' : 'incoming') : 'none' }) });
+    return jr({ ok: true, user: pub(t, me, Object.assign(await relation(env, me, t.id), await counts(env, t.id))) });
+  }
+  if (path === '/api/c/profile/view') {
+    const t = await getProf(env, String(b.id || '')); if (!t || t.banned || (t.id !== me && await blockedEither(env, me, t.id))) return jr({ error: 'Couldn\'t find that person.' }, 404);
+    return jr({ ok: true, user: pub(t, me, Object.assign(t.id === me ? {} : await relation(env, me, t.id), await counts(env, t.id))) });
+  }
+  if (path === '/api/c/profile/banner-remove') { await env.DB.prepare('UPDATE profiles SET banner=NULL WHERE id=?').bind(me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/follow') {
+    const t = await getProf(env, String(b.id || '')); if (!t || t.banned || t.id === me || await blockedEither(env, me, t.id)) return jr({ error: 'Couldn\'t find that person.' }, 404);
+    if (!(await rate(env, 'follow:' + me, 100, 86400000))) return jr({ error: 'That\'s a lot of follows today. Try tomorrow.' }, 429);
+    const r = await env.DB.prepare('INSERT OR IGNORE INTO follows (a,b,created) VALUES (?,?,?)').bind(me, t.id, now()).run();
+    if (r.meta && r.meta.changes) await pushUser(env, t.id, { title: 'Nova Connect', body: (p.display || p.username) + ' (@' + p.username + ') started following you', tag: 'fol', url: './' });
+    return jr({ ok: true, following: true, counts: await counts(env, t.id) });
+  }
+  if (path === '/api/c/unfollow') { const o = String(b.id || ''); await env.DB.prepare('DELETE FROM follows WHERE a=? AND b=?').bind(me, o).run(); return jr({ ok: true, following: false, counts: await counts(env, o) }); }
+  if (path === '/api/c/follower/remove') { const o = String(b.id || ''); await env.DB.prepare('DELETE FROM follows WHERE a=? AND b=?').bind(o, me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/follows') { // your own lists only: nobody can browse someone else's followers
+    const followers = b.kind === 'followers';
+    const { results } = await env.DB.prepare(followers ? 'SELECT p.* FROM follows w JOIN profiles p ON p.id=w.a WHERE w.b=? AND p.banned=0 ORDER BY w.created DESC LIMIT 500' : 'SELECT p.* FROM follows w JOIN profiles p ON p.id=w.b WHERE w.a=? AND p.banned=0 ORDER BY w.created DESC LIMIT 500').bind(me).all();
+    return jr({ ok: true, users: results.map(r => pub(r, me)) });
   }
   if (path === '/api/c/friend/add') {
     const t = await getProf(env, String(b.id || '')); if (!t || t.banned || t.id === me || await blockedEither(env, me, t.id)) return jr({ error: 'Couldn\'t find that person.' }, 404);
@@ -899,17 +972,17 @@ async function connectApi(path, b, u, env, req) {
     for (const r of results) { const x = pub(r, me); if (r.status === 'accepted') out.friends.push(x); else if (r.b === me) out.incoming.push(x); else out.outgoing.push(x); }
     return jr(Object.assign({ ok: true }, out));
   }
-  if (path === '/api/c/block') { const o = String(b.id || ''); if (o === me) return jr({ error: 'nope' }, 400); await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, o, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, o, o, me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/block') { const o = String(b.id || ''); if (o === me) return jr({ error: 'nope' }, 400); await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, o, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, o, o, me).run(); await env.DB.prepare('DELETE FROM follows WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, o, o, me).run(); return jr({ ok: true }); }
   if (path === '/api/c/unblock') { await env.DB.prepare('DELETE FROM blocks WHERE a=? AND b=?').bind(me, String(b.id || '')).run(); return jr({ ok: true }); }
   if (path === '/api/c/blocked') { const { results } = await env.DB.prepare('SELECT p.* FROM blocks k JOIN profiles p ON p.id=k.b WHERE k.a=?').bind(me).all(); return jr({ ok: true, blocked: results.map(r => ({ id: r.id, username: r.username, display: r.display })) }); }
   if (path === '/api/c/report') {
-    const kind = ['user', 'post', 'msg', 'photo'].includes(b.kind) ? b.kind : 'user', target = clean(b.target, 40);
+    const kind = ['user', 'post', 'msg', 'photo', 'comment'].includes(b.kind) ? b.kind : 'user', target = clean(b.target, 40);
     if (!(await rate(env, 'rep:' + me, 30, 86400000))) return jr({ error: 'Too many reports today.' }, 429);
     await env.DB.prepare('INSERT INTO reports (reporter,kind,target,reason,created) VALUES (?,?,?,?,?)').bind(me, kind, target, clean(b.reason, 300), now()).run();
     // 3 different people report the same thing -> hidden until Moon reviews it
     const n = await env.DB.prepare("SELECT COUNT(DISTINCT reporter) n FROM reports WHERE kind=? AND target=? AND status='open'").bind(kind, target).first();
-    if (n.n >= 3) { if (kind === 'post') await env.DB.prepare('UPDATE posts SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'photo') await env.DB.prepare("UPDATE photos SET status='pending' WHERE id=?").bind(target).run(); if (kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=2 WHERE id=?').bind(+target).run(); }
-    if (b.block && kind === 'user') { await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, target, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); }
+    if (n.n >= 3) { if (kind === 'post') await env.DB.prepare('UPDATE posts SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'photo') await env.DB.prepare("UPDATE photos SET status='pending' WHERE id=?").bind(target).run(); if (kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=2 WHERE id=?').bind(+target).run(); }
+    if (b.block && kind === 'user') { await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, target, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); await env.DB.prepare('DELETE FROM follows WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); }
     return jr({ ok: true });
   }
   if (path === '/api/c/chats') {
@@ -945,9 +1018,40 @@ async function connectApi(path, b, u, env, req) {
     const r = await env.DB.prepare('INSERT INTO posts (author,text,photo,adult,created) VALUES (?,?,?,?,?)').bind(me, text, photo, adult, now()).run();
     return jr({ ok: true, id: r.meta && r.meta.last_row_id, adult: !!adult });
   }
+  if (path === '/api/c/repost') {
+    let o = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+b.id).first();
+    if (o && o.repost_of) o = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(o.repost_of).first(); // repost the original, not a repost of a repost
+    if (!(await canSeePost(env, o, me, p))) return jr({ error: 'That post isn\'t available.' }, 404);
+    if (o.author === me) return jr({ error: 'You can\'t repost your own post.' }, 400);
+    if (await env.DB.prepare('SELECT 1 FROM posts WHERE author=? AND repost_of=? AND removed=0').bind(me, o.id).first()) return jr({ error: 'You already reposted that.' }, 400);
+    if (!(await rate(env, 'post:' + me, 10, 86400000))) return jr({ error: '10 posts a day max. Save some for tomorrow.' }, 429);
+    const r = await env.DB.prepare('INSERT INTO posts (author,text,photo,adult,created,repost_of) VALUES (?,?,?,?,?,?)').bind(me, clean(b.text, 300), null, o.adult ? 1 : 0, now(), o.id).run();
+    await pushUser(env, o.author, { title: 'Nova Connect', body: (p.display || p.username) + ' reposted your post 🔁', tag: 'rp', url: './' });
+    return jr({ ok: true, id: r.meta && r.meta.last_row_id });
+  }
+  if (path === '/api/c/comments') {
+    const post = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+b.post).first(); if (!(await canSeePost(env, post, me, p))) return jr({ error: 'That post isn\'t available.' }, 404);
+    const { results } = await env.DB.prepare('SELECT * FROM comments WHERE post=? AND removed=0 ORDER BY id ASC LIMIT 200').bind(post.id).all(); const out = [];
+    for (const c of results) { if (c.author !== me && await blockedEither(env, me, c.author)) continue; const a = await getProf(env, c.author); if (!a || a.banned) continue;
+      out.push({ id: c.id, author: pub(a, me), text: c.text, at: c.created, mine: c.author === me, canDelete: c.author === me || post.author === me }); }
+    return jr({ ok: true, comments: out });
+  }
+  if (path === '/api/c/comment') {
+    const post = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+b.post).first(); if (!(await canSeePost(env, post, me, p))) return jr({ error: 'That post isn\'t available.' }, 404);
+    const text = clean(b.text, 300); if (!text) return jr({ error: 'Write something first.' }, 400);
+    if (!(await rate(env, 'com:' + me, 100, 86400000))) return jr({ error: 'That\'s a lot of comments today. Try tomorrow.' }, 429);
+    const r = await env.DB.prepare('INSERT INTO comments (post,author,text,created) VALUES (?,?,?,?)').bind(post.id, me, text, now()).run();
+    if (post.author !== me) await pushUser(env, post.author, { title: 'Nova Connect', body: (p.display || p.username) + ' commented: ' + text.slice(0, 80), tag: 'cm' + post.id, url: './' });
+    return jr({ ok: true, id: r.meta && r.meta.last_row_id });
+  }
+  if (path === '/api/c/comment/delete') {
+    const c = await env.DB.prepare('SELECT c.*, p.author pa FROM comments c JOIN posts p ON p.id=c.post WHERE c.id=?').bind(+b.id).first();
+    if (!c || (c.author !== me && c.pa !== me)) return jr({ error: 'not yours' }, 403);
+    await env.DB.prepare('UPDATE comments SET removed=1 WHERE id=?').bind(c.id).run(); return jr({ ok: true });
+  }
   if (path === '/api/c/post/delete') { await env.DB.prepare('UPDATE posts SET removed=1 WHERE id=? AND author=?').bind(+b.id, me).run(); return jr({ ok: true }); }
   if (path === '/api/c/feed') {
-    const fr = await friendIds(env, me), ids = [me, ...fr]; const is21 = ageOf(p.dob) >= 21;
+    const fr = await friendIds(env, me), fo = await followingIds(env, me), ids = [...new Set([me, ...fr, ...fo])]; const is21 = ageOf(p.dob) >= 21;
     const qs = ids.map(() => '?').join(',');
     const { results } = await env.DB.prepare('SELECT * FROM posts WHERE author IN (' + qs + ') AND removed=0 ' + (is21 ? '' : 'AND adult=0 ') + 'AND id<? ORDER BY id DESC LIMIT 30').bind(...ids, +b.before || 1e15).all();
     const out = [];
@@ -955,8 +1059,7 @@ async function connectApi(path, b, u, env, req) {
       if (r.author !== me && await blockedEither(env, me, r.author)) continue;
       const ph = r.photo ? await env.DB.prepare('SELECT status FROM photos WHERE id=?').bind(r.photo).first() : null;
       if (r.photo && (!ph || (ph.status !== 'ok' && r.author !== me))) continue; // picture still under review: only the author sees it
-      const lc = await env.DB.prepare('SELECT COUNT(*) n FROM likes WHERE post=?').bind(r.id).first(), mine = await env.DB.prepare('SELECT 1 FROM likes WHERE post=? AND user=?').bind(r.id, me).first();
-      out.push({ id: r.id, author: pub(await getProf(env, r.author), me), text: r.text, photo: r.photo, photoStatus: ph ? ph.status : null, adult: !!r.adult, at: r.created, likes: lc.n, liked: !!mine, mine: r.author === me });
+      out.push(await postView(env, r, me, p, ph));
     }
     return jr({ ok: true, posts: out });
   }
@@ -977,7 +1080,8 @@ async function connectApi(path, b, u, env, req) {
     return jr({ ok: true, boards });
   }
   if (path === '/api/c/delete-account') {
-    for (const sql of ['DELETE FROM friends WHERE a=? OR b=?', 'DELETE FROM msgs WHERE a=? OR b=?', 'DELETE FROM blocks WHERE a=? OR b=?']) await env.DB.prepare(sql).bind(me, me).run();
+    for (const sql of ['DELETE FROM friends WHERE a=? OR b=?', 'DELETE FROM msgs WHERE a=? OR b=?', 'DELETE FROM blocks WHERE a=? OR b=?', 'DELETE FROM follows WHERE a=? OR b=?']) await env.DB.prepare(sql).bind(me, me).run();
+    await env.DB.prepare('DELETE FROM comments WHERE author=?').bind(me).run();
     for (const sql of ['DELETE FROM posts WHERE author=?', 'DELETE FROM photos WHERE owner=?', 'DELETE FROM likes WHERE user=?', 'DELETE FROM scores WHERE user=?', 'DELETE FROM profiles WHERE id=?']) await env.DB.prepare(sql).bind(me).run();
     return jr({ ok: true });
   }
@@ -999,6 +1103,7 @@ async function adminApi(path, req, env) {
       if (r.kind === 'user') { const t = await getProf(env, r.target); r.preview = t ? '@' + t.username + ' · ' + (t.display || '') + (t.bio ? ' · ' + t.bio : '') : '(deleted)'; r.photo = t && t.photo; r.owner = r.target; }
       if (r.kind === 'post') { const t = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.photo = t && t.photo; r.owner = t && t.author; }
       if (r.kind === 'msg') { const t = await env.DB.prepare('SELECT * FROM msgs WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.owner = t && t.a; }
+      if (r.kind === 'comment') { const t = await env.DB.prepare('SELECT * FROM comments WHERE id=?').bind(+r.target).first(); r.preview = t ? 'Comment: ' + t.text : '(deleted)'; r.owner = t && t.author; }
       if (r.kind === 'photo') { r.photo = r.target; const t = await env.DB.prepare('SELECT owner FROM photos WHERE id=?').bind(r.target).first(); r.owner = t && t.owner; }
       if (r.photo) { const ph = await env.DB.prepare('SELECT data FROM photos WHERE id=?').bind(r.photo).first(); r.photoData = ph && ph.data; }
       if (r.owner) { const o = await getProf(env, r.owner); r.ownerName = o ? '@' + o.username : r.owner; }
@@ -1008,12 +1113,13 @@ async function adminApi(path, req, env) {
   if (path === '/api/admin/resolve') {
     const r = await env.DB.prepare('SELECT * FROM reports WHERE id=?').bind(+b.id).first(); if (!r) return jr({ error: 'not found' }, 404);
     const mark = st => env.DB.prepare('UPDATE reports SET status=? WHERE kind=? AND target=? AND status=\'open\'').bind(st, r.kind, r.target).run();
-    if (b.action === 'dismiss') { if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); await mark('dismissed'); }
+    if (b.action === 'dismiss') { if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); await mark('dismissed'); }
     if (b.action === 'remove' || b.action === 'ban') {
       if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=3 WHERE id=?').bind(+r.target).run();
       if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=3 WHERE id=?').bind(+r.target).run();
+      if (r.kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=3 WHERE id=?').bind(+r.target).run();
       if (r.kind === 'photo') await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(r.target).run();
-      if (r.kind === 'user') { const t = await getProf(env, r.target); if (t && t.photo) await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(t.photo).run(); await env.DB.prepare('UPDATE profiles SET photo=NULL, bio=\'\' WHERE id=?').bind(r.target).run(); }
+      if (r.kind === 'user') { const t = await getProf(env, r.target); for (const ph of [t && t.photo, t && t.banner]) if (ph) await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(ph).run(); await env.DB.prepare('UPDATE profiles SET photo=NULL, banner=NULL, bio=\'\' WHERE id=?').bind(r.target).run(); }
       if (b.action === 'ban' && b.owner) await env.DB.prepare('UPDATE profiles SET banned=1 WHERE id=?').bind(String(b.owner)).run();
       await mark(b.action === 'ban' ? 'banned' : 'removed');
     }
