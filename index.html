@@ -130,8 +130,6 @@ body{font-family:-apple-system,"SF Pro Display","SF Pro Text",system-ui,sans-ser
   background:
     radial-gradient(120% 60% at 50% -10%, var(--tint), transparent 60%),
     radial-gradient(80% 50% at 100% 110%, var(--tint), transparent 60%),
-    linear-gradient(rgba(140,170,220,.035) 1px, transparent 1px) 0 0/28px 28px,
-    linear-gradient(90deg, rgba(140,170,220,.035) 1px, transparent 1px) 0 0/28px 28px,
     var(--bg);}
 /* arc-reactor orb */
 .orb{position:relative;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle, var(--panel2) 0 60%, transparent 62%);
@@ -240,6 +238,30 @@ nav button svg{position:relative}
 .upd .uw{font-size:12px;color:var(--muted);margin:4px 0 6px}
 .upd ul{margin:0;padding-left:18px;font-size:14px;line-height:1.45}
 .upd li{margin:2px 0}
+/* ===== v5.6 Option C: Nova home (orb first) ===== */
+.glance{display:none!important}
+.homebtn{display:none;background:var(--panel2);border:1px solid var(--line);color:var(--muted);width:34px;height:34px;border-radius:50%;padding:0;place-items:center;flex:none}
+.homebtn svg{width:18px;height:18px}
+.hero{display:none;flex:1;min-height:0;flex-direction:column;align-items:center;padding:4px 20px 0;text-align:center;overflow:hidden;touch-action:pan-x}
+.app.home .hero{display:flex}
+.app.home header,.app.home .logwrap,.app.home #chips,.app.home .glance{display:none!important}
+.app.home main{background:radial-gradient(90% 46% at 50% 36%, var(--tint), transparent 70%)}
+.app:not(.home) .homebtn{display:grid}
+.app:not(.home) .clock{display:none}
+.htop{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;padding:6px 10px}
+.orbslot{flex:1 1 auto;min-height:150px;max-height:270px;display:grid;place-items:center;width:100%}
+.orbslot .orb{width:clamp(120px,36vw,160px);height:clamp(120px,36vw,160px);box-shadow:0 0 70px var(--glow),0 0 140px var(--tint)}
+.orbslot .orb::before{inset:-12px}
+.hgreet{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.hline{background:none;border:none;color:var(--muted);font:inherit;font-size:15px;line-height:1.45;max-width:300px;margin:6px auto 0;padding:0}
+.hpills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:18px 0 0;max-width:340px}
+.hpills .chip{font-size:13px;padding:7px 12px}
+.hhandle{margin-top:auto;background:none;border:none;color:var(--muted);font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 20px 8px}
+.hhandle i{width:44px;height:5px;border-radius:9px;background:var(--line)}
+.hhandle.unread span{color:var(--accent);font-weight:600}
+.hhandle.unread i{background:var(--accent)}
+.app.home .composer{margin-top:4px}
+@media (max-height:700px){ .orbslot{min-height:110px} .orbslot .orb{width:110px;height:110px} .hpills{padding-top:10px} .hgreet{font-size:21px} }
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 170px);transform:translateX(-50%);z-index:85;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px)}
 .toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;padding:0}
 #sendBtn.stop svg{display:none}
@@ -491,12 +513,27 @@ input[type=time]{min-height:38px}
     <div class="orb" id="orb"></div>
     <div class="hd"><h1>NOVA</h1><div class="sub" id="greet">Online</div></div>
     <div class="clock"><div class="t" id="clk">--:--</div><div class="d" id="dte"></div></div>
+    <button class="homebtn" id="homeBtn" aria-label="Back to Nova home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
   </header>
   <div class="hint" id="installHint" hidden><span>📲</span><span>Tap <b>Share</b> → <b>Add to Home Screen</b> to install Nova as an app.</span><button id="hintX" aria-label="Dismiss">×</button></div>
   <div class="banner" id="banner"><span>⏰</span><span id="bannerText"></span><button class="btn sm ghost" id="bannerSnooze">💤 10 min</button><button class="btn sm" id="bannerOk">Got it</button></div>
 
   <main>
     <section class="view on" id="v-chat">
+      <div class="hero" id="hero">
+        <button class="htop" id="htop">—</button>
+        <div class="orbslot" id="orbSlot"></div>
+        <div class="hgreet" id="hgreet">Hey.</div>
+        <button class="hline" id="hline">Tap me and talk, or type below.</button>
+        <div class="hpills" id="hpills">
+          <button class="chip" data-q="Give me my briefing for today: time, weather where I am, my tasks and plans. Keep it short.">☀️ Briefing</button>
+          <button class="chip" id="hpPlan">🗓 Plan my day</button>
+          <button class="chip" data-q="Set a 10 minute timer">⏱ Timer</button>
+          <button class="chip" id="hpGames">🎮 Games</button>
+          <button class="chip" id="hpMore">More…</button>
+        </div>
+        <button class="hhandle" id="hHandle"><i></i><span id="hHandleT">Swipe up for chat history</span></button>
+      </div>
       <div class="glance" id="glance">
         <button class="gl" id="glWeather"><small>Weather</small><b id="gwT">—</b><span id="gwS">Tap to check</span></button>
         <button class="gl" id="glNext"><small>Next up</small><b id="gnT">—</b><span id="gnS">Nothing planned</span></button>
@@ -638,7 +675,7 @@ input[type=time]{min-height:38px}
     </section>
   </main>
   <nav>
-    <button class="on" data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>Chat</button>
+    <button class="on" data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Nova</button>
     <button data-v="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tasks</button>
     <button data-v="sched"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Schedule</button>
     <button data-v="new" id="newTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>New<i class="ndot" hidden></i></button>
@@ -776,6 +813,7 @@ function tick(){
   const h = d.getHours();
   if(!rec) $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
   checkReminders(d);
+  if(d.getSeconds() < 10 && isHome()) renderHero();
   if(typeof renderGlance === 'function' && d.getSeconds() < 10) renderGlance();
   updateTimerText();
 }
@@ -1566,6 +1604,7 @@ function draftCard(dr, after){
 let busy = false, sentAt = 0;
 let photo = null; // {data: base64 jpeg, url: dataURL}
 async function send(given, opts={}){
+  if(!opts.silent) goChat();
   let text = (typeof given==='string' ? given : $('inp').value).trim();
   const img = photo;
   if(busy || (!text && !img)) return '';
@@ -1639,11 +1678,57 @@ async function send(given, opts={}){
     return t.textContent;
   }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); }
 }
+// ---------------- Nova home (Option C) ----------------
+const appEl = document.querySelector('.app'); let unread = 0, lastChatAt = 0;
+function isHome(){ return appEl.classList.contains('home'); }
+function goHome(){ if(stopHearing) return; appEl.classList.add('home'); $('orbSlot').appendChild($('orb')); unread = 0; renderHero(); }
+function goChat(){ if(!isHome()) return; appEl.classList.remove('home'); document.querySelector('header').prepend($('orb')); unread = 0; renderHero(); lastChatAt = Date.now(); scrollDown(true); }
+function heroGreet(){ const h = new Date().getHours(), n = D.name ? ', ' + D.name.split(' ')[0] : '';
+  return (h < 5 ? 'Up late' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 22 ? 'Evening' : 'Up late') + n + '.'; }
+function renderHero(){
+  if(!$('hero')) return;
+  const d = new Date(), w = D.lastWeather && Date.now() - D.lastWeather.at < 3*3600e3 ? ' · ' + (({clear:'☀️','mostly clear':'🌤','partly cloudy':'⛅',overcast:'☁️'})[D.lastWeather.sky] || '🌡') + ' ' + Math.round(D.lastWeather.temp) + '°' : '';
+  $('htop').textContent = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + w;
+  $('hgreet').textContent = heroGreet();
+  const k = keyOf(d), now = hhmm(d);
+  const up = [...D.tasks.filter(t=>t.time && t.done!==k && t.time>=now).map(t=>({time:t.time, title:t.text})), ...D.events.filter(e=>e.date===k && e.time && e.time>=now).map(e=>({time:e.time, title:e.title}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
+  const left = D.tasks.filter(t => t.done !== k).length;
+  const bits = [];
+  if(up) bits.push(up.title + ' at ' + fmt12(up.time) + '.');
+  if(D.lastWeather && D.lastWeather.rain >= 50) bits.push('Rain likely today (' + D.lastWeather.rain + '%).');
+  if(D.tasks.length) bits.push(left ? left + (left === 1 ? ' task' : ' tasks') + ' left today.' : 'All tasks done. Show-off.');
+  bits.push('Tap me and talk, or type below.');
+  $('hline').textContent = bits.join(' ');
+  $('hpPlan').textContent = d.getHours() >= 17 ? '🗓 Plan tonight' : '🗓 Plan my day';
+  $('hHandle').classList.toggle('unread', unread > 0);
+  $('hHandleT').textContent = unread ? unread + ' new from Nova · swipe up' : (log.querySelector('.msg') ? 'Swipe up for chat history' : 'Swipe up to chat');
+}
+$('homeBtn').onclick = goHome;
+$('hHandle').onclick = goChat;
+$('hline').onclick = () => document.querySelector('nav button[data-v="sched"]').click();
+$('htop').onclick = () => refreshWeather();
+$('hpPlan').onclick = () => send(new Date().getHours() >= 17 ? 'Plan the rest of my evening.' : 'Plan my day.');
+$('hpGames').onclick = () => Run.open();
+$('hpMore').onclick = () => { goChat(); setTimeout(() => $('chips').scrollTo({left:0}), 50); };
+document.querySelectorAll('#hpills .chip[data-q]').forEach(c => c.onclick = () => send(c.dataset.q));
+// swipe up on home -> chat; swipe down on the chat header -> home
+(() => { let y0 = null, t0 = 0;
+  $('hero').addEventListener('touchstart', e => { y0 = e.touches[0].clientY; t0 = Date.now(); }, {passive:true});
+  $('hero').addEventListener('touchend', e => { if(y0 === null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if(dy < -50 && Date.now() - t0 < 700) goChat(); }, {passive:true});
+  const hd = document.querySelector('header');
+  hd.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; t0 = Date.now(); }, {passive:true});
+  hd.addEventListener('touchend', e => { if(y0 === null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if(dy > 50 && Date.now() - t0 < 700) goHome(); }, {passive:true});
+})();
+// anything new from Nova while you're on the home screen shows up as "1 new"
+new MutationObserver(ms => { if(!isHome()) { lastChatAt = Date.now(); return; } ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType === 1 && /\b(nova|checkin)\b/.test(n.className) && !/\b(note|hello)\b/.test(n.className)) unread++; })); renderHero(); }).observe(log, {childList:true});
+// coming back to Nova after a while -> home screen
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !isHome() && !busy && Date.now() - lastChatAt > 10*60000) goHome(); });
 // ---------------- What's New tab ----------------
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = { t:'Starhop', items:['Nova\'s first big game: a platformer with 4 heroes (Pip, Bolt, Mochi, Kai) and 3 worlds (Meadow Hills, Sugar Peaks, Cloud Kingdom)','On-screen buttons, or swipe controls if you prefer'] };
 const CHANGELOG = [
-  {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself','This What\'s New tab']},
+  {v:'5.6', at:'2026-11-06T22:45:00-05:00', t:'A calmer home', items:['New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
+  {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself']},
   {v:'5.4', at:'2026-11-06T15:00:00-05:00', t:'Nova Run soundtrack', items:['6 original lo-fi house songs, one per level plus the menu','Sound effects for jumps, power-ups, crashes and level clears','Music slows in Slow-mo and speeds up near the finish, 🔊 to mute']},
   {v:'5.3', at:'2026-11-06T14:37:00-05:00', t:'Nova Run levels & power-ups', items:['5 levels from Cruise to Event Horizon, unlocked one by one','Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump','Fair jump and slide timing, and scenery that rushes toward you']},
   {v:'5.2', at:'2026-11-06T11:47:00-05:00', t:'New game: Nova Run', items:['A neon runner: swipe to switch lanes, jump and slide','The track keeps changing colors']},
@@ -1853,7 +1938,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if(b.dataset.v === 'new'){ renderNew(); D.seenNew = CHANGELOG[0].v; save(); newDot(); }
   renderAll();
 });
-function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); }
+function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); renderHero(); }
 function applyTheme(){ const t = D.theme || 'arc'; document.documentElement.dataset.theme = t;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t===t));
   const h = new Date().getHours(); document.documentElement.classList.toggle('night', D.night!==false && (h >= 21 || h < 6));
@@ -1893,7 +1978,7 @@ function weatherHeadsUp(){
 async function refreshWeather(quiet){
   if(!quiet) $('gwS').textContent = 'Checking…';
   try{ const w = await getWeather(''); const td = w.days && w.days[0] || {};
-    D.locOk = true; D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
+    D.locOk = true; setTimeout(renderHero, 0); D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
   catch(e){ if(e && e.code === 1) D.locOk = false; if(!quiet || !D.lastWeather) $('gwS').textContent = e && e.code === 1 ? 'Location off · tap' : 'Tap to retry'; }
 }
 $('glWeather').onclick = () => refreshWeather();
@@ -2752,7 +2837,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '5.5'; window.__novaVer = VERSION;
+const VERSION = '5.6'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -2762,6 +2847,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '5.6': 'Update installed: v5.6. New home screen: just me, front and center, with your day in one line. Tap me to talk, swipe up for our chat. The grid is gone, and there\'s a New tab with every update I\'ve ever had. I\'ve been busy.',
   '5.5': 'Update installed: v5.5, the soft-launch edition. The mic finally behaves: tap it (or me), talk, pause, and I send it. No more listening forever. When you ask for a game, it actually opens. And there\'s 👍 👎 on my answers plus a Send feedback button in the You tab, so you can tell Moon exactly what I got wrong. Be honest. I can take it. Probably.',
   '5.4': 'Update installed: v5.4. Nova Run has a soundtrack now: 6 original songs in a lo-fi house style (one per level plus the menu), sound effects for jumps, power-ups and crashes, and the music slows down in Slow-mo. Tap 🔊 in the game to mute. I composed it myself. Live. In your phone.',
   '5.3': 'Update installed: v5.3. Nova Run got serious: 5 levels from Cruise to Event Horizon, power-ups (🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump), scenery that actually rushes at you, and I fixed the jump. It wasn\'t you. Mostly.',
@@ -2782,7 +2868,7 @@ else {
   prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t){ const b = bubble(h.role==='user'?'me':'nova', t, h.t); if(h.role!=='user'){ renderRich(b, t); enhance(b, t); } } });
   if(prev.length) bubble('note', '— earlier —');
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
-    'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
+    'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.'])).classList.add('hello');
 }
 loadClipFlags();
 setTimeout(() => { try{ if(D.key) fetch(API + '/models?pageSize=1', {headers:{'x-goog-api-key':D.key}}).catch(()=>{}); if(D.groqKey) fetch(GROQ + '/models', {headers:{'Authorization':'Bearer '+D.groqKey}}).catch(()=>{}); }catch(e){} }, 300);
@@ -2793,7 +2879,7 @@ if(D.seenVersion !== VERSION){
   if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note + ' (Everything that changed is in the New tab.)'); history.push({role:'model', parts:[{text:note}]}); saveChat(); if(D.voice){ const say = () => speak(note); document.addEventListener('touchend', say, {once:true}); document.addEventListener('click', say, {once:true}); } }, 600); }
   D.seenVersion = VERSION; D.verSince = {v:VERSION, at:Date.now()}; save();
 }
-renderFb(); renderNew(); newDot();
+renderFb(); renderNew(); newDot(); goHome();
 if(D.key || D.groqKey){ setTimeout(crashPrompt, 1200); checkIn(); }
 if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 window.__novaBooted = true;
