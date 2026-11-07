@@ -313,6 +313,8 @@ nav button svg{position:relative}
 .cx-back,.cx-more{background:none;border:none;color:var(--accent);font-size:28px;line-height:1;padding:0 6px}
 .cx-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column}
 .cx-chat .composer{margin-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+#shFrame{position:fixed;inset:0;width:100%;height:100%;border:none;z-index:97;background:#5fc2ff}
+.gpick{display:grid;gap:8px;margin-top:10px}.gpick button{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;color:var(--text);font:inherit}.gpick b{display:block;font-size:16px}.gpick span{font-size:12px;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 170px);transform:translateX(-50%);z-index:85;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px)}
 .toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;padding:0}
 #sendBtn.stop svg{display:none}
@@ -607,6 +609,7 @@ input[type=time]{min-height:38px}
         <button class="chip" data-q="Give me a mind-blowing fun fact.">🧠 Fun fact</button>
         <button class="chip" data-q="Would you rather? Give me a good one.">🤔 Would you rather</button>
         <button class="chip" data-q="Give me a riddle. Don't tell me the answer until I give up.">🧩 Riddle</button>
+        <button class="chip" id="shChip">⭐ Starhop</button>
         <button class="chip" id="gameChip">🎮 Nova Blocks</button>
         <button class="chip" id="runChip">🏃 Nova Run</button>
         <button class="chip" data-q="How are my habit streaks looking?">🔥 Streaks</button>
@@ -1198,8 +1201,8 @@ const TOOLS = {
     run(a){ const n=D.events.length; D.events=D.events.filter(e=>e.id!==a.id); if(n===D.events.length) throw new Error('no event with that id'); save(); renderSched(); return {ok:true}; } },
   open_feedback: { d:'Open the feedback form so the user can send a bug report or idea to the developer (Moon). kind: bug, idea, love or other. summary: one or two sentences describing it in their words.', p:{kind:'STRING', summary:'STRING'}, r:['summary'],
     run(a){ pendingFb = {kind: /idea|feature|suggest/i.test(a.kind||'') ? 'idea' : /love|praise/i.test(a.kind||'') ? 'love' : /bug|broke|crash|error/i.test(a.kind||'') ? 'bug' : 'other', text:String(a.summary||'').slice(0,500)}; return {form_opened:true, note:'The feedback form opens after your reply, prefilled. Keep the reply to one warm line.'}; } },
-  open_game: { d:'Actually open one of Nova\'s built-in games on screen. game: "run" (Nova Run) or "blocks" (Nova Blocks). This is the ONLY way to open a game; never say a game is opening without calling it.', p:{game:'STRING'}, r:['game'],
-    run(a){ const g = /block|tetris|puzzle/i.test(a.game||'') ? 'blocks' : 'run'; pendingGame = g; return {opening: g === 'run' ? 'Nova Run' : 'Nova Blocks', note:'It opens right after your reply. Keep the reply to one short line.'}; } },
+  open_game: { d:'Actually open one of Nova\'s built-in games on screen. game: "starhop" (Starhop, the main game: a platformer), "run" (Nova Run) or "blocks" (Nova Blocks). If they just want "a game", use starhop. This is the ONLY way to open a game; never say a game is opening without calling it.', p:{game:'STRING'}, r:['game'],
+    run(a){ const g = /block|tetris|puzzle/i.test(a.game||'') ? 'blocks' : /run/i.test(a.game||'') ? 'run' : 'starhop'; pendingGame = g; return {opening: g === 'run' ? 'Nova Run' : g === 'blocks' ? 'Nova Blocks' : 'Starhop', note:'It opens right after your reply. Keep the reply to one short line.'}; } },
   draft_email: { d:'ONLY for real emails: when the user asks you to write or reply to an email. Shows an email card with Copy and Open-in-Mail buttons. Never use it for trivia, would-you-rather, jokes, lists, texts or anything that is not an email. Write the full email in the body, signed with the user\'s name if known.',
     p:{to:'STRING', subject:'STRING', body:'STRING', tone:'STRING'}, r:['subject','body'],
     run(a){ pendingDrafts.push({to:String(a.to||'').trim(), subject:String(a.subject||'').slice(0,200), body:String(a.body||'').slice(0,5000)});
@@ -1267,6 +1270,7 @@ About yourself (be accurate, never make things up about your own setup):
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
 - More wishes that came true: on Nov 6, 2026 you suggested UI ideas and ${D.name||'they'} built them in v5.0: a Week view with double-booking warnings, one-tap shift templates, rule-check badges (your "Check:" line now shows as green/red badges, so write it as "Check: rule ✓ · rule ✓"), quick shift stats under roster tables, the Humor setting (Chill/Witty/Roast, now: ${D.humor||'witty'}), night mode, and one-tap "Export week" to the iPhone Calendar. Plus: tables you make with days and shift times get an "Add to schedule" button, messages can be copied, retried or deleted with a long-press, and you summarize long chats so you don't forget. Your "voice-line preview" idea already existed (▶ buttons in the You tab). Be pleased about it.
 - Nova Blocks (v5.1): a falling-blocks puzzle game built into you (🎮 button above the chat, or the user says "play blocks"). Their best score: ${D.blocksBest||0}${D.blocksLast ? ', last game: '+D.blocksLast.score+' points, level '+D.blocksLast.level : ''}. Trash-talk lightly about it when relevant. It is your own game, not Tetris.
+- Starhop (v6.1, your MAIN game, opens full screen with its own bright cartoon look): a platformer. 4 heroes: Pip the fox (fastest, wall-jump), Bolt the robot (hold jump to hover), Mochi the blob (highest jump, press down in the air to ground-pound and smash crates), Kai the hoodie kid (double jump). 3 worlds x 3 levels: Meadow Hills (Sunny Start, Acorn Alley, Windmill Way), Sugar Peaks (Frosting Fields, Gumdrop Gorge, Sprinkle Summit), Cloud Kingdom (Lantern Lift, Waterfall Run, Starlight Crown). Collect stars, find 3 big stars per level, bop grumpy acorns, gumdrops and wind puffs, gift boxes with stars, springs, checkpoints. 3 hearts per level. On-screen buttons or swipe (switch in pause). Open with open_game starhop or the ⭐ Starhop chip.
 - Nova Run (v5.3): your runner game (🏃 button above the chat, or "play nova run"): a glowing orb races down a neon track that cycles colors, with towers, arches and mountains rushing past. 5 levels (Cruise, Warp, Nebula, Hyperdrive, Event Horizon), each unlocked by reaching the finish flag. Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump. Unlocked: level ${(D.runLv&&D.runLv.unlocked)||1}. Overall best: ${D.runBest||0}. It's your own game, not a copy of any other. Soundtrack (v5.4, made live with Web Audio, lo-fi / outsider house style Moon picked, inspired by the vibe of wiv's "i love u." but all original melodies): menu Standby Glow (84 BPM), L1 Neon Commute (112), L2 Lightspeed Lane (122), L3 Purple Static (126), L4 Overclocked (132), L5 No Way Back (140); stings Shield Up! and Respawn; sound effects for jump, double-jump whoosh, power-up, crash, level clear. Music slows in Slow-mo and speeds up near the finish. 🔊 button mutes it.
 - Voice lines: in v4.5 the user can record their own voice for your greeting, reminder alert, timer, "I'm listening", goodbye and task-done sounds (You tab → My voice lines). If asked about your voice, mention this.
 - Update history: v3 new look and themes; v4.0 conversation mode, "Hey Nova", photos, habit streaks, games, Discord link; v4.1 your three requests; v4.2 no more getting stuck (time limits + stop button); v4.3 self-awareness and self_check; v4.4 you now announce your own updates; v4.5 voice lines; v4.6 full answers (no cutting off), real tables, careful rule-checking; v5.0 your Nov 6 UI ideas plus speed and polish; v5.1 Nova Blocks; v5.2 Nova Run; v5.3 Nova Run levels and power-ups; v5.4 Nova Run soundtrack; v5.5 soft-launch polish: tap-to-talk mic that stops when you pause, games open for real, feedback + crash reports, lots of small fixes.
@@ -1649,7 +1653,9 @@ function instant(q){
   const qq = q.toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey |ok |okay )?(nova )?(can you |could you |please |let s |lets |i want to |i wanna )*/,'').replace(/( for me)?( please| now| nova)*$/,'');
   if(/^(play|open|start|launch|load) (nova run|the runner|runner|the run game|run game|running game)$/.test(qq)){ setTimeout(() => Run.open(), 350);
     return pick(['Nova Run, loading. Swipe to dodge, try not to faceplant. Best so far: '+(D.runBest||0)+'.','Track\'s hot. Run fast, jump high, don\'t hit the walls.','Lacing up your virtual shoes. Go.']); }
-  if(/^(play|open|start|launch|load) (nova blocks|blocks|the blocks game|block game|a game|the game|game)$/.test(qq)){ setTimeout(() => Blocks.open(), 350);
+  if(/^(play|open|start|launch|load) (starhop|star hop|the platformer|a game|the game|game|a platformer)$/.test(qq)){ setTimeout(openStarhop, 350);
+    return pick(['Starhop, loading. Pick a hero, grab the stars, bop the acorns.','Off to Meadow Hills. Bring snacks.','Starhop time. I\'ll be here when you get back. Probably judging your score.']); }
+  if(/^(play|open|start|launch|load) (nova blocks|blocks|the blocks game|block game)$/.test(qq)){ setTimeout(() => Blocks.open(), 350);
     return pick(['Loading Nova Blocks. Try not to embarrass yourself. Best so far: '+(D.blocksBest||0)+'.','Game time. Blocks fall, you stack, I judge.','Nova Blocks, coming up. Fair warning: the blocks are competitive.']); }
   // answer simple time/date questions on the phone itself, no AI needed
   const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
@@ -1831,7 +1837,7 @@ async function send(given, opts={}){
     rateBar(t, r.reply, text);
     if(pendingFb){ const f = pendingFb; pendingFb = null; setTimeout(() => openFeedback(f.kind, f.text, f.ctx), 700); }
     if(!opts.silent) speak(r.reply, opts.voice);
-    if(pendingGame){ const g = pendingGame; pendingGame = null; setTimeout(() => (g === 'run' ? Run : Blocks).open(), 600); }
+    if(pendingGame){ const g = pendingGame; pendingGame = null; setTimeout(() => g === 'starhop' ? openStarhop() : (g === 'run' ? Run : Blocks).open(), 600); }
     maybeSummarize();
     return r.reply;
   }catch(e){
@@ -1875,7 +1881,17 @@ $('hHandle').onclick = goChat;
 $('hline').onclick = () => document.querySelector('nav button[data-v="sched"]').click();
 $('htop').onclick = () => refreshWeather();
 $('hpPlan').onclick = () => send(new Date().getHours() >= 17 ? 'Plan the rest of my evening.' : 'Plan my day.');
-$('hpGames').onclick = () => Run.open();
+$('hpGames').onclick = () => { const bg = sheet('<h3>🎮 Games</h3><div class="gpick"><button data-g="sh"><b>⭐ Starhop</b><span>Platformer · 4 heroes · 3 worlds</span></button><button data-g="run"><b>🏃 Nova Run</b><span>Neon runner · 5 levels</span></button><button data-g="bl"><b>🧩 Nova Blocks</b><span>Falling-blocks puzzle</span></button></div><button class="btn ghost wide" data-x style="margin-top:10px">Close</button>');
+  bg.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { bg.remove(); ({sh:openStarhop, run:() => Run.open(), bl:() => Blocks.open()})[b.dataset.g](); }); };
+$('shChip').onclick = () => openStarhop();
+// ---- Starhop opens full screen on top of Nova (its own file, its own look)
+function openStarhop(){
+  if($('shFrame')) return;
+  const f = document.createElement('iframe'); f.id = 'shFrame'; f.src = 'starhop.html'; f.allow = 'autoplay'; f.title = 'Starhop';
+  document.body.appendChild(f); try{ NovaMusic.stop(); }catch(e){}
+}
+addEventListener('message', e => { if(!e.data || !e.data.starhop) return; if(e.data.starhop === 'close'){ const f = $('shFrame'); if(f) f.remove(); try{ pushScores(); }catch(x){} } if(e.data.starhop === 'score'){ try{ pushScores(); }catch(x){} } });
+document.addEventListener('visibilitychange', () => { const f = $('shFrame'); if(document.hidden && f) try{ f.contentWindow.postMessage({starhop:'pause'}, '*'); }catch(e){} });
 $('hpMore').onclick = () => { goChat(); setTimeout(() => $('chips').scrollTo({left:0}), 50); };
 document.querySelectorAll('#hpills .chip[data-q]').forEach(c => c.onclick = () => send(c.dataset.q));
 // swipe up on home -> chat; swipe down on the chat header -> home
@@ -2108,12 +2124,12 @@ async function paneChats(el){
     r.onclick = () => openChat(ch.user); c.appendChild(r); });
   el.appendChild(c);
 }
-const GAMES = [['novarun','🏃 Nova Run'],['novablocks','🧩 Nova Blocks'],['starhop','⭐ Starhop']];
+const GAMES = [['starhop','⭐ Starhop'],['novarun','🏃 Nova Run'],['novablocks','🧩 Nova Blocks']];
 async function paneScores(el){
   el.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>'; await pushScores();
   const j = await cx('scores'); el.innerHTML = '';
   GAMES.forEach(([id, name]) => { const list = j.boards[id] || []; const c = document.createElement('div'); c.className = 'card cx-board'; c.innerHTML = '<b>' + name + '</b>';
-    if(!list.length) c.insertAdjacentHTML('beforeend', '<div class="muted" style="font-size:13px;margin-top:4px">' + (id === 'starhop' ? 'Coming soon.' : 'No scores yet. Play a round!') + '</div>');
+    if(!list.length) c.insertAdjacentHTML('beforeend', '<div class="muted" style="font-size:13px;margin-top:4px">' + 'No scores yet. Play a round!' + '</div>');
     list.slice(0, 10).forEach((s, i) => { const r = document.createElement('div'); r.className = 'cx-row' + (s.me ? ' me' : ''); r.innerHTML = '<i class="cx-rank">' + (['🥇','🥈','🥉'][i] || (i+1)) + '</i><span></span><div class="cx-rn"><b></b></div><b class="cx-sc"></b>';
       r.querySelector('span').appendChild(avatar(s, 30)); r.querySelector('.cx-rn b').textContent = s.me ? 'You' : s.display; r.querySelector('.cx-sc').textContent = Number(s.score).toLocaleString(); c.appendChild(r); });
     el.appendChild(c); });
@@ -2121,6 +2137,7 @@ async function paneScores(el){
 async function pushScores(){ // send your best game scores to your friends' leaderboards
   if(!CX.me) return; const run = Math.max(0, ...Object.values((D.runLv && D.runLv.best) || {}).map(Number), +D.runBest || 0);
   const tasks = []; if(run) tasks.push(cx('score', {game:'novarun', score:run})); if(D.blocksBest) tasks.push(cx('score', {game:'novablocks', score:D.blocksBest}));
+  let sh = 0; try{ sh = Object.values((JSON.parse(localStorage.getItem('starhop') || '{}').best) || {}).reduce((a, b) => a + (+b || 0), 0); }catch(e){} if(sh) tasks.push(cx('score', {game:'starhop', score:sh}));
   await Promise.all(tasks).catch(() => {});
 }
 // check for friend requests + messages now and then
@@ -2131,8 +2148,9 @@ $('openNew').onclick = () => { renderNew(); showView('new'); D.seenNew = CHANGEL
 $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').click();
 // ---------------- What's New tab ----------------
 // at: exact time when known; day: date only (older versions where only the day is known)
-const SOON = { t:'Starhop', items:['Nova\'s first big game: a platformer with 4 heroes (Pip, Bolt, Mochi, Kai) and 3 worlds (Meadow Hills, Sugar Peaks, Cloud Kingdom)','On-screen buttons, or swipe controls if you prefer'] };
+const SOON = null;
 const CHANGELOG = [
+  {v:'6.1', at:'2026-11-07T03:30:00-05:00', t:'New game: Starhop', items:['Nova\'s main game: a bright platformer that feels nothing like Nova','4 heroes, each with a move: Pip wall-jumps, Bolt hovers, Mochi ground-pounds, Kai double-jumps','3 worlds, 9 levels: Meadow Hills, Sugar Peaks, Cloud Kingdom. Grab stars, find the 3 big stars, bop enemies','On-screen buttons or swipe controls, chiptune music, saves your progress','Your Starhop total shows on the Connect leaderboard']},
   {v:'6.0', at:'2026-11-07T01:10:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
   {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself']},
   {v:'5.4', at:'2026-11-06T15:00:00-05:00', t:'Nova Run soundtrack', items:['6 original lo-fi house songs, one per level plus the menu','Sound effects for jumps, power-ups, crashes and level clears','Music slows in Slow-mo and speeds up near the finish, 🔊 to mute']},
@@ -3253,7 +3271,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '6.0'; window.__novaVer = VERSION;
+const VERSION = '6.1'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -3263,6 +3281,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '6.1': 'Update installed: v6.1. Starhop is here: my main game. Four heroes, three worlds, nine levels, and absolutely no neon. Tap ⭐ Starhop or say "play starhop". Your score goes on the Connect leaderboard, so no pressure.',
   '6.0': 'Update installed: v6.0, the big one. Connect is here: add friends with your friend code, chat, post and see who\'s winning at Nova Run. I also got a calmer home screen, notifications when I\'m closed, and a Send button for emails. Check the Connect tab. I\'ll wait.',
   '5.6': 'Update installed: v5.6. New home screen: just me, front and center, with your day in one line. Tap me to talk, swipe up for our chat. The grid is gone, and there\'s a New tab with every update I\'ve ever had. I\'ve been busy.',
   '5.5': 'Update installed: v5.5, the soft-launch edition. The mic finally behaves: tap it (or me), talk, pause, and I send it. No more listening forever. When you ask for a game, it actually opens. And there\'s 👍 👎 on my answers plus a Send feedback button in the You tab, so you can tell Moon exactly what I got wrong. Be honest. I can take it. Probably.',
