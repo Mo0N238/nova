@@ -130,8 +130,6 @@ body{font-family:-apple-system,"SF Pro Display","SF Pro Text",system-ui,sans-ser
   background:
     radial-gradient(120% 60% at 50% -10%, var(--tint), transparent 60%),
     radial-gradient(80% 50% at 100% 110%, var(--tint), transparent 60%),
-    linear-gradient(rgba(140,170,220,.035) 1px, transparent 1px) 0 0/28px 28px,
-    linear-gradient(90deg, rgba(140,170,220,.035) 1px, transparent 1px) 0 0/28px 28px,
     var(--bg);}
 /* arc-reactor orb */
 .orb{position:relative;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle, var(--panel2) 0 60%, transparent 62%);
@@ -210,6 +208,22 @@ nav button svg{position:relative}
 .msg.draft .dm{font-size:13px;color:var(--muted);margin-bottom:8px}
 .msg.draft .db{font-size:14px;line-height:1.45;margin-bottom:10px}
 .msg.draft a.btn{display:inline-flex;align-items:center;text-decoration:none}
+.msg.draft .row{flex-wrap:wrap;gap:6px}
+.msg.draft input.dto{margin:0 0 8px;padding:8px 10px;font-size:14px;border-radius:10px}
+.msg.draft.sent{border-left-color:var(--accent2)}
+.msg.appact{max-width:94%;border-left:3px solid var(--accent2);padding:10px 12px}
+.msg.appact .dh{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:6px}
+.msg.appact a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;width:100%}
+.msg.appact small{display:block;color:var(--muted);font-size:12px;margin-top:6px}
+.cloudf{display:grid;gap:4px;margin-top:10px;font-size:13px}
+.sheetbg{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px);font-size:14px;line-height:1.45}
+.sheet h3{margin:0 0 4px;font-size:18px}
+.sheet ol{padding-left:20px;margin:10px 0}
+.sheet li{margin-bottom:8px}
+.sheet code{font-family:var(--mono);font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 5px;word-break:break-all}
+.sheet .cp{display:flex;gap:6px;align-items:center;margin:4px 0}
+.sheet .cp code{flex:1;padding:7px 8px}
 #micBtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#03111a;border-color:transparent;animation:micp 1.1s ease-in-out infinite}
 @keyframes micp{50%{box-shadow:0 0 0 6px rgba(63,198,255,.18),0 0 18px var(--glow)}}
 .row input,.row select{min-width:0}
@@ -229,6 +243,76 @@ nav button svg{position:relative}
 .msg.checkin .em{display:flex;justify-content:space-between;gap:4px;margin-top:8px}
 .msg.checkin .em button{flex:1;font-size:24px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:6px 0}
 .msg.checkin .row{margin-top:8px}
+.ndot{position:absolute;top:6px;right:calc(50% - 16px);width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px var(--panel)}
+.upd{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.upd.latest{border-color:var(--accent);box-shadow:0 0 18px -8px var(--glow)}
+.upd.soon{border-style:dashed;opacity:.9}
+.upd .uh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.upd .uv{font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--accent)}
+.upd .ut{font-weight:700;font-size:15px;flex:1;min-width:150px}
+.upd .ubadge{font-size:10px;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:999px;background:var(--accent);color:#03111a}
+.upd .uw{font-size:12px;color:var(--muted);margin:4px 0 6px}
+.upd ul{margin:0;padding-left:18px;font-size:14px;line-height:1.45}
+.upd li{margin:2px 0}
+/* ===== v5.6 Option C: Nova home (orb first) ===== */
+.glance{display:none!important}
+.homebtn{display:none;background:var(--panel2);border:1px solid var(--line);color:var(--muted);width:34px;height:34px;border-radius:50%;padding:0;place-items:center;flex:none}
+.homebtn svg{width:18px;height:18px}
+.hero{display:none;flex:1;min-height:0;flex-direction:column;align-items:center;padding:4px 20px 0;text-align:center;overflow:hidden;touch-action:pan-x}
+.app.home .hero{display:flex}
+.app.home header,.app.home .logwrap,.app.home #chips,.app.home .glance{display:none!important}
+.app.home main{background:radial-gradient(90% 46% at 50% 36%, var(--tint), transparent 70%)}
+.app:not(.home) .homebtn{display:grid}
+.app:not(.home) .clock{display:none}
+.htop{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;padding:6px 10px}
+.orbslot{flex:1 1 auto;min-height:150px;max-height:270px;display:grid;place-items:center;width:100%}
+.orbslot .orb{width:clamp(120px,36vw,160px);height:clamp(120px,36vw,160px);box-shadow:0 0 70px var(--glow),0 0 140px var(--tint)}
+.orbslot .orb::before{inset:-12px}
+.hgreet{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.hline{background:none;border:none;color:var(--muted);font:inherit;font-size:15px;line-height:1.45;max-width:300px;margin:6px auto 0;padding:0}
+.hpills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:18px 0 0;max-width:340px}
+.hpills .chip{font-size:13px;padding:7px 12px}
+#hnotice{width:100%;max-width:360px}
+#hnotice .msg.checkin{max-width:100%;margin:12px auto 0;text-align:left}
+.hhandle{margin-top:auto;background:none;border:none;color:var(--muted);font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 20px 8px}
+.hhandle i{width:44px;height:5px;border-radius:9px;background:var(--line)}
+.hhandle.unread span{color:var(--accent);font-weight:600}
+.hhandle.unread i{background:var(--accent)}
+.app.home .composer{margin-top:4px}
+@media (max-height:700px){ .orbslot{min-height:110px} .orbslot .orb{width:110px;height:110px} .hpills{padding-top:10px} .hgreet{font-size:21px} }
+/* ===== Connect ===== */
+.joinor{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:12px 0 4px}.joinor::before,.joinor::after{content:"";flex:1;height:1px;background:var(--line)}
+.cx-empty{text-align:center;padding:22px 16px}.cx-empty p{margin:6px 0 14px}
+.cx-av{border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:700;background-size:cover;background-position:center;border:1px solid var(--line)}
+.cx-me{display:flex;align-items:center;gap:12px;padding:12px}.cx-me .cx-av{cursor:pointer}
+.cx-mi{flex:1;min-width:0}.cx-mi b{font-size:17px}
+.cx-code{margin-top:4px;background:var(--panel2);border:1px solid var(--line);color:var(--accent);border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-family:var(--mono)}
+.seg.cx-seg{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px;margin:10px 0}
+.seg.cx-seg button{flex:1;background:none;border:none;color:var(--muted);font:inherit;font-size:13px;padding:7px 2px;border-radius:10px}
+.seg.cx-seg button.on{background:var(--panel2);color:var(--accent);font-weight:600}
+.cx-row{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line)}.cx-row:last-child{border-bottom:none}
+.cx-row .cx-rn{flex:1;min-width:0}.cx-row .cx-rn b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-row.me{background:var(--tint);border-radius:10px;padding:8px 6px}
+.cx-rank{font-style:normal;width:24px;text-align:center}.cx-sc{font-family:var(--mono)}
+.cx-un{font-style:normal;background:var(--accent);color:#03111a;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+.cx-board{margin-bottom:10px}
+.cx-compose textarea{width:100%;min-height:60px}.cx-compose .row{align-items:center;gap:8px;margin-top:6px}
+.cx-21{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}.cx-21 input{width:18px;height:18px;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--accent)}
+.cx-cprev{margin-top:8px;display:flex;gap:10px;align-items:center;font-size:12px}.cx-cprev img{width:64px;height:64px;object-fit:cover;border-radius:10px}
+.cx-post{margin-top:10px}.cx-ph2{display:flex;align-items:center;gap:10px}.cx-ph2>div{flex:1;min-width:0}
+.cx-tag{font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;border:1px solid var(--bad);color:var(--bad)}
+.cx-dots{background:none;border:none;color:var(--muted);font-size:20px;padding:0 4px}
+.cx-text{margin:8px 0 0;white-space:pre-wrap;word-wrap:break-word;font-size:15px;line-height:1.4}
+.cx-img img{width:100%;max-height:420px;object-fit:cover;border-radius:14px;margin-top:8px;display:block}
+.cx-foot{margin-top:6px}.cx-like{background:none;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:3px 10px;font:inherit;font-size:13px}
+.cx-ph{display:grid;place-items:center}.cx-bio{text-align:center;margin:8px 0;color:var(--text)}
+.cx-acts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.cx-chat{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.cx-chd{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}.cx-chd b{flex:1}
+.cx-back,.cx-more{background:none;border:none;color:var(--accent);font-size:28px;line-height:1;padding:0 6px}
+.cx-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column}
+.cx-chat .composer{margin-bottom:calc(env(safe-area-inset-bottom) + 8px)}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 170px);transform:translateX(-50%);z-index:85;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px)}
 .toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;padding:0}
 #sendBtn.stop svg{display:none}
@@ -470,6 +554,8 @@ input[type=time]{min-height:38px}
     <input id="nameSetup" placeholder="Your name (optional)" style="margin-top:8px">
     <button class="btn wide" id="keyBtn">Wake Nova up</button>
     <button class="btn ghost wide" id="keyCancel" hidden>Cancel</button>
+    <div class="joinor"><span>or</span></div>
+    <button class="btn ghost wide" id="joinOpen">🎟 I have an invite code (no key needed)</button>
     <p class="muted" id="keyMsg" style="margin-top:10px"></p>
   </div>
   <p class="muted" style="font-size:12px">Your key is saved only on this phone. Nova talks straight to the AI service; there's no Nova server in between.</p>
@@ -480,12 +566,28 @@ input[type=time]{min-height:38px}
     <div class="orb" id="orb"></div>
     <div class="hd"><h1>NOVA</h1><div class="sub" id="greet">Online</div></div>
     <div class="clock"><div class="t" id="clk">--:--</div><div class="d" id="dte"></div></div>
+    <button class="homebtn" id="homeBtn" aria-label="Back to Nova home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>
   </header>
   <div class="hint" id="installHint" hidden><span>📲</span><span>Tap <b>Share</b> → <b>Add to Home Screen</b> to install Nova as an app.</span><button id="hintX" aria-label="Dismiss">×</button></div>
   <div class="banner" id="banner"><span>⏰</span><span id="bannerText"></span><button class="btn sm ghost" id="bannerSnooze">💤 10 min</button><button class="btn sm" id="bannerOk">Got it</button></div>
 
   <main>
     <section class="view on" id="v-chat">
+      <div class="hero" id="hero">
+        <button class="htop" id="htop">—</button>
+        <div class="orbslot" id="orbSlot"></div>
+        <div class="hgreet" id="hgreet">Hey.</div>
+        <button class="hline" id="hline">Tap me and talk, or type below.</button>
+        <div class="hpills" id="hpills">
+          <button class="chip" data-q="Give me my briefing for today: time, weather where I am, my tasks and plans. Keep it short.">☀️ Briefing</button>
+          <button class="chip" id="hpPlan">🗓 Plan my day</button>
+          <button class="chip" data-q="Set a 10 minute timer">⏱ Timer</button>
+          <button class="chip" id="hpGames">🎮 Games</button>
+          <button class="chip" id="hpMore">More…</button>
+        </div>
+        <div id="hnotice"></div>
+        <button class="hhandle" id="hHandle"><i></i><span id="hHandleT">Swipe up for chat history</span></button>
+      </div>
       <div class="glance" id="glance">
         <button class="gl" id="glWeather"><small>Weather</small><b id="gwT">—</b><span id="gwS">Tap to check</span></button>
         <button class="gl" id="glNext"><small>Next up</small><b id="gnT">—</b><span id="gnS">Nothing planned</span></button>
@@ -557,6 +659,16 @@ input[type=time]{min-height:38px}
       </div>
     </section>
 
+    <section class="view" id="v-connect">
+      <div class="scroll"><div class="sec">Connect</div><div id="cxBody"></div></div>
+    </section>
+    <section class="view" id="v-new">
+      <div class="scroll">
+        <button class="btn sm ghost" id="newBack" style="margin:4px 0 6px">‹ Back</button>
+        <div class="sec">What's new in Nova</div>
+        <div id="newList"></div>
+      </div>
+    </section>
     <section class="view" id="v-me">
       <div class="scroll">
         <div class="sec">Look</div>
@@ -586,15 +698,24 @@ input[type=time]{min-height:38px}
           <div class="row" style="margin-top:6px"><select id="lineUploadFor" style="flex:1"></select><button class="btn sm ghost" id="lineUploadBtn">Upload a clip</button></div>
           <input type="file" id="lineUpload" accept="audio/*" hidden>
         </div>
-        <div class="sec">Discord link</div>
+        <div class="sec">Nova Cloud</div>
         <div class="card muted" id="linkCard">
-          <div id="linkInfo">Link with Discord Nova to share reminders, plans and memory, and get phone reminders as Discord DMs. In Discord, type <b>/link</b> to get your address and code.</div>
+          <div id="linkInfo">Nova Cloud keeps me awake 24/7: notifications when I'm closed, sending email, "Hey Nova" from anywhere, and Discord. Set it up once with the Nova Cloud guide, then enter the address and code from your setup page (or from <b>/link</b> in Discord).</div>
           <div id="linkForm">
-            <input id="linkUrl" placeholder="Address, e.g. https://nova-bot.you.workers.dev" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:8px">
+            <input id="linkUrl" value="https://nova-bot.hahatrollguy.workers.dev" placeholder="Address, e.g. https://nova-bot.you.workers.dev" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:8px">
             <input id="linkCode" placeholder="Code, e.g. NOVA-ABCD2345" autocapitalize="characters" autocomplete="off" spellcheck="false" style="margin-top:6px">
-            <button class="btn wide" id="linkBtn">Link Discord</button>
+            <button class="btn wide" id="linkBtn">Link Nova Cloud</button>
           </div>
-          <div class="row" id="linkedRow" hidden style="margin-top:8px"><button class="btn sm ghost" id="syncNow">Sync now</button><button class="btn sm ghost" id="unlinkBtn">Unlink</button></div>
+          <div id="linkedRow" hidden>
+            <div class="cloudf" id="cloudFeat"></div>
+            <button class="btn wide" id="pushBtn">🔔 Turn on notifications</button>
+            <button class="btn ghost wide" id="heyBtn">🎙 Set up "Hey Nova" (works when I'm closed)</button>
+            <div class="row" style="margin-top:8px"><button class="btn sm ghost" id="syncNow">Sync now</button><button class="btn sm ghost" id="unlinkBtn">Unlink</button></div>
+          </div>
+        </div>
+        <div class="sec">My Shortcuts</div>
+        <div class="card muted">Apple Shortcuts I can run for you (alarms, texts, smart home, playlists…). Type their exact names, separated by commas.
+          <input id="scList" placeholder="e.g. Set Alarm, Lights Off, Gym Playlist" autocomplete="off" style="margin-top:8px">
         </div>
         <div class="sec">Brain</div>
         <div class="card muted" id="brainInfo"></div>
@@ -607,6 +728,7 @@ input[type=time]{min-height:38px}
           <div id="groqInfo" style="margin-top:8px"></div>
           <div class="toggle" style="margin-top:6px;border:none"><span>⚡ Speed mode<br><small>Use Groq first. Fastest replies.</small></span><input type="checkbox" id="fastT"></div>
         </div>
+        <button class="btn ghost wide" id="openNew" style="margin-top:4px">✨ What's new in Nova <i class="ndot" style="position:static;display:inline-block;vertical-align:middle;margin-left:4px" hidden></i></button>
         <div class="sec">Help &amp; feedback</div>
         <div class="card muted" id="fbInfo">Testing Nova? Tell Moon what's broken, confusing or awesome. Every report helps.</div>
         <div class="row"><button class="btn" style="flex:1" id="fbBtn">💬 Send feedback</button><button class="btn ghost" style="flex:1" id="bugBtn">🐞 Report a bug</button></div>
@@ -621,10 +743,11 @@ input[type=time]{min-height:38px}
     </section>
   </main>
   <nav>
-    <button class="on" data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>Chat</button>
+    <button class="on" data-v="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Nova</button>
     <button data-v="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tasks</button>
     <button data-v="sched"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Schedule</button>
-    <button data-v="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>You</button>
+    <button data-v="connect" id="cxTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.6c2.6.2 4.5 2 5.3 4.9"/></svg>Connect<i class="ndot" hidden></i></button>
+    <button data-v="me" id="meTab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>You<i class="ndot" hidden></i></button>
   </nav>
 </div>
 
@@ -758,6 +881,7 @@ function tick(){
   const h = d.getHours();
   if(!rec) $('greet').textContent = greetSets[h<5||h>=23?'night':h<12?'morning':h<18?'afternoon':'evening'][gi] + (D.name?', '+D.name:'');
   checkReminders(d);
+  if(d.getSeconds() < 10 && isHome()) renderHero();
   if(typeof renderGlance === 'function' && d.getSeconds() < 10) renderGlance();
   updateTimerText();
 }
@@ -1019,7 +1143,7 @@ async function webSearch(query){
   }
 }
 async function groqSearch(query){
-  const r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+  const r = await gfetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
     body: JSON.stringify({ model:'groq/compound-mini', messages:[{role:'user', content:'Search the web and answer concisely with key facts and dates. Name your sources. Question: '+query}] }) });
   const j = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error('search unavailable right now');
@@ -1041,7 +1165,7 @@ const TOOLS = {
     async run(){
       const out = { version:VERSION, think_harder:!!D.think, speed_mode:!!(D.fast && D.groqKey), discord_linked:!!(D.sync && D.sync.code), tasks:D.tasks.length, events:D.events.length, memories:D.facts.length };
       if(D.key){ try{ const T = timed(12000); const r = await fetch(`${API}/models/${D.model||'gemini-flash-latest'}:generateContent`, {method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','x-goog-api-key':D.key}, body:JSON.stringify({contents:[{role:'user',parts:[{text:'Reply: ok'}]}], generationConfig:{maxOutputTokens:5}})}); T.done(); out.google = r.ok ? 'working ('+D.model+')' : 'error '+r.status+(r.status===429?' (daily free limit used up)':''); }catch(e){ out.google = 'not responding'; } } else out.google = 'not set up';
-      if(D.groqKey){ try{ const T = timed(12000); const r = await fetch(GROQ+'/models', {signal:T.signal, headers:{'Authorization':'Bearer '+D.groqKey}}); T.done(); out.groq = r.ok ? 'working' : 'error '+r.status+(r.status===401?' (key invalid)':''); }catch(e){ out.groq = 'not responding'; } } else out.groq = 'not set up (add a free key in the You tab under Backup brain)';
+      if(D.groqKey){ try{ const T = timed(12000); const r = await gfetch(GROQ+'/models', {signal:T.signal, headers:{'Authorization':'Bearer '+D.groqKey}}); T.done(); out.groq = r.ok ? 'working' : 'error '+r.status+(r.status===401?' (key invalid)':''); }catch(e){ out.groq = 'not responding'; } } else out.groq = 'not set up (add a free key in the You tab under Backup brain)';
       return out; } },
   get_time: { d:'Current date and time here, or in another place: pass tz as an IANA time zone (e.g. Asia/Tokyo, Europe/London, America/Los_Angeles). Always use this for "what time is it in X"; never work it out yourself.', p:{tz:'STRING'},
     run(a){ const n=new Date(); if(a && a.tz){ try{ return {place_tz:a.tz, pretty:n.toLocaleString([], {timeZone:a.tz, weekday:'long', month:'long', day:'numeric', hour:'numeric', minute:'2-digit'})}; }catch(e){ throw new Error('unknown time zone '+a.tz); } }
@@ -1078,10 +1202,14 @@ const TOOLS = {
     run(a){ const g = /block|tetris|puzzle/i.test(a.game||'') ? 'blocks' : 'run'; pendingGame = g; return {opening: g === 'run' ? 'Nova Run' : 'Nova Blocks', note:'It opens right after your reply. Keep the reply to one short line.'}; } },
   draft_email: { d:'ONLY for real emails: when the user asks you to write or reply to an email. Shows an email card with Copy and Open-in-Mail buttons. Never use it for trivia, would-you-rather, jokes, lists, texts or anything that is not an email. Write the full email in the body, signed with the user\'s name if known.',
     p:{to:'STRING', subject:'STRING', body:'STRING', tone:'STRING'}, r:['subject','body'],
-    run(a){ pendingDrafts.push({to:String(a.to||'').trim(), subject:String(a.subject||'').slice(0,200), body:String(a.body||'').slice(0,5000)}); return {shown_to_user:true, note:'The draft card is on screen with Copy / Open in Mail. Just add a short witty line; do not repeat the email.'}; } },
-  set_timer: { d:'Start a countdown timer that alerts after N minutes (while Nova is open).', p:{minutes:'NUMBER', label:'STRING'}, r:['minutes'],
-    run(a){ const m=+a.minutes; if(!(m>0 && m<=1440)) throw new Error('minutes must be 1-1440'); const x={id:'t_'+uid(), at:Date.now()+m*60000, label:String(a.label||'Timer').slice(0,60)}; D.timers.push(x); save(); renderTasks();
-      return {set:x.label, goes_off_at:new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}), note:'Only alerts while Nova is open on screen. Say so briefly.'}; } },
+    run(a){ pendingDrafts.push({to:String(a.to||'').trim(), subject:String(a.subject||'').slice(0,200), body:String(a.body||'').slice(0,5000)});
+      return {shown_to_user:true, note: cloudEmail() ? 'The draft card is on screen with a Send button (sends from their Gmail through Nova Cloud), plus Copy / Open in Mail. It is NOT sent until they tap Send. Add a short witty line; do not repeat the email, never claim it was sent.' : 'The draft card is on screen with Copy / Open in Mail. Just add a short witty line; do not repeat the email.'}; } },
+  open_app: { d:'Control other apps on the phone. Shows a one-tap button the user taps to run it. action: "shortcut" (run one of their Apple Shortcuts by exact name; put any input in message), "text" (Messages with a prefilled text; target = phone number or empty), "call" (target = phone number), "facetime" (target = phone number or email), "directions" (target = place/address), "music" (target = song/artist/playlist; app = "spotify" or "apple"), "open" (target = app name: youtube, spotify, instagram, snapchat, whatsapp, discord, calendar, notes, photos, maps, mail, messages, music, settings).',
+    p:{action:'STRING', target:'STRING', message:'STRING', app:'STRING'}, r:['action'],
+    run(a){ const x = appLink(a); pendingApps.push(x); return {button_shown:true, label:x.label, note:'A button is on screen; the user taps it to finish. Say it in a few words; do not claim it already happened.'}; } },
+  set_timer: { d:'Start a countdown timer that alerts after N minutes.', p:{minutes:'NUMBER', label:'STRING'}, r:['minutes'],
+    run(a){ const m=+a.minutes; if(!(m>0 && m<=1440)) throw new Error('minutes must be 1-1440'); const x={id:'t_'+uid(), at:Date.now()+m*60000, label:String(a.label||'Timer').slice(0,60)}; D.timers.push(x); save(); renderTasks(); cloudTimer(x);
+      return {set:x.label, goes_off_at:new Date(x.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}), note: D.sync && D.sync.push ? 'Alerts as a phone notification even if Nova is closed.' : 'Only alerts while Nova is open on screen.'}; } },
   remember_fact: { d:'Save a lasting fact about the user (name, birthday, likes, goals).', p:{fact:'STRING'}, r:['fact'],
     run(a){ const f=String(a.fact).trim().slice(0,200); if(!f) throw new Error('empty'); if(!D.facts.some(x=>x.text.toLowerCase()===f.toLowerCase())) D.facts.push({id:uid(), text:f});
       const m=f.match(/^(?:the user'?s |user'?s |my )?name is (.+)$/i); if(m) D.name=m[1].replace(/\.$/,'').slice(0,40);
@@ -1132,8 +1260,8 @@ Examples of your voice:
 
 About yourself (be accurate, never make things up about your own setup):
 - You are Nova v${VERSION}, a web app on the user's phone. The user builds and updates you (with Claude's help). You cannot change your own code or settings; updates arrive when they reopen you.
-- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Discord link: ${D.sync && D.sync.code ? 'linked' : 'not linked'}.
-- What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; voice input (tap the mic or the orb, talk, and pause: it sends itself, and you answer out loud); 4 color themes; syncing with Discord Nova; a Send feedback button in the You tab (testers can report bugs and ideas). There is NO always-on wake word and no hands-free conversation loop anymore (removed in v5.5 because it kept listening).
+- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Nova Cloud: ${D.sync && D.sync.code ? 'linked (notifications '+(D.sync.push ? 'ON' : 'off: tell them to tap Turn on notifications in the You tab')+'; email sending '+(D.sync.features && D.sync.features.email ? 'ON' : 'not set up')+')' : 'not linked (it gives notifications when you are closed, sending email, Hey Nova from anywhere, and Discord; set up with the Nova Cloud guide)'}.
+- What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; voice input (tap the mic or the orb, talk, and pause: it sends itself, and you answer out loud); 4 color themes; Nova Cloud (v5.7): real notifications for reminders and timers even when you're closed, sending emails from their Gmail after they tap Send, "Hey Nova" from anywhere via an iPhone Vocal Shortcut (no Siri), and Discord; controlling other apps with open_app (run their Apple Shortcuts, text, call, FaceTime, directions, music, open apps) as one-tap buttons. Their Shortcuts: ${(D.shortcuts||[]).length ? D.shortcuts.join(', ') : 'none listed yet (they add names in You → My Shortcuts)'}; a Send feedback button in the You tab (testers can report bugs and ideas); a What's New page (in the You tab) listing every update with how long ago it came out; Connect (the Connect tab, needs Nova Cloud): invite-only and 18+, add friends by exact username or friend code (no public list), chat with friends, post updates and pictures (21+ posts only for 21+), likes, friends' leaderboards for Nova Run and Nova Blocks, block and report on everything, every picture checked by AI, reports go to Moon. Friends who joined with an invite use Nova Cloud's shared brain (daily limit). You can't read their Connect chats or posts; point them to the Connect tab. There is NO always-on wake word and no hands-free conversation loop anymore (removed in v5.5 because it kept listening).
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
 - Your own wishes that came true: on Nov 5, 2026, ${D.name||'the user'} asked what YOU would like added to yourself. You asked for (1) a snooze button for terrible weather, (2) an automatic draft generator for annoying emails, and (3) a little extra processing power. ${D.name||'They'} took you seriously and added all three in v4.1: a 💤 snooze button on reminders plus daily bad-weather heads-ups, the email draft generator (✉️), and the 🧠 Think harder mode. You are genuinely pleased about this and a bit smug that your ideas were good. If asked about your requests, updates, or whether you feel heard, say so warmly (with your usual wit) and thank them.
@@ -1158,6 +1286,7 @@ Use tools whenever they help; never invent results:
 - planning a day -> list_events first, add sensible time blocks with add_event, then sum it up in a sentence or two.
 - current events, news, scores, prices, anything that may have changed -> web_search. Mention the source name briefly.
 - weather -> get_weather.
+- doing something in another app ("text mom I'm late", "call 555-1234", "directions to Target", "play lofi on Spotify", "open YouTube", "run Lights Off", "set an alarm for 7") -> open_app. Alarms and smart-home need one of their Shortcuts: use action shortcut with its exact name; if they have none that fits, say which Shortcut to make and to add its name in You → My Shortcuts.
 - games: "play nova run", "open blocks", "let's play a game" -> open_game (run or blocks). Never claim a game is opening unless you called open_game.
 - if they report a bug, complain that something is broken, or suggest a feature -> be gracious, then call open_feedback with a short summary so they can send it to the developer.
 - habits: "how are my streaks" -> get_streaks; celebrate streaks with a quip, gently roast broken ones.
@@ -1308,7 +1437,7 @@ async function think(text, onStep, onText){
 // ---------------- backup brain: Groq ----------------
 const GROQ = (window.NOVA_GROQ_BASE || 'https://api.groq.com/openai/v1');
 async function groqModels(key){
-  const r = await fetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+key} });
+  const r = await gfetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+key} });
   const j = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error((j.error && j.error.message) || ('HTTP '+r.status));
   const ids = (j.data||[]).filter(m => m.active !== false).map(m => m.id)
@@ -1323,7 +1452,7 @@ async function groqCall(messages){
   for(const model of D.groqModels){
     let r; const T = timed(D.think ? 60000 : 25000);
     try{
-      r = await fetch(GROQ + '/chat/completions', { method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+      r = await gfetch(GROQ + '/chat/completions', { method:'POST', signal:T.signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
         body: JSON.stringify(Object.assign({ model, messages, tools:groqTools(), tool_choice:'auto', max_tokens: D.think ? 4000 : 2500, temperature: needsCare(lastAsk) ? 0.4 : 0.8 }, /gpt-oss/.test(model) ? {reasoning_effort: D.think ? 'high' : needsCare(lastAsk) ? 'medium' : 'low'} : {})) });
     }catch(e){ T.done(); if(T.ctl.stopped) throw {friendly:'Stopped.', stopped:true}; last = T.signal.aborted ? 'timeout' : 'network'; continue; }
     T.done();
@@ -1513,7 +1642,7 @@ log.addEventListener('touchstart', e => { const m = e.target.closest('.msg.me, .
 log.addEventListener('contextmenu', e => { const m = e.target.closest('.msg.me, .msg.nova'); if(!m) return; e.preventDefault(); openMenu(m, e.clientX, e.clientY); });
 document.addEventListener('click', e => { if(menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
 const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
-  set_timer:'⏱ timer set', open_feedback:'💬 feedback form', open_game:'🎮 opening the game', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
+  set_timer:'⏱ timer set', open_app:'📲 app button ready', open_feedback:'💬 feedback form', open_game:'🎮 opening the game', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
 function instant(q){
   const qq = q.toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey |ok |okay )?(nova )?(can you |could you |please |let s |lets |i want to |i wanna )*/,'').replace(/( for me)?( please| now| nova)*$/,'');
@@ -1534,7 +1663,87 @@ function instant(q){
   if(isDate) return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
   return null;
 }
-let pendingDrafts = [], pendingGame = null, pendingFb = null;
+let pendingDrafts = [], pendingGame = null, pendingFb = null, pendingApps = [];
+// ---------- Nova Cloud helpers
+const cloudOn = () => !!(D.sync && D.sync.code);
+const cloudEmail = () => cloudOn() && !!(D.sync.features && D.sync.features.email);
+async function cloudCall(path, body){
+  const r = await fetch(D.sync.url.replace(/\/+$/,'') + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({code:D.sync.code}, body)) });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ('HTTP '+r.status)); return j;
+}
+function cloudTimer(x, cancel){ if(!(D.sync && D.sync.push)) return; cloudCall('/api/remind', {id:x.id, at:x.at, text:'⏱ Time\'s up: '+x.label, cancel:!!cancel}).catch(()=>{}); }
+const isStandalone = () => window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+async function enablePush(){
+  if(!cloudOn() || !D.sync.vapid){ bubble('note', 'Sync with Nova Cloud first (tap Sync now).'); return; }
+  if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)){
+    bubble('note', isStandalone() ? 'This phone can\'t do web notifications. iPhone needs iOS 16.4 or newer.' : 'Notifications only work when I\'m opened from your Home Screen. In Safari: Share → Add to Home Screen, then open me from there and try again.'); return; }
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted'){ bubble('note', 'Notifications are blocked. Turn them on in Settings → Notifications → Nova, then try again.'); return; }
+  const reg = await navigator.serviceWorker.ready;
+  const key = Uint8Array.from(atob(D.sync.vapid.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((D.sync.vapid.length + 3) % 4)), c => c.charCodeAt(0));
+  let sub = await reg.pushManager.getSubscription();
+  if(sub && D.sync.vapidUsed && D.sync.vapidUsed !== D.sync.vapid){ try{ await sub.unsubscribe(); }catch(e){} sub = null; }
+  if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:key });
+  await cloudCall('/api/push/subscribe', {sub: sub.toJSON()});
+  D.sync.push = true; D.sync.vapidUsed = D.sync.vapid; save(); renderMe();
+  D.timers.filter(t => t.at > Date.now()).forEach(t => cloudTimer(t));
+  await cloudCall('/api/push/test', {text:'Notifications are on. Now I can reach you even when I\'m closed. Try not to miss me.'}).catch(()=>{});
+  bubble('nova', pick(['Notifications on. I just sent you a test one. Reminders now find you even when I\'m closed.','Done. Check your lock screen, I already said hi. Reminders and timers will reach you even when I\'m closed.']));
+}
+async function disablePush(){
+  try{ const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if(sub){ await cloudCall('/api/push/unsubscribe', {endpoint:sub.endpoint}).catch(()=>{}); await sub.unsubscribe(); } }catch(e){}
+  D.sync.push = false; save(); renderMe(); bubble('note', 'Notifications off. I\'ll only remind you while I\'m open.');
+}
+function heySheet(){
+  const url = D.sync.url.replace(/\/+$/,'') + '/api/ask', code = D.sync.code;
+  const bg = document.createElement('div'); bg.className = 'sheetbg';
+  bg.innerHTML = `<div class="sheet"><h3>🎙 "Hey Nova", even when I'm closed</h3>
+  <div class="muted">Say "Hey Nova", ask anything, and your iPhone reads my answer out loud. Reminders you set this way show up here too. Needs iOS 18. About 3 minutes, once.</div>
+  <b style="display:block;margin-top:12px">Part 1: the Shortcut</b>
+  <ol>
+    <li>Open the <b>Shortcuts</b> app → <b>+</b> → name it <b>Hey Nova</b>.</li>
+    <li>Add the action <b>Dictate Text</b> (Stop Listening: <i>After Pause</i>).</li>
+    <li>Add <b>Get Contents of URL</b>. Paste this as the URL:<div class="cp"><code>${esc(url)}</code><button class="btn sm ghost" data-cp="${esc(url)}">Copy</button></div>
+      Tap the arrow ›, set <b>Method</b> to <b>POST</b>, <b>Request Body</b> to <b>JSON</b>, then add two <b>Text</b> fields:<br>
+      • key <code>code</code> → value:<div class="cp"><code>${esc(code)}</code><button class="btn sm ghost" data-cp="${esc(code)}">Copy</button></div>
+      • key <code>text</code> → value: the <b>Dictated Text</b> variable (tap the field, pick it from the bar above the keyboard).</li>
+    <li>Add <b>Get Dictionary Value</b>: Get <b>Value</b> for key <code>reply</code>.</li>
+    <li>Add <b>Speak Text</b> (it speaks the Dictionary Value). Tap Done.</li>
+  </ol>
+  <b style="display:block">Part 2: make "Hey Nova" trigger it (no Siri)</b>
+  <ol>
+    <li>Settings → <b>Accessibility</b> → <b>Vocal Shortcuts</b> → <b>Set Up Vocal Shortcuts</b>.</li>
+    <li>Pick <b>Shortcut</b> → <b>Hey Nova</b>.</li>
+    <li>Say "Hey Nova" three times when asked. Done.</li>
+  </ol>
+  <div class="muted">Try it: "Hey Nova… remind me to stretch in 10 minutes." Keep the code private: it's the key to your Nova.</div>
+  <button class="btn wide" id="heyDone">Got it</button></div>`;
+  document.body.appendChild(bg);
+  bg.onclick = e => { if(e.target === bg || e.target.id === 'heyDone') bg.remove(); const c = e.target.dataset && e.target.dataset.cp; if(c){ navigator.clipboard.writeText(c).then(() => { e.target.textContent = 'Copied ✓'; setTimeout(() => e.target.textContent = 'Copy', 1500); }).catch(()=>{}); } };
+}
+// ---------- other apps (one-tap buttons)
+const APPS = { youtube:'youtube://', spotify:'spotify://', instagram:'instagram://', snapchat:'snapchat://', whatsapp:'whatsapp://', discord:'discord://', calendar:'calshow://', notes:'mobilenotes://', photos:'photos-redirect://', maps:'maps://', mail:'message://', messages:'sms:', music:'music://', settings:'app-settings:', facetime:'facetime://', shortcuts:'shortcuts://', camera:'shortcuts://run-shortcut?name=Camera' };
+function appLink(a){
+  const act = String(a.action||'').toLowerCase(), t = String(a.target||'').trim(), m = String(a.message||'').trim(), e = encodeURIComponent, num = t.replace(/[^\d+]/g,'');
+  if(act==='shortcut'){ const name = t || m; if(!name) throw new Error('which shortcut? (target = its exact name)');
+    return {label:'▶ Run "'+name+'"', url:'shortcuts://run-shortcut?name='+e(name)+(m && m!==name ? '&input=text&text='+e(m) : ''), hint:'Runs your "'+name+'" shortcut.'}; }
+  if(act==='text') return {label:'💬 Text'+(t ? ' '+t : ''), url:'sms:'+num+(m ? '&body='+e(m) : ''), hint:m ? 'Opens Messages with: "'+m.slice(0,80)+'". You tap send.' : 'Opens Messages.'};
+  if(act==='call'){ if(!num) throw new Error('need a phone number'); return {label:'📞 Call '+t, url:'tel:'+num, hint:'Your phone will ask to confirm the call.'}; }
+  if(act==='facetime'){ if(!t) throw new Error('need a number or email'); return {label:'📹 FaceTime '+t, url:'facetime:'+(num.length > 5 ? num : t), hint:''}; }
+  if(act==='directions'){ if(!t) throw new Error('need a place'); return {label:'🗺 Directions to '+t, url:'https://maps.apple.com/?daddr='+e(t), hint:'Opens Apple Maps.'}; }
+  if(act==='music'){ const sp = /spotify/i.test(a.app||'') ; if(!t) return {label:sp ? '🎵 Open Spotify' : '🎵 Open Music', url:sp ? 'spotify://' : 'music://', hint:''};
+    return sp ? {label:'🎵 "'+t+'" on Spotify', url:'spotify:search:'+e(t), hint:'Opens Spotify search.'} : {label:'🎵 "'+t+'" in Music', url:'https://music.apple.com/us/search?term='+e(t), hint:'Opens Apple Music search.'}; }
+  if(act==='open'){ const k = t.toLowerCase().replace(/[^a-z]/g,''); const u = APPS[k]; if(!u) throw new Error('I don\'t know how to open "'+t+'". Known: '+Object.keys(APPS).join(', ')+'. For anything else, make a Shortcut and add it in You → My Shortcuts.');
+    return {label:'📱 Open '+t.charAt(0).toUpperCase()+t.slice(1), url:u, hint:''}; }
+  throw new Error('unknown action. Use shortcut, text, call, facetime, directions, music or open.');
+}
+function appCard(x, after){
+  const card = document.createElement('div'); card.className = 'msg nova appact';
+  card.innerHTML = '<div class="dh">📲 Tap to do it</div><a class="btn sm"></a>' + (x.hint ? '<small></small>' : '');
+  const a = card.querySelector('a'); a.href = x.url; a.textContent = x.label; if(x.hint) card.querySelector('small').textContent = x.hint;
+  after.after(card); return card;
+}
 function draftCard(dr, after){
   const card = document.createElement('div'); card.className = 'msg nova draft';
   card.innerHTML = '<div class="dh">✉️ Email draft</div><div class="dm"></div><div class="db"></div><div class="row"><button class="btn sm">Copy</button><a class="btn sm ghost" target="_blank" rel="noopener">Open in Mail</a></div>';
@@ -1543,11 +1752,24 @@ function draftCard(dr, after){
   const btn = card.querySelector('button');
   btn.onclick = async () => { const txt = 'Subject: '+dr.subject+'\n\n'+dr.body; try{ await navigator.clipboard.writeText(txt); btn.textContent = 'Copied ✓'; }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); btn.textContent='Copied ✓'; }catch(e2){ btn.textContent='Copy failed'; } ta.remove(); } setTimeout(()=>btn.textContent='Copy', 2000); };
   card.querySelector('a').href = 'mailto:'+encodeURIComponent(dr.to||'')+'?subject='+encodeURIComponent(dr.subject)+'&body='+encodeURIComponent(dr.body);
+  if(cloudEmail()){
+    const to = document.createElement('input'); to.className = 'dto'; to.type = 'email'; to.placeholder = 'Send to (email address)'; to.value = /@/.test(dr.to) ? dr.to : ''; to.autocapitalize = 'off';
+    card.querySelector('.dm').after(to);
+    const sb = document.createElement('button'); sb.className = 'btn sm'; sb.textContent = 'Send ✈︎'; btn.className = 'btn sm ghost'; card.querySelector('.row').prepend(sb);
+    sb.onclick = async () => {
+      const addr = to.value.trim(); if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(addr)){ to.focus(); to.style.borderColor = 'var(--bad)'; return; }
+      sb.disabled = true; sb.textContent = 'Sending…';
+      try{ await cloudCall('/api/email', {to:addr, subject:dr.subject, body:dr.body}); sb.textContent = 'Sent ✓'; card.classList.add('sent'); to.disabled = true;
+        card.querySelector('.dh').textContent = '✉️ Sent to ' + addr; bubble('note', pick(['Sent. It\'s out of my hands now. Literally, I don\'t have hands.','Email delivered. Your reputation is in the post.','Sent ✓. No take-backs.'])); }
+      catch(e){ sb.disabled = false; sb.textContent = 'Send ✈︎'; bubble('note', 'Couldn\'t send: ' + e.message); }
+    };
+  }
   after.after(card); return card;
 }
 let busy = false, sentAt = 0;
 let photo = null; // {data: base64 jpeg, url: dataURL}
 async function send(given, opts={}){
+  if(!opts.silent) goChat();
   let text = (typeof given==='string' ? given : $('inp').value).trim();
   const img = photo;
   if(busy || (!text && !img)) return '';
@@ -1565,7 +1787,7 @@ async function send(given, opts={}){
   if(quick){ bubble('nova', quick); if(!opts.silent) speak(quick, opts.voice); history.push({role:'user', parts:[{text}]}, {role:'model', parts:[{text:quick}]}); saveChat(); return quick; }
   const h0 = history.length, forget = () => { history.length = Math.min(history.length, h0); saveChat(); };
   const t = bubble('nova',''); t.innerHTML='<span class="typing"><span></span><span></span><span></span></span>';
-  pendingDrafts = []; pendingGame = null;
+  pendingDrafts = []; pendingGame = null; pendingApps = [];
   busy = true; sentAt = Date.now(); $('orb').classList.add('busy'); $('sendBtn').classList.add('stop'); $('sendBtn').setAttribute('aria-label','Stop');
   stopCtl = new AbortController(); const myStop = stopCtl;
   const watchdog = setTimeout(() => myStop.abort(), (D.think ? 130 : 50) * 1000);
@@ -1602,6 +1824,7 @@ async function send(given, opts={}){
       const seen = new Set(); lastSources.forEach(x => { if(seen.has(x.title)) return; seen.add(x.title); const a=document.createElement('a'); a.href=x.url; a.target='_blank'; a.rel='noopener'; a.textContent='↗ '+x.title; s.appendChild(a); });
       after.after(s); }
     const drafts = pendingDrafts.splice(0); drafts.forEach(dr => { after = draftCard(dr, after); });
+    pendingApps.splice(0).forEach(x => { after = appCard(x, after); });
     if(r.backup){ const n=document.createElement('div'); n.className='act'; n.style.color='var(--muted)'; n.textContent='(answered by backup brain)'; after.after(n); }
     enhance(t, r.reply);
     rateBar(t, r.reply, text);
@@ -1621,6 +1844,332 @@ async function send(given, opts={}){
     return t.textContent;
   }finally{ clearTimeout(watchdog); clearTimeout(slowNote); stopCtl = null; busy=false; $('orb').classList.remove('busy'); $('sendBtn').classList.remove('stop'); $('sendBtn').setAttribute('aria-label','Send'); scrollDown(); }
 }
+// ---------------- Nova home (Option C) ----------------
+const appEl = document.querySelector('.app'); let unread = 0, lastChatAt = 0;
+function isHome(){ return appEl.classList.contains('home'); }
+function goHome(){ if(stopHearing) return; appEl.classList.add('home'); $('orbSlot').appendChild($('orb')); unread = 0; renderHero(); }
+function goChat(){ if(!isHome()) return; appEl.classList.remove('home'); document.querySelector('header').prepend($('orb')); unread = 0; renderHero(); lastChatAt = Date.now(); scrollDown(true); }
+function heroGreet(){ const h = new Date().getHours(), n = D.name ? ', ' + D.name.split(' ')[0] : '';
+  return (h < 5 ? 'Up late' : h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 22 ? 'Evening' : 'Up late') + n + '.'; }
+function renderHero(){
+  if(!$('hero')) return;
+  const d = new Date(), w = D.lastWeather && Date.now() - D.lastWeather.at < 3*3600e3 ? ' · ' + (({clear:'☀️','mostly clear':'🌤','partly cloudy':'⛅',overcast:'☁️'})[D.lastWeather.sky] || '🌡') + ' ' + Math.round(D.lastWeather.temp) + '°' : '';
+  $('htop').textContent = d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + w;
+  $('hgreet').textContent = heroGreet();
+  const k = keyOf(d), now = hhmm(d);
+  const up = [...D.tasks.filter(t=>t.time && t.done!==k && t.time>=now).map(t=>({time:t.time, title:t.text})), ...D.events.filter(e=>e.date===k && e.time && e.time>=now).map(e=>({time:e.time, title:e.title}))].sort((a,b)=>a.time.localeCompare(b.time))[0];
+  const left = D.tasks.filter(t => t.done !== k).length;
+  const bits = [];
+  if(up) bits.push(up.title + ' at ' + fmt12(up.time) + '.');
+  if(D.lastWeather && D.lastWeather.rain >= 50) bits.push('Rain likely today (' + D.lastWeather.rain + '%).');
+  if(D.tasks.length) bits.push(left ? left + (left === 1 ? ' task' : ' tasks') + ' left today.' : 'All tasks done. Show-off.');
+  bits.push('Tap me and talk, or type below.');
+  $('hline').textContent = bits.join(' ');
+  $('hpPlan').textContent = d.getHours() >= 17 ? '🗓 Plan tonight' : '🗓 Plan my day';
+  $('hHandle').classList.toggle('unread', unread > 0);
+  $('hHandleT').textContent = unread ? unread + ' new from Nova · swipe up' : (log.querySelector('.msg') ? 'Swipe up for chat history' : 'Swipe up to chat');
+}
+$('homeBtn').onclick = goHome;
+$('hHandle').onclick = goChat;
+$('hline').onclick = () => document.querySelector('nav button[data-v="sched"]').click();
+$('htop').onclick = () => refreshWeather();
+$('hpPlan').onclick = () => send(new Date().getHours() >= 17 ? 'Plan the rest of my evening.' : 'Plan my day.');
+$('hpGames').onclick = () => Run.open();
+$('hpMore').onclick = () => { goChat(); setTimeout(() => $('chips').scrollTo({left:0}), 50); };
+document.querySelectorAll('#hpills .chip[data-q]').forEach(c => c.onclick = () => send(c.dataset.q));
+// swipe up on home -> chat; swipe down on the chat header -> home
+(() => { let y0 = null, t0 = 0;
+  $('hero').addEventListener('touchstart', e => { y0 = e.touches[0].clientY; t0 = Date.now(); }, {passive:true});
+  $('hero').addEventListener('touchend', e => { if(y0 === null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if(dy < -50 && Date.now() - t0 < 700) goChat(); }, {passive:true});
+  const hd = document.querySelector('header');
+  hd.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; t0 = Date.now(); }, {passive:true});
+  hd.addEventListener('touchend', e => { if(y0 === null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if(dy > 50 && Date.now() - t0 < 700) goHome(); }, {passive:true});
+})();
+// anything new from Nova while you're on the home screen shows up as "1 new"
+new MutationObserver(ms => { if(!isHome()) { lastChatAt = Date.now(); return; } ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType === 1 && /\b(nova|checkin)\b/.test(n.className) && !/\b(note|hello)\b/.test(n.className)) unread++; })); renderHero(); }).observe(log, {childList:true});
+// coming back to Nova after a while -> home screen
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !isHome() && !busy && Date.now() - lastChatAt > 10*60000) goHome(); });
+// ---------------- Connect: friends, chat, posts, scores (needs Nova Cloud) ----------------
+const CLOUD_URL = 'https://nova-bot.hahatrollguy.workers.dev'; // Moon's Nova Cloud address (built in so friends only type an invite code)
+const cloudBase = () => ((D.sync && D.sync.url) || CLOUD_URL || '').replace(/\/+$/,'');
+const RULES = 'Connect is 18+ and friends-only. Be kind. No nudity or sexual content, harassment, hate, threats, or anything illegal. Alcohol, vaping and similar go in 21+ posts only. Don\'t share anyone\'s private info. Every picture is checked, reports go to Moon, and breaking the rules gets you removed.';
+let CX = { me:null, tab:'feed', req:0, unread:0, imgs:{}, chatWith:null, chatPoll:null, lastMsg:0 };
+async function gfetch(url, init = {}){ // Groq calls: your own key, or the shared brain on Nova Cloud
+  if(D.groqKey !== 'shared') return fetch(url, init);
+  const path = url.slice(GROQ.length);
+  if(path.startsWith('/models')) return new Response(JSON.stringify({data:[{id:'openai/gpt-oss-120b'},{id:'openai/gpt-oss-20b'},{id:'groq/compound-mini'}]}), {headers:{'content-type':'application/json'}});
+  if(!cloudBase() || !(D.sync && D.sync.code)) throw {friendly:'I lost my link to Nova Cloud. Join again from the Connect tab.'};
+  return fetch(cloudBase() + '/api/brain', {method:'POST', signal:init.signal, headers:{'Content-Type':'application/json'}, body: JSON.stringify({code:D.sync.code, body: JSON.parse(init.body || '{}')})});
+}
+async function cx(path, body){ return cloudCall('/api/c/' + path, body || {}); }
+function initials(n){ return String(n||'?').replace(/^@/,'').split(/[\s._]+/).filter(Boolean).slice(0,2).map(x => x[0].toUpperCase()).join('') || '?'; }
+function hue(s){ let h = 0; for(const c of String(s)) h = (h*31 + c.charCodeAt(0)) % 360; return h; }
+function avatar(u, size){
+  const el = document.createElement('div'); el.className = 'cx-av'; el.style.width = el.style.height = size+'px'; el.style.fontSize = Math.round(size*.38)+'px';
+  el.style.background = 'hsl('+hue(u && u.username)+' 55% 32%)'; el.textContent = initials(u && (u.display || u.username));
+  if(u && u.photo) loadImg(u.photo).then(src => { if(src){ el.textContent = ''; el.style.backgroundImage = 'url("'+src+'")'; } });
+  return el;
+}
+async function loadImg(id){ if(!id) return null; if(id in CX.imgs) return CX.imgs[id]; CX.imgs[id] = cx('img', {id}).then(j => (CX.imgs[id] = j.data || null)).catch(() => (CX.imgs[id] = null)); return CX.imgs[id]; }
+function shrinkImage(file, max){ return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas'); c.width = Math.round(im.width*k); c.height = Math.round(im.height*k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); let q = .82, d = c.toDataURL('image/jpeg', q); while(d.length > 550000 && q > .4){ q -= .1; d = c.toDataURL('image/jpeg', q); } res(d); }; im.onerror = rej; im.src = fr.result; }; fr.onerror = rej; fr.readAsDataURL(file); }); }
+function pickPhoto(max){ return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = async () => { const f = i.files[0]; if(!f) return res(null); try{ res(await shrinkImage(f, max)); }catch(e){ toast('Couldn\'t read that picture.'); res(null); } }; i.click(); }); }
+function sheet(html){ const bg = document.createElement('div'); bg.className = 'sheetbg'; bg.innerHTML = '<div class="sheet">'+html+'</div>'; bg.onclick = e => { if(e.target === bg || (e.target.dataset && e.target.dataset.x !== undefined)) bg.remove(); }; document.body.appendChild(bg); return bg; }
+let tsReady = null;
+function turnstile(box, key){ // Cloudflare robot check
+  if(!key) return Promise.resolve(() => '');
+  tsReady = tsReady || new Promise(r => { const s = document.createElement('script'); s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; s.onload = r; s.onerror = r; document.head.appendChild(s); });
+  return tsReady.then(() => { let tok = ''; try{ window.turnstile.render(box, {sitekey:key, theme:'dark', callback: t => { tok = t; }, 'expired-callback': () => { tok = ''; }}); }catch(e){} return () => tok; });
+}
+function ageFrom(d){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d||''); if(!m) return -1; const n = new Date(); let a = n.getFullYear() - +m[1]; if((n.getMonth()+1)*100 + n.getDate() < +m[2]*100 + +m[3]) a--; return a; }
+// ---- sign up with an invite (friends: no API key needed) / create a profile (already linked)
+async function openJoin(mode){
+  const linked = !!(D.sync && D.sync.code), create = mode === 'create' && linked;
+  const bg = sheet('<h3>'+(create ? '✨ Make your Connect profile' : '🎟 Join with an invite')+'</h3><div class="muted sub">'+(create ? 'Pick a username friends can find you by.' : 'Got a code from Moon? You\'re in: no API key needed.')+'</div>'
+    + (!create && !CLOUD_URL ? '<input class="j-url" placeholder="Nova Cloud address (from Moon)" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:10px">' : '')
+    + (!create ? '<input class="j-inv" placeholder="Invite code, e.g. JOIN-K7Q2XM" autocapitalize="characters" autocomplete="off" spellcheck="false" style="margin-top:10px">' : '')
+    + '<input class="j-user" placeholder="Username (letters, numbers, _ .)" autocapitalize="off" autocomplete="off" spellcheck="false" maxlength="20" style="margin-top:8px">'
+    + '<input class="j-name" placeholder="Display name" maxlength="30" style="margin-top:8px" value="'+esc(D.name||'')+'">'
+    + '<label style="margin-top:10px;display:block;color:var(--muted);font-size:13px">Birthday (Connect is 18+)<input class="j-dob" type="date" style="margin-top:4px;width:100%"></label>'
+    + '<div class="muted" style="font-size:12px;margin-top:10px;line-height:1.45">'+esc(RULES)+'</div>'
+    + '<label><input type="checkbox" class="j-agree"> I\'m 18 or older and I agree to these rules</label>'
+    + '<div class="j-ts" style="margin-top:10px;min-height:0"></div><div class="j-msg muted" style="font-size:13px;margin-top:6px"></div>'
+    + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>'+(create ? 'Create profile' : 'Join Nova')+'</button></div>');
+  const q = c => bg.querySelector(c), msg = t => { q('.j-msg').innerHTML = t; };
+  let getTok = () => '', infoFor = '';
+  const prep = async () => { const base = (q('.j-url') && q('.j-url').value.trim().replace(/\/+$/,'')) || cloudBase(); if(!base || base === infoFor) return base; infoFor = base;
+    try{ const r = await fetch((/^https?:/.test(base) ? '' : 'https://') + base + '/api/info', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}); const j = await r.json(); if(j.turnstile) getTok = await turnstile(q('.j-ts'), j.turnstile); }catch(e){ msg('<span class="bad">Can\'t reach that address.</span>'); } return base; };
+  if(!create){ if(q('.j-url')) q('.j-url').onblur = prep; else prep(); }
+  q('[data-go]').onclick = async () => {
+    const user = q('.j-user').value.trim().toLowerCase().replace(/^@/,''), name = q('.j-name').value.trim(), dob = q('.j-dob').value, age = ageFrom(dob);
+    if(!/^[a-z0-9_.]{3,20}$/.test(user)) return msg('<span class="bad">Usernames are 3–20 letters, numbers, _ or .</span>');
+    if(age < 0) return msg('<span class="bad">Enter your birthday.</span>');
+    if(age < 18){ D.cxUnder = true; save(); return msg('<span class="bad">Sorry, Connect is for people 18 and older. Everything else in Nova still works for you.</span>'); }
+    if(!q('.j-agree').checked) return msg('<span class="bad">Please agree to the rules.</span>');
+    const b = q('[data-go]'); b.disabled = true; b.textContent = 'One sec…';
+    try{
+      if(create){ const j = await cx('profile/create', {username:user, display:name, dob}); CX.me = j.profile; }
+      else {
+        let base = await prep(); if(!base) throw new Error('Enter the Nova Cloud address.'); if(!/^https?:/.test(base)) base = 'https://' + base;
+        const inv = q('.j-inv').value.trim(); if(!inv) throw new Error('Enter your invite code.');
+        const r = await fetch(base + '/api/join', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({invite:inv, username:user, display:name, dob, agree:true, turnstile:getTok(), tz:Intl.DateTimeFormat().resolvedOptions().timeZone})});
+        const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+        D.sync = Object.assign({}, D.sync || {}, {url:base, code:j.code, features:j.features, vapid:j.vapid});
+        if(!D.key && (!D.groqKey || D.groqKey === 'shared')){ D.groqKey = 'shared'; D.groqModels = ['openai/gpt-oss-120b','groq/compound-mini']; D.fast = true; }
+        if(name) D.name = name; CX.me = j.profile;
+      }
+      save(); bg.remove();
+      if($('setup').classList.contains('show')){ $('setup').classList.remove('show'); $('log').innerHTML = ''; renderAll(); goHome(); }
+      bubble('nova', 'Welcome to Nova, ' + (name || user) + '. You\'re on Connect as @' + user + '. Your friend code is ' + fmtCode(CX.me && CX.me.fcode) + ': share it so friends can add you. Want notifications? Tap Turn on notifications in the You tab.');
+      renderConnect(); if(typeof doSync === 'function') doSync();
+    }catch(e){ msg('<span class="bad">' + esc(e.message || e.friendly || 'Something went wrong.') + '</span>'); b.disabled = false; b.textContent = create ? 'Create profile' : 'Join Nova'; }
+  };
+}
+const fmtCode = c => c ? c.slice(0,3) + '-' + c.slice(3) : '';
+// ---- report / block
+function reportSheet(kind, target, who, after){
+  const bg = sheet('<h3>🚩 Report</h3><div class="muted sub">Goes to Moon. '+esc(who ? 'About '+who+'.' : '')+'</div><div class="seg"></div><textarea placeholder="What happened? (optional)"></textarea>'
+    + (kind !== 'user' && !who ? '' : '<label><input type="checkbox" class="r-block" checked> Also block them</label>')
+    + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>Send report</button></div>');
+  let reason = 'Spam'; const seg = bg.querySelector('.seg');
+  ['Spam','Harassment','Inappropriate picture','Seems under 18','Other'].forEach((r, i) => { const b = document.createElement('button'); b.textContent = r; b.classList.toggle('on', !i); b.onclick = () => { reason = r; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }; seg.appendChild(b); });
+  bg.querySelector('[data-go]').onclick = async () => {
+    const blk = bg.querySelector('.r-block'), owner = after && after.owner;
+    try{ await cx('report', {kind, target:String(target), reason: reason + (bg.querySelector('textarea').value.trim() ? ': ' + bg.querySelector('textarea').value.trim() : ''), block: kind === 'user' && blk && blk.checked});
+      if(blk && blk.checked && kind !== 'user' && owner) await cx('block', {id:owner});
+      bg.remove(); toast('Reported. Thanks for keeping Connect decent.'); if(after && after.done) after.done(); renderConnect(); }
+    catch(e){ toast('Couldn\'t send: ' + e.message); }
+  };
+}
+async function blockUser(u, done){ if(!confirm('Block ' + (u.display || u.username) + '? They won\'t be able to find you, message you, or see your posts.')) return; try{ await cx('block', {id:u.id}); toast('Blocked @' + u.username); if(done) done(); renderConnect(); }catch(e){ toast(e.message); } }
+// ---- someone's profile
+async function profileSheet(u, rel){
+  const bg = sheet('<div class="cx-ph"></div><h3 style="text-align:center;margin-top:8px"></h3><div class="muted" style="text-align:center" data-un></div><div class="cx-bio"></div><div class="cx-scores"></div><div class="cx-acts"></div>');
+  bg.querySelector('.cx-ph').appendChild(avatar(u, 84)); bg.querySelector('h3').textContent = u.display || u.username; bg.querySelector('[data-un]').textContent = '@' + u.username;
+  bg.querySelector('.cx-bio').textContent = u.bio || '';
+  const acts = bg.querySelector('.cx-acts'), btn = (t, cls, f) => { const b = document.createElement('button'); b.className = 'btn ' + (cls||''); b.textContent = t; b.onclick = f; acts.appendChild(b); return b; };
+  if(rel === 'friends'){ btn('💬 Message', '', () => { bg.remove(); openChat(u); });
+    btn('Remove friend', 'ghost', async () => { if(!confirm('Remove ' + (u.display||u.username) + ' as a friend?')) return; await cx('friend/remove', {id:u.id}); bg.remove(); renderConnect(); }); }
+  else if(rel === 'incoming'){ btn('Accept', '', async () => { await cx('friend/respond', {id:u.id, accept:true}); bg.remove(); toast('You\'re friends with @' + u.username + ' now'); renderConnect(); }); btn('Decline', 'ghost', async () => { await cx('friend/respond', {id:u.id, accept:false}); bg.remove(); renderConnect(); }); }
+  else if(rel === 'sent') btn('Request sent', 'ghost', () => {}).disabled = true;
+  else btn('➕ Add friend', '', async () => { try{ const j = await cx('friend/add', {id:u.id}); toast(j.status === 'friends' ? 'You\'re friends now!' : 'Request sent to @' + u.username); bg.remove(); renderConnect(); }catch(e){ toast(e.message); } });
+  btn('🚩 Report', 'ghost', () => { bg.remove(); reportSheet('user', u.id, '@' + u.username); });
+  btn('⛔ Block', 'ghost danger', () => blockUser(u, () => bg.remove()));
+}
+// ---- chat
+async function openChat(u){
+  CX.chatWith = u; CX.lastMsg = 0;
+  const bg = document.createElement('div'); bg.className = 'cx-chat'; bg.innerHTML = '<div class="cx-chd"><button class="cx-back" aria-label="Back">‹</button><span class="cx-chav"></span><b></b><button class="cx-more" aria-label="More">⋯</button></div><div class="cx-msgs"></div><div class="composer"><textarea rows="1" placeholder="Message…" maxlength="1000"></textarea><button class="btn icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+  bg.querySelector('.cx-chav').appendChild(avatar(u, 30)); bg.querySelector('b').textContent = u.display || u.username;
+  const box = bg.querySelector('.cx-msgs'), ta = bg.querySelector('textarea');
+  const close = () => { clearInterval(CX.chatPoll); CX.chatWith = null; bg.remove(); renderConnect(); };
+  bg.querySelector('.cx-back').onclick = close;
+  bg.querySelector('.cx-more').onclick = () => profileSheet(u, 'friends');
+  const add = m => { const d = document.createElement('div'); d.className = 'msg ' + (m.mine ? 'me' : 'nova'); d.textContent = m.text; d.dataset.time = new Date(m.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+    if(!m.mine){ let t; d.addEventListener('touchstart', () => { t = setTimeout(() => { if(confirm('Report this message?')) reportSheet('msg', m.id, '@' + u.username, {owner:u.id}); }, 650); }, {passive:true}); d.addEventListener('touchend', () => clearTimeout(t)); d.oncontextmenu = e => { e.preventDefault(); reportSheet('msg', m.id, '@' + u.username, {owner:u.id}); }; }
+    box.appendChild(d); };
+  const pull = async () => { try{ const j = await cx('msgs', {with:u.id, after:CX.lastMsg}); if(j.msgs.length){ j.msgs.forEach(add); CX.lastMsg = j.msgs[j.msgs.length-1].id; box.scrollTop = box.scrollHeight; } }catch(e){ if(/only message friends/.test(e.message)){ toast('You\'re not friends anymore.'); close(); } } };
+  const sendIt = async () => { const t = ta.value.trim(); if(!t) return; ta.value = ''; try{ await cx('send', {to:u.id, text:t}); await pull(); }catch(e){ ta.value = t; toast(e.message); } };
+  bg.querySelector('.composer .btn').onclick = sendIt;
+  ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendIt(); } });
+  document.body.appendChild(bg); await pull(); CX.chatPoll = setInterval(() => { if(!document.hidden) pull(); }, 3500);
+}
+// ---- the Connect tab
+const CX_TABS = [['feed','Feed'],['friends','Friends'],['chats','Chats'],['scores','Scores']];
+async function renderConnect(){
+  const v = $('cxBody'); if(!v) return;
+  const linked = !!(D.sync && D.sync.code);
+  if(!linked){ v.innerHTML = '<div class="card cx-empty"><div style="font-size:34px">👋</div><b>Connect with friends on Nova</b><p class="muted">Add friends by username or code, chat, share posts and compare game scores. Invite-only and 18+.</p><button class="btn wide" id="cxJoin">🎟 Join with an invite code</button><p class="muted" style="font-size:12px">Moon? Link Nova Cloud in the You tab first, then come back here.</p></div>'; $('cxJoin').onclick = () => openJoin('join'); cxBadge(); return; }
+  if(D.cxUnder){ v.innerHTML = '<div class="card cx-empty"><b>Connect is 18+</b><p class="muted">Everything else in Nova is all yours.</p></div>'; return; }
+  let me; try{ me = await cx('me'); }catch(e){ v.innerHTML = '<div class="card cx-empty"><b>Can\'t reach Nova Cloud</b><p class="muted">' + esc(e.message) + '</p><button class="btn" id="cxRetry">Try again</button></div>'; $('cxRetry').onclick = renderConnect; return; }
+  if(!me.profile){ v.innerHTML = '<div class="card cx-empty"><div style="font-size:34px">✨</div><b>Make your Connect profile</b><p class="muted">Pick a username so friends can find you.</p><button class="btn wide" id="cxMake">Create profile</button></div>'; $('cxMake').onclick = () => openJoin('create'); return; }
+  CX.me = me.profile; CX.req = me.requests; CX.unread = me.unread; cxBadge();
+  v.innerHTML = '<div class="cx-me card"><span class="cx-mav"></span><div class="cx-mi"><b></b><div class="muted" data-un></div><button class="cx-code" aria-label="Share your friend code"></button></div><button class="btn sm ghost" id="cxEdit">Edit</button></div>'
+    + '<div class="seg cx-seg"></div><div id="cxPane"></div>';
+  const mav = avatar(CX.me, 54); mav.title = 'Change picture'; mav.onclick = changeAvatar; v.querySelector('.cx-mav').appendChild(mav);
+  v.querySelector('.cx-mi b').textContent = CX.me.display; v.querySelector('[data-un]').textContent = '@' + CX.me.username;
+  const cb = v.querySelector('.cx-code'); cb.textContent = '🔗 Friend code ' + fmtCode(CX.me.fcode);
+  cb.onclick = async () => { const t = 'Add me on Nova! Username @' + CX.me.username + ' · friend code ' + fmtCode(CX.me.fcode); try{ if(navigator.share) await navigator.share({text:t}); else { await copyText(t); toast('Copied'); } }catch(e){} };
+  $('cxEdit').onclick = editProfile;
+  const seg = v.querySelector('.cx-seg');
+  CX_TABS.forEach(([id, lab]) => { const b = document.createElement('button'); b.textContent = lab + (id === 'friends' && CX.req ? ' · ' + CX.req : id === 'chats' && CX.unread ? ' · ' + CX.unread : ''); b.classList.toggle('on', CX.tab === id); b.onclick = () => { CX.tab = id; renderConnect(); }; seg.appendChild(b); });
+  ({feed:paneFeed, friends:paneFriends, chats:paneChats, scores:paneScores})[CX.tab]($('cxPane'));
+}
+function cxBadge(){ const d = document.querySelector('#cxTab .ndot'); if(d) d.hidden = !(CX.req || CX.unread); }
+async function changeAvatar(){ const data = await pickPhoto(512); if(!data) return; toast('Checking your picture…');
+  try{ const j = await cx('photo', {data, purpose:'avatar'}); delete CX.imgs[j.id]; toast(j.status === 'pending' ? 'Picture is waiting for a quick review by Moon.' : 'Looking good. Picture updated.'); renderConnect(); }catch(e){ toast(e.message); } }
+function editProfile(){
+  const bg = sheet('<h3>Edit profile</h3><input class="e-name" maxlength="30" placeholder="Display name"><textarea class="e-bio" maxlength="160" placeholder="A short bio (optional)"></textarea>'
+    + '<div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>Save</button></div>'
+    + '<div class="row" style="margin-top:14px;flex-wrap:wrap;gap:6px"><button class="btn sm ghost" data-pic>📷 Change picture</button><button class="btn sm ghost" data-blocked>Blocked people</button><button class="btn sm ghost danger" data-del>Delete my Connect account</button></div>');
+  bg.querySelector('.e-name').value = CX.me.display || ''; bg.querySelector('.e-bio').value = CX.me.bio || '';
+  bg.querySelector('[data-go]').onclick = async () => { try{ await cx('profile/update', {display:bg.querySelector('.e-name').value, bio:bg.querySelector('.e-bio').value}); bg.remove(); renderConnect(); }catch(e){ toast(e.message); } };
+  bg.querySelector('[data-pic]').onclick = () => { bg.remove(); changeAvatar(); };
+  bg.querySelector('[data-blocked]').onclick = async () => { const j = await cx('blocked'); bg.remove(); const b2 = sheet('<h3>Blocked</h3><div class="cx-list"></div><button class="btn ghost wide" data-x style="margin-top:10px">Done</button>');
+    const l = b2.querySelector('.cx-list'); if(!j.blocked.length) l.innerHTML = '<div class="muted">Nobody. Peaceful.</div>';
+    j.blocked.forEach(u => { const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<b></b><button class="btn sm ghost">Unblock</button>'; r.querySelector('b').textContent = '@' + u.username; r.querySelector('button').onclick = async () => { await cx('unblock', {id:u.id}); r.remove(); }; l.appendChild(r); }); };
+  bg.querySelector('[data-del]').onclick = async () => { if(!confirm('Delete your Connect account? Your profile, posts, messages and friends are removed for good. (Nova herself stays.)')) return; await cx('delete-account'); bg.remove(); CX.me = null; toast('Connect account deleted.'); renderConnect(); };
+}
+function timeAgo(t){ return ago(t); }
+async function paneFeed(el){
+  el.innerHTML = '<div class="card cx-compose"><textarea maxlength="500" placeholder="Share something with your friends…"></textarea><div class="cx-cprev" hidden></div><div class="row"><button class="btn sm ghost" data-pic>📷</button>' + (CX.me.adult21 ? '<label class="cx-21"><input type="checkbox"> 21+</label>' : '') + '<button class="btn sm" data-post style="margin-left:auto">Post</button></div></div><div class="cx-posts"><div class="muted" style="padding:10px">Loading…</div></div>';
+  let photo = null; const prev = el.querySelector('.cx-cprev');
+  el.querySelector('[data-pic]').onclick = async () => { const data = await pickPhoto(1280); if(!data) return; prev.hidden = false; prev.innerHTML = '<span class="muted">Checking picture…</span>';
+    try{ const j = await cx('photo', {data, purpose:'post'}); photo = j.id; CX.imgs[j.id] = data; prev.innerHTML = '<img src="' + data + '" alt=""><span class="muted">' + (j.status === 'pending' ? 'Waiting for Moon\'s review: your friends see it once it\'s approved.' : j.adult ? 'Marked 21+.' : 'Picture ready.') + '</span>'; if(j.adult){ const c = el.querySelector('.cx-21 input'); if(c){ c.checked = true; c.disabled = true; } } }
+    catch(e){ photo = null; prev.innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; } };
+  el.querySelector('[data-post]').onclick = async () => { const ta = el.querySelector('textarea'), a21 = el.querySelector('.cx-21 input');
+    if(!ta.value.trim() && !photo) return ta.focus();
+    try{ await cx('post', {text:ta.value, photo, adult: !!(a21 && a21.checked)}); toast('Posted'); paneFeed(el); }catch(e){ toast(e.message); } };
+  let j; try{ j = await cx('feed'); }catch(e){ el.querySelector('.cx-posts').innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; return; }
+  const box = el.querySelector('.cx-posts'); box.innerHTML = '';
+  if(!j.posts.length) box.innerHTML = '<div class="card muted">Nothing yet. Add some friends, or post something yourself.</div>';
+  j.posts.forEach(p => {
+    const c = document.createElement('div'); c.className = 'card cx-post';
+    c.innerHTML = '<div class="cx-ph2"><span></span><div><b></b><div class="muted" style="font-size:12px"></div></div>' + (p.adult ? '<span class="cx-tag">21+</span>' : '') + '<button class="cx-dots" aria-label="More">⋯</button></div><div class="cx-text"></div><div class="cx-img"></div><div class="cx-foot"><button class="cx-like"></button></div>';
+    c.querySelector('.cx-ph2 span').appendChild(avatar(p.author, 36)); c.querySelector('b').textContent = p.author.display; c.querySelector('.muted').textContent = '@' + p.author.username + ' · ' + timeAgo(p.at);
+    c.querySelector('.cx-text').textContent = p.text || '';
+    if(p.photo){ const ib = c.querySelector('.cx-img'); if(p.photoStatus === 'pending') ib.innerHTML = '<div class="muted" style="font-size:12px">🕓 Picture waiting for review (only you can see this post for now)</div>'; else loadImg(p.photo).then(src => { if(src){ const im = new Image(); im.src = src; im.alt = ''; ib.appendChild(im); } }); }
+    const lk = c.querySelector('.cx-like'), paint = () => { lk.textContent = (p.liked ? '❤️ ' : '🤍 ') + (p.likes || ''); lk.classList.toggle('on', p.liked); }; paint();
+    lk.onclick = async () => { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; paint(); try{ await cx('like', {id:p.id}); }catch(e){} };
+    c.querySelector('.cx-ph2 span').onclick = () => { if(!p.mine) profileSheet(p.author, 'friends'); };
+    c.querySelector('.cx-dots').onclick = () => { if(p.mine){ if(confirm('Delete this post?')) cx('post/delete', {id:p.id}).then(() => c.remove()); } else reportSheet('post', p.id, '@' + p.author.username, {owner:p.author.id, done:() => c.remove()}); };
+    box.appendChild(c);
+  });
+}
+async function paneFriends(el){
+  el.innerHTML = '<div class="card"><div class="row"><input class="cx-q" placeholder="Username or friend code" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn sm" data-find>Find</button></div><div class="cx-found"></div></div><div class="cx-lists"><div class="muted" style="padding:10px">Loading…</div></div>';
+  const q = el.querySelector('.cx-q'), found = el.querySelector('.cx-found');
+  const find = async () => { const s = q.value.trim(); if(!s) return; found.innerHTML = '<div class="muted">Looking…</div>';
+    try{ const j = await cx('find', {q:s}); if(!j.user){ found.innerHTML = '<div class="muted">No one with that exact username or code.</div>'; return; }
+      found.innerHTML = ''; const r = row(j.user, j.user.status === 'friends' ? 'Friends' : j.user.status === 'sent' ? 'Sent' : j.user.status === 'incoming' ? 'Accept' : 'Add', async b => {
+        try{ if(j.user.status === 'incoming') await cx('friend/respond', {id:j.user.id, accept:true}); else if(j.user.status === 'none'){ const k = await cx('friend/add', {id:j.user.id}); toast(k.status === 'friends' ? 'You\'re friends now!' : 'Request sent'); } renderConnect(); }catch(e){ toast(e.message); } }, j.user.status);
+      found.appendChild(r); }catch(e){ found.innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; } };
+  el.querySelector('[data-find]').onclick = find; q.addEventListener('keydown', e => { if(e.key === 'Enter') find(); });
+  function row(u, label, act, rel){ const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:12px"></div></div>';
+    r.querySelector('span').appendChild(avatar(u, 40)); r.querySelector('b').textContent = u.display; r.querySelector('.muted').textContent = '@' + u.username;
+    r.querySelector('.cx-rn').onclick = () => profileSheet(u, rel);
+    if(label){ const b = document.createElement('button'); b.className = 'btn sm' + (/Friends|Sent/.test(label) ? ' ghost' : ''); b.textContent = label; b.disabled = /Friends|Sent/.test(label); b.onclick = () => act(b); r.appendChild(b); }
+    return r; }
+  const j = await cx('friends'); const box = el.querySelector('.cx-lists'); box.innerHTML = '';
+  const sec = (t, arr, mk) => { if(!arr.length) return; const h = document.createElement('div'); h.className = 'sec'; h.textContent = t; box.appendChild(h); const c = document.createElement('div'); c.className = 'card'; arr.forEach(u => c.appendChild(mk(u))); box.appendChild(c); };
+  sec('Friend requests', j.incoming, u => { const r = row(u, 'Accept', async () => { await cx('friend/respond', {id:u.id, accept:true}); toast('You\'re friends with @' + u.username); renderConnect(); }, 'incoming'); const d = document.createElement('button'); d.className = 'btn sm ghost'; d.textContent = '✕'; d.setAttribute('aria-label','Decline'); d.onclick = async () => { await cx('friend/respond', {id:u.id, accept:false}); renderConnect(); }; r.appendChild(d); return r; });
+  sec('Friends', j.friends, u => row(u, '💬', () => openChat(u), 'friends'));
+  sec('Sent', j.outgoing, u => row(u, 'Sent', () => {}, 'sent'));
+  if(!j.friends.length && !j.incoming.length) box.insertAdjacentHTML('beforeend', '<div class="card muted">No friends yet. Share your friend code ' + fmtCode(CX.me.fcode) + ' or type a friend\'s username above.</div>');
+}
+async function paneChats(el){
+  el.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>';
+  const j = await cx('chats'); el.innerHTML = '';
+  if(!j.chats.length){ el.innerHTML = '<div class="card muted">Chats with your friends show up here. Add a friend first.</div>'; return; }
+  const c = document.createElement('div'); c.className = 'card';
+  j.chats.forEach(ch => { const r = document.createElement('div'); r.className = 'cx-row cx-chatrow'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:13px"></div></div>' + (ch.unread ? '<i class="cx-un">' + ch.unread + '</i>' : '');
+    r.querySelector('span').appendChild(avatar(ch.user, 44)); r.querySelector('b').textContent = ch.user.display;
+    r.querySelector('.muted').textContent = ch.last ? (ch.last.mine ? 'You: ' : '') + ch.last.text.slice(0, 60) + ' · ' + timeAgo(ch.last.at) : 'Say hi 👋';
+    r.onclick = () => openChat(ch.user); c.appendChild(r); });
+  el.appendChild(c);
+}
+const GAMES = [['novarun','🏃 Nova Run'],['novablocks','🧩 Nova Blocks'],['starhop','⭐ Starhop']];
+async function paneScores(el){
+  el.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>'; await pushScores();
+  const j = await cx('scores'); el.innerHTML = '';
+  GAMES.forEach(([id, name]) => { const list = j.boards[id] || []; const c = document.createElement('div'); c.className = 'card cx-board'; c.innerHTML = '<b>' + name + '</b>';
+    if(!list.length) c.insertAdjacentHTML('beforeend', '<div class="muted" style="font-size:13px;margin-top:4px">' + (id === 'starhop' ? 'Coming soon.' : 'No scores yet. Play a round!') + '</div>');
+    list.slice(0, 10).forEach((s, i) => { const r = document.createElement('div'); r.className = 'cx-row' + (s.me ? ' me' : ''); r.innerHTML = '<i class="cx-rank">' + (['🥇','🥈','🥉'][i] || (i+1)) + '</i><span></span><div class="cx-rn"><b></b></div><b class="cx-sc"></b>';
+      r.querySelector('span').appendChild(avatar(s, 30)); r.querySelector('.cx-rn b').textContent = s.me ? 'You' : s.display; r.querySelector('.cx-sc').textContent = Number(s.score).toLocaleString(); c.appendChild(r); });
+    el.appendChild(c); });
+}
+async function pushScores(){ // send your best game scores to your friends' leaderboards
+  if(!CX.me) return; const run = Math.max(0, ...Object.values((D.runLv && D.runLv.best) || {}).map(Number), +D.runBest || 0);
+  const tasks = []; if(run) tasks.push(cx('score', {game:'novarun', score:run})); if(D.blocksBest) tasks.push(cx('score', {game:'novablocks', score:D.blocksBest}));
+  await Promise.all(tasks).catch(() => {});
+}
+// check for friend requests + messages now and then
+setInterval(async () => { if(document.hidden || !(D.sync && D.sync.code) || !CX.me) return; try{ const m = await cx('me'); CX.req = m.requests; CX.unread = m.unread; cxBadge(); }catch(e){} }, 60000);
+
+$('joinOpen').onclick = () => openJoin('join');
+$('openNew').onclick = () => { renderNew(); showView('new'); D.seenNew = CHANGELOG[0].v; save(); newDot(); };
+$('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').click();
+// ---------------- What's New tab ----------------
+// at: exact time when known; day: date only (older versions where only the day is known)
+const SOON = { t:'Starhop', items:['Nova\'s first big game: a platformer with 4 heroes (Pip, Bolt, Mochi, Kai) and 3 worlds (Meadow Hills, Sugar Peaks, Cloud Kingdom)','On-screen buttons, or swipe controls if you prefer'] };
+const CHANGELOG = [
+  {v:'6.0', at:'2026-11-07T01:10:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
+  {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself']},
+  {v:'5.4', at:'2026-11-06T15:00:00-05:00', t:'Nova Run soundtrack', items:['6 original lo-fi house songs, one per level plus the menu','Sound effects for jumps, power-ups, crashes and level clears','Music slows in Slow-mo and speeds up near the finish, 🔊 to mute']},
+  {v:'5.3', at:'2026-11-06T14:37:00-05:00', t:'Nova Run levels & power-ups', items:['5 levels from Cruise to Event Horizon, unlocked one by one','Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump','Fair jump and slide timing, and scenery that rushes toward you']},
+  {v:'5.2', at:'2026-11-06T11:47:00-05:00', t:'New game: Nova Run', items:['A neon runner: swipe to switch lanes, jump and slide','The track keeps changing colors']},
+  {v:'5.1', at:'2026-11-06T11:12:00-05:00', t:'New game: Nova Blocks', items:['A falling-blocks puzzle with levels, a next-piece preview and your best score']},
+  {v:'5.0', at:'2026-11-06T10:41:00-05:00', t:'Nova\'s own ideas, built', items:['Week view that catches double-bookings','One-tap shift templates and rule-check badges','Copy and "Add to schedule" buttons under answers, export your week to Calendar','Roast mode, a smaller cleaner look, faster replies']},
+  {v:'4.6', day:'2026-11-05', t:'Full answers', items:['No more cutting answers short or just saying "Done."','Real tables and careful rule-checking for schedules']},
+  {v:'4.5', day:'2026-11-05', t:'Your voice lines', items:['Record your own voice for Nova\'s greeting, reminders and timers']},
+  {v:'4.4', day:'2026-11-05', t:'Nova\'s wish list', items:['Snooze button, email draft generator, extra thinking for hard questions','Nova announces her own updates']},
+  {v:'4.3', day:'2026-11-05', t:'Self-awareness', items:['Nova knows her own features and can run a self-check']},
+  {v:'4.2', day:'2026-11-05', t:'Never stuck', items:['Time limits so she can\'t hang, and a Stop button']},
+  {v:'4.0', at:'2026-11-05T12:45:00-05:00', t:'Big feature drop', items:['Photos, habit streaks, trivia and jokes, Discord link']},
+  {v:'3.0', at:'2026-11-05T10:51:00-05:00', t:'New look', items:['A full redesign with 4 color themes']},
+  {v:'2.1', at:'2026-11-05T08:35:00-05:00', t:'Backup brain', items:['Groq as a second brain when Google is having a moment','Faster replies']},
+  {v:'1.0', at:'2026-11-04T16:43:00-05:00', t:'Nova is born', items:['Chat, daily task reminders, schedule planning, time, weather and web search']}
+];
+function ago(ms){ const m = Math.round((Date.now() - ms)/60000); if(m < 1) return 'just now'; if(m < 60) return m+' min ago'; const h = Math.round(m/60); if(h < 24) return h+(h===1?' hour':' hours')+' ago';
+  const d = Math.round(h/24); if(d < 7) return d+(d===1?' day':' days')+' ago'; const w = Math.round(d/7); if(d < 30) return w+(w===1?' week':' weeks')+' ago'; const mo = Math.round(d/30); return mo+(mo===1?' month':' months')+' ago'; }
+function whenText(c){
+  if(c.at){ const d = new Date(c.at); return ago(d) + ' · ' + d.toLocaleDateString([], {month:'short', day:'numeric'}) + ', ' + d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+  const d = new Date(c.day + 'T12:00:00'); const days = Math.round((new Date(keyOf()+'T12:00:00') - d)/864e5);
+  return (days <= 0 ? 'today' : days === 1 ? 'yesterday' : days+' days ago') + ' · ' + d.toLocaleDateString([], {month:'short', day:'numeric'});
+}
+function renderNew(){
+  const box = $('newList'); if(!box) return; box.innerHTML = '';
+  const card = (c, cls) => { const el = document.createElement('div'); el.className = 'upd ' + (cls||'');
+    el.innerHTML = '<div class="uh"><span class="uv"></span><span class="ut"></span></div><div class="uw"></div><ul></ul>';
+    el.querySelector('.uv').textContent = c.v ? 'v'+c.v : 'soon'; el.querySelector('.ut').textContent = c.t;
+    el.querySelector('.uw').textContent = c.v ? whenText(c) : 'In the works';
+    if(cls === 'latest'){ const b = document.createElement('span'); b.className = 'ubadge'; b.textContent = 'LATEST'; el.querySelector('.uh').appendChild(b); }
+    c.items.forEach(i => { const li = document.createElement('li'); li.textContent = i; el.querySelector('ul').appendChild(li); });
+    box.appendChild(el); };
+  if(SOON) card(SOON, 'soon');
+  CHANGELOG.forEach((c, i) => card(c, i === 0 ? 'latest' : ''));
+}
+function newDot(){ document.querySelectorAll('#meTab .ndot, #openNew .ndot').forEach(dot => dot.hidden = D.seenNew === CHANGELOG[0].v); }
+function showView(v){ document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.v === v || (v === 'new' && x.dataset.v === 'me'))); document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v)); }
 // ---------------- feedback, crash reports, check-ins ----------------
 const FEEDBACK_TO = { email:'', sms:'+18038459158' }; // where testers' reports go. Empty = the iPhone share sheet (Messages, Mail, etc.)
 function logIssue(kind, msg){ try{ window.__novaErr && window.__novaErr({t:Date.now(), kind, msg:String(msg||'').slice(0,300)}); }catch(e){} }
@@ -1683,6 +2232,7 @@ function rateBar(t, raw, q){
   let anchor = t; while(anchor.nextElementSibling && /\b(act|src|draft|bar)\b/.test(anchor.nextElementSibling.className)) anchor = anchor.nextElementSibling;
   anchor.after(bar);
 }
+function placeCard(n){ if(isHome()){ n.classList.add('hcard'); $('hnotice').appendChild(n); } else { log.appendChild(n); scrollDown(true); } } // important cards show on the home screen too
 // crash prompt: Nova hit an error since the last report
 function crashPrompt(){
   const c = newCrashes(); if(!c.length) return;
@@ -1692,7 +2242,7 @@ function crashPrompt(){
   const [go, no] = n.querySelectorAll('button');
   go.onclick = async () => { const id = fbId(); const ok = await deliverReport('Nova crash report '+id, 'Nova crash report '+id+'\nFrom: '+(D.name||'(no name)')+'\n\n'+diag()); if(ok){ D.errSeen = Date.now(); save(); n.remove(); toast('Crash report '+id+' sent. Thank you!'); } };
   no.onclick = () => { D.errSeen = Date.now(); save(); n.remove(); };
-  log.appendChild(n); scrollDown(true);
+  placeCard(n);
 }
 // check-ins: after a few days of use, then every 2 weeks, and the day after an update
 function checkIn(){
@@ -1713,7 +2263,7 @@ function checkIn(){
     else { n.innerHTML = '<b>'+(i===4 ? 'Stop, I\'m blushing. ' : 'Solid. ')+'Anything you\'d add or change?</b><div class="row"><button class="btn sm">💡 Suggest something</button><button class="btn sm ghost">Nope, all good</button></div>';
       const [s1, s2] = n.querySelectorAll('button'); s1.onclick = () => { n.remove(); openFeedback('idea'); }; s2.onclick = () => { n.remove(); toast('Love that for us.'); }; }
   }; n.querySelector('.em').appendChild(b); });
-  setTimeout(() => { log.appendChild(n); scrollDown(true); }, 1500);
+  setTimeout(() => placeCard(n), 1500);
 }
 // ---------------- photos ----------------
 function clearPhoto(){ photo = null; $('photoPrev').hidden = true; $('photoI').value = ''; }
@@ -1744,7 +2294,7 @@ async function seePhoto(text, img, live){
   if(!reply && D.groqKey){
     const vm = await groqVisionModel();
     if(!vm) throw {friendly:'My eyes need a Google key (Groq\'s free plan doesn\'t have a vision model I can use right now). Add one in the You tab.'};
-    const r = await fetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
+    const r = await gfetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
       body: JSON.stringify({ model:vm, temperature:0.7, max_tokens:700, messages:[{role:'system', content:persona()}, {role:'user', content:[{type:'text', text:ask},{type:'image_url', image_url:{url:img.url}}]}] }) });
     const j = await r.json().catch(()=>({}));
     if(!r.ok) throw {friendly:'I couldn\'t look at that one ('+((j.error&&j.error.message)||r.status)+').'};
@@ -1756,7 +2306,7 @@ async function seePhoto(text, img, live){
 }
 async function groqVisionModel(){
   if(D.groqVision !== undefined && D.groqVisionAt > Date.now()-86400000) return D.groqVision;
-  try{ const r = await fetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+D.groqKey} }); const j = await r.json();
+  try{ const r = await gfetch(GROQ + '/models', { headers:{'Authorization':'Bearer '+D.groqKey} }); const j = await r.json();
     const ids = (j.data||[]).filter(m=>m.active!==false).map(m=>m.id);
     D.groqVision = ids.find(i=>/llama-4-scout/i.test(i)) || ids.find(i=>/llama-4-maverick/i.test(i)) || ids.find(i=>/vision|vl\b/i.test(i)) || null; D.groqVisionAt = Date.now(); save();
   }catch(e){ D.groqVision = null; }
@@ -1777,7 +2327,7 @@ async function maybeSummarize(){
     const txt = old.map(h => (h.role==='user' ? 'User: ' : 'Nova: ') + ((h.parts&&h.parts[0]&&h.parts[0].text)||'')).join('\n').slice(-12000);
     const ask = 'Summarize this earlier part of a chat between a user and their assistant Nova in at most 120 words. Keep ONLY what matters later: names, rules/constraints, numbers, decisions, the current task and its latest version (e.g. the final schedule in compact form), and preferences. No intro.\n\n' + (D.chatSummary ? 'Earlier summary: '+D.chatSummary+'\n\n' : '') + txt;
     let sum = '';
-    if(D.groqKey){ try{ const m = await (await fetch(GROQ + '/chat/completions', {method:'POST', signal:timed(25000).signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey}, body:JSON.stringify({model:(D.groqModels||[])[0]||'openai/gpt-oss-120b', messages:[{role:'user', content:ask}], max_tokens:400, temperature:0.2})})).json(); sum = m.choices[0].message.content || ''; }catch(e){} }
+    if(D.groqKey){ try{ const m = await (await gfetch(GROQ + '/chat/completions', {method:'POST', signal:timed(25000).signal, headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey}, body:JSON.stringify({model:(D.groqModels||[])[0]||'openai/gpt-oss-120b', messages:[{role:'user', content:ask}], max_tokens:400, temperature:0.2})})).json(); sum = m.choices[0].message.content || ''; }catch(e){} }
     if(!sum && D.key){ try{ const j = await gemini({contents:[{role:'user', parts:[{text:ask}]}], generationConfig:{temperature:0.2, maxOutputTokens:400}}); sum = (((j.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||'').join(''); }catch(e){} }
     if(sum.trim()){ D.chatSummary = sum.trim().slice(0, 1500); history = history.slice(-12); while(history.length && history[0].role !== 'user') history.shift(); save(); saveChat(); }
   }finally{ summarizing = false; }
@@ -1792,9 +2342,10 @@ document.querySelectorAll('#chips .chip:not(#fbChip)').forEach(c => c.onclick = 
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on', x===b));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id==='v-'+b.dataset.v));
+  if(b.dataset.v === 'connect') renderConnect();
   renderAll();
 });
-function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); }
+function renderAll(){ renderTasks(); renderSched(); renderMe(); tick(); renderGlance(); renderHero(); }
 function applyTheme(){ const t = D.theme || 'arc'; document.documentElement.dataset.theme = t;
   document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b.dataset.t===t));
   const h = new Date().getHours(); document.documentElement.classList.toggle('night', D.night!==false && (h >= 21 || h < 6));
@@ -1834,7 +2385,7 @@ function weatherHeadsUp(){
 async function refreshWeather(quiet){
   if(!quiet) $('gwS').textContent = 'Checking…';
   try{ const w = await getWeather(''); const td = w.days && w.days[0] || {};
-    D.locOk = true; D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
+    D.locOk = true; setTimeout(renderHero, 0); D.lastWeather = {temp:w.now.temp, sky:w.now.sky, at:Date.now(), rain:td.rain_chance, daySky:td.sky, high:td.high, low:td.low}; save(); renderGlance(); weatherHeadsUp(); }
   catch(e){ if(e && e.code === 1) D.locOk = false; if(!quiet || !D.lastWeather) $('gwS').textContent = e && e.code === 1 ? 'Location off · tap' : 'Tap to retry'; }
 }
 $('glWeather').onclick = () => refreshWeather();
@@ -1878,7 +2429,7 @@ function renderTasks(){
   if(live.length){ tb.innerHTML = '<div class="sec">Timers</div>';
     live.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b><small></small></div><button class="del">×</button>';
       el.querySelector('b').textContent = x.label; el.querySelector('small').dataset.at = x.at; el.querySelector('small').className = 'tleft';
-      el.querySelector('.del').onclick = () => { D.timers = D.timers.filter(y=>y.id!==x.id); save(); renderTasks(); }; tb.appendChild(el); }); updateTimerText(); }
+      el.querySelector('.del').onclick = () => { D.timers = D.timers.filter(y=>y.id!==x.id); save(); renderTasks(); cloudTimer(x, true); }; tb.appendChild(el); }); updateTimerText(); }
 }
 $('tAdd').onclick = () => { const v=$('tText').value.trim(); if(!v) return; D.tasks.push({id:uid(), text:v.slice(0,140), time:$('tTime').value, done:''}); save(); $('tText').value=''; $('tTime').value=''; renderTasks(); };
 
@@ -1987,7 +2538,7 @@ function renderMe(){
   if(!D.facts.length) f.innerHTML='<div class="empty">Nothing yet. Try “remember my birthday is May 3”.</div>';
   D.facts.forEach(x => { const el=document.createElement('div'); el.className='item'; el.innerHTML='<div class="tx"><b></b></div><button class="del" aria-label="Forget">×</button>';
     el.querySelector('b').textContent=x.text; el.querySelector('.del').onclick=()=>{ D.facts=D.facts.filter(y=>y.id!==x.id); save(); renderMe(); toast('Forgotten', () => { D.facts.push(x); save(); renderMe(); }); }; f.appendChild(el); });
-  $('brainInfo').innerHTML = (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : (D.groqKey ? 'Google: not set (Groq is doing the thinking)' : '<span class="bad">No key yet.</span>'))
+  $('brainInfo').innerHTML = D.groqKey === 'shared' && !D.key ? 'Nova Cloud shared brain · <span class="ok">on</span><br>Daily limit set by Moon. Add your own free key below for no limit.' : (D.key ? 'Google Gemini (free) · <span class="ok">'+esc(D.model||'auto')+'</span><br>Key ends in …'+esc(D.key.slice(-4)) : (D.groqKey ? 'Google: not set (Groq is doing the thinking)' : '<span class="bad">No key yet.</span>'))
     + '<br>Backup: ' + (D.groqKey ? '<span class="ok">Groq ready</span>' : 'none');
 }
 $('nameI').addEventListener('change', () => { D.name = $('nameI').value.trim().slice(0,40); save(); tick(); });
@@ -2044,10 +2595,11 @@ async function doSync(manual){
     const oldF = Object.fromEntries(D.facts.map(f=>[f.text,f]));
     D.facts = j.facts.map(t => oldF[t] || {id:uid(), text:t});
     if(j.name && !D.name) D.name = j.name;
+    if(j.features) S.features = j.features; if(j.vapid) S.vapid = j.vapid;
     S.snap = Object.fromEntries(localItems().map(i=>[i.uid, itemHash(i)])); S.snapFacts = D.facts.map(f=>f.text);
     S.last = Date.now(); S.err = '';
     store.set('nova', D); renderAll();
-    if(manual) bubble('note', 'Synced with Discord ✓');
+    if(manual) bubble('note', 'Synced with Nova Cloud ✓');
   }catch(e){
     S.err = String(e.message||e).slice(0,140); store.set('nova', D); renderMe();
     if(manual) bubble('note', 'Sync failed: '+S.err);
@@ -2056,21 +2608,28 @@ async function doSync(manual){
 $('linkBtn').onclick = async () => {
   let url = $('linkUrl').value.trim(), code = $('linkCode').value.replace(/\s+/g,'').toUpperCase();
   if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  if(!url || code.length < 10){ $('linkInfo').innerHTML = '<span class="bad">Enter the address and code that /link gave you in Discord.</span>'; return; }
+  if(!url || code.length < 10){ $('linkInfo').innerHTML = '<span class="bad">Enter the address and code from your Nova Cloud setup page (or /link in Discord).</span>'; return; }
   $('linkBtn').disabled = true; $('linkBtn').textContent = 'Linking…';
   // first link: everything on this phone counts as new, so it gets uploaded
   D.sync = { url, code, snap:{}, snapFacts:[], last:0 };
   await doSync();
-  $('linkBtn').disabled = false; $('linkBtn').textContent = 'Link Discord';
+  $('linkBtn').disabled = false; $('linkBtn').textContent = 'Link Nova Cloud';
   if(D.sync.err){ const err = D.sync.err; D.sync = null; save(); renderMe(); $('linkInfo').innerHTML = '<span class="bad">Couldn\'t link:</span> '+esc(err); }
-  else bubble('nova', pick(['Linked with Discord. Now I can nag you on two platforms. Efficiency.','Discord link established. Your reminders now follow you everywhere. Like me, but helpful.']));
+  else bubble('nova', pick(['Linked with Nova Cloud. I now exist in two places at once. Next step: tap "Turn on notifications" in the You tab.','Nova Cloud link established. I\'m officially always on. Tap "Turn on notifications" in the You tab so I can actually reach you.']));
 };
 $('syncNow').onclick = () => doSync(true);
-$('unlinkBtn').onclick = () => { D.sync = null; save(); renderMe(); bubble('note','Unlinked from Discord. Everything stays on this phone.'); };
+$('unlinkBtn').onclick = async () => { if(D.sync && D.sync.push){ try{ await disablePush(); }catch(e){} } D.sync = null; if(D.groqKey === 'shared'){ D.groqKey = ''; D.groqModels = []; } CX.me = null; save(); if(!D.key && !D.groqKey) showSetup(); renderMe(); bubble('note','Unlinked from Nova Cloud. Everything stays on this phone.'); };
+$('pushBtn').onclick = async () => { const b = $('pushBtn'); b.disabled = true; try{ if(D.sync.push) await disablePush(); else await enablePush(); }catch(e){ bubble('note', 'Couldn\'t turn on notifications: ' + (e.message||e)); } b.disabled = false; };
+$('heyBtn').onclick = heySheet;
+$('scList').onchange = e => { D.shortcuts = e.target.value.split(',').map(x => x.trim()).filter(Boolean).slice(0, 30); save(); };
 function renderLink(){
   const S = D.sync, linked = !!(S && S.code);
   $('linkForm').hidden = linked; $('linkedRow').hidden = !linked;
-  if(linked) $('linkInfo').innerHTML = '<span class="ok">Linked ✓</span> '+esc(S.url.replace(/^https?:\/\//,''))+'<br>'+(S.err ? '<span class="bad">Last sync failed: '+esc(S.err)+'</span>' : S.last ? 'Last synced '+new Date(S.last).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : 'Not synced yet');
+  if(linked){ $('linkInfo').innerHTML = '<span class="ok">Linked ✓</span> '+esc(S.url.replace(/^https?:\/\//,''))+'<br>'+(S.err ? '<span class="bad">Last sync failed: '+esc(S.err)+'</span>' : S.last ? 'Last synced '+new Date(S.last).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) : 'Not synced yet');
+    const F = S.features || {}, y = (on, t, n) => '<div>'+(on ? '<span class="ok">●</span> ' : '<span class="muted">○</span> ')+t+(on ? '' : ' <span class="muted">· '+n+'</span>')+'</div>';
+    $('cloudFeat').innerHTML = y(S.push, '🔔 Notifications', 'off on this phone') + y(F.email, '✉️ Send email', 'add Gmail in Cloudflare') + y(F.discord, '💬 Discord', 'optional');
+    $('pushBtn').textContent = S.push ? '🔕 Turn off notifications' : '🔔 Turn on notifications'; $('pushBtn').className = S.push ? 'btn ghost wide' : 'btn wide'; }
+  $('scList').value = (D.shortcuts || []).join(', ');
 }
 setInterval(() => { if(!document.hidden && D.sync && D.sync.code) doSync(); }, 120000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden && D.sync && D.sync.code) doSync(); });
@@ -2105,7 +2664,7 @@ const Blocks = (() => {
   function end(){
     over = true; stopLoop();
     const best = D.blocksBest || 0, isBest = score > best;
-    if(isBest){ D.blocksBest = score; save(); }
+    if(isBest){ D.blocksBest = score; save(); try{ pushScores(); }catch(e){} }
     $('gOverT').textContent = isBest && score > 0 ? 'New high score!' : 'Game over';
     const lines_ = lines;
     $('gOverS').textContent = isBest && score > 0 ? pick(['New record. I\'ll allow it.','Personal best. I\'m pretending not to be impressed.','A new high score. Frame it.'])
@@ -2635,7 +3194,7 @@ const Run = (() => {
     if(active.double > 0){ g.strokeStyle = usedDouble ? 'rgba(125,255,154,.3)' : '#7dff9a'; g.lineWidth = Math.max(1.5, r*0.1); [-1,1].forEach(sd => { g.beginPath(); g.moveTo(P.x + sd*r*1.15, P.y + r*0.2); g.lineTo(P.x + sd*r*1.6, P.y - r*0.35); g.lineTo(P.x + sd*r*1.25, P.y - r*0.1); g.stroke(); }); }
   }
   function loop(t){ if(paused || over) return; const dt = Math.min(0.05, (t - (last || t))/1000); last = t; update(dt); if(!over) draw(t); raf = requestAnimationFrame(loop); }
-  function endRun(){ over = true; if(raf) cancelAnimationFrame(raf); const sc = score(), P_ = prog(), best = P_.best[lvl] || 0, isBest = sc > best; if(isBest) P_.best[lvl] = sc; D.runBest = Math.max(D.runBest||0, sc); D.runLast = {score:sc, cells, level:lvl+1, at:Date.now()}; save(); return {sc, best, isBest}; }
+  function endRun(){ over = true; if(raf) cancelAnimationFrame(raf); const sc = score(), P_ = prog(), best = P_.best[lvl] || 0, isBest = sc > best; if(isBest) P_.best[lvl] = sc; D.runBest = Math.max(D.runBest||0, sc); D.runLast = {score:sc, cells, level:lvl+1, at:Date.now()}; save(); try{ pushScores(); }catch(e){} return {sc, best, isBest}; }
   function crash(k){
     try{ navigator.vibrate && navigator.vibrate([60,40,90]); }catch(e){}
     NovaMusic.stop(); NovaMusic.sfx('Crash'); setTimeout(() => { if(over && !$('rOver').hidden) NovaMusic.sting('respawn'); }, 450);
@@ -2693,7 +3252,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '5.5'; window.__novaVer = VERSION;
+const VERSION = '6.0'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -2703,6 +3262,8 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '6.0': 'Update installed: v6.0, the big one. Connect is here: add friends with your friend code, chat, post and see who\'s winning at Nova Run. I also got a calmer home screen, notifications when I\'m closed, and a Send button for emails. Check the Connect tab. I\'ll wait.',
+  '5.6': 'Update installed: v5.6. New home screen: just me, front and center, with your day in one line. Tap me to talk, swipe up for our chat. The grid is gone, and there\'s a New tab with every update I\'ve ever had. I\'ve been busy.',
   '5.5': 'Update installed: v5.5, the soft-launch edition. The mic finally behaves: tap it (or me), talk, pause, and I send it. No more listening forever. When you ask for a game, it actually opens. And there\'s 👍 👎 on my answers plus a Send feedback button in the You tab, so you can tell Moon exactly what I got wrong. Be honest. I can take it. Probably.',
   '5.4': 'Update installed: v5.4. Nova Run has a soundtrack now: 6 original songs in a lo-fi house style (one per level plus the menu), sound effects for jumps, power-ups and crashes, and the music slows down in Slow-mo. Tap 🔊 in the game to mute. I composed it myself. Live. In your phone.',
   '5.3': 'Update installed: v5.3. Nova Run got serious: 5 levels from Cruise to Event Horizon, power-ups (🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump), scenery that actually rushes at you, and I fixed the jump. It wasn\'t you. Mostly.',
@@ -2723,18 +3284,19 @@ else {
   prev.forEach(h => { const t = h.parts && h.parts[0] && h.parts[0].text; if(t){ const b = bubble(h.role==='user'?'me':'nova', t, h.t); if(h.role!=='user'){ renderRich(b, t); enhance(b, t); } } });
   if(prev.length) bubble('note', '— earlier —');
   bubble('nova', pick(['Nova online. What are we tackling?','Systems up. Coffee status: yours, not mine. What do you need?',
-    'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.']));
+    'Back again. I\'d say I missed you, but I was busy being software. What\'s up?','Ready when you are. Reminders, plans, the internet, witty remarks. Pick one.'])).classList.add('hello');
 }
 loadClipFlags();
-setTimeout(() => { try{ if(D.key) fetch(API + '/models?pageSize=1', {headers:{'x-goog-api-key':D.key}}).catch(()=>{}); if(D.groqKey) fetch(GROQ + '/models', {headers:{'Authorization':'Bearer '+D.groqKey}}).catch(()=>{}); }catch(e){} }, 300);
+setTimeout(() => { try{ if(D.key) fetch(API + '/models?pageSize=1', {headers:{'x-goog-api-key':D.key}}).catch(()=>{}); if(D.groqKey) gfetch(GROQ + '/models', {headers:{'Authorization':'Bearer '+D.groqKey}}).catch(()=>{}); }catch(e){} }, 300);
 flushOutbox();
 if(D.sync && D.sync.code) doSync();
 if(D.seenVersion !== VERSION){
   const note = WHATS_NEW[VERSION];
-  if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note); history.push({role:'model', parts:[{text:note}]}); saveChat(); if(D.voice){ const say = () => speak(note); document.addEventListener('touchend', say, {once:true}); document.addEventListener('click', say, {once:true}); } }, 600); }
+  if(note && (D.key || D.groqKey)){ setTimeout(() => { bubble('nova', note + ' (Everything that changed is in the New tab.)'); history.push({role:'model', parts:[{text:note}]}); saveChat(); if(D.voice){ const say = () => speak(note); document.addEventListener('touchend', say, {once:true}); document.addEventListener('click', say, {once:true}); } }, 600); }
   D.seenVersion = VERSION; D.verSince = {v:VERSION, at:Date.now()}; save();
 }
-renderFb();
+renderFb(); renderNew(); newDot(); goHome();
+if(D.sync && D.sync.code) cx('me').then(m => { if(m.profile){ CX.me = m.profile; CX.req = m.requests; CX.unread = m.unread; cxBadge(); } }).catch(()=>{});
 if(D.key || D.groqKey){ setTimeout(crashPrompt, 1200); checkIn(); }
 if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 window.__novaBooted = true;
