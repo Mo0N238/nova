@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- © 2026 Moon. All rights reserved. See LICENSE. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copy Nova Cloud code</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#05080f;color:#eaf3ff;font:17px/1.5 -apple-system,system-ui,sans-serif;padding:24px 18px}
+.w{max-width:520px;margin:0 auto}h1{font-size:26px;margin:0 0 6px}p{color:#b6c4d9;margin:6px 0}
+button{width:100%;min-height:64px;border:none;border-radius:18px;background:#3fc6ff;color:#03111a;font:inherit;font-size:20px;font-weight:700;margin:18px 0 8px}
+button:disabled{opacity:.5}.ok{color:#2fe0c8;font-weight:600}ol{padding-left:22px;color:#b6c4d9}li{margin:8px 0}b{color:#eaf3ff}
+</style></head><body><div class="w">
+<h1>Nova Cloud server code</h1><p id="v">Loading…</p>
+<button id="b" disabled>Loading…</button><p id="m"></p>
+<ol>
+<li>Tap the big button above.</li>
+<li>In Cloudflare, open <b>nova-bot</b> → <b>Edit code</b>.</li>
+<li>Tap inside the code once, then tap and hold → <b>Select All</b> → <b>Paste</b>.</li>
+<li>Tap <b>Deploy</b>, then check <b>nova-bot.hahatrollguy.workers.dev</b> says the new version.</li>
+</ol>
+<p style="font-size:14px">If the code editor won't select or paste: in Safari tap <b>aA</b> → <b>Request Desktop Website</b>, then try again.</p>
+</div><script>
+let code = '';
+fetch('worker.txt?' + Date.now()).then(r => r.text()).then(t => { code = t; const m = /const VERSION = '([\d.]+)'/.exec(t);
+  document.getElementById('v').textContent = 'Version ' + (m ? m[1] : '?') + ' · ' + t.split('\n').length + ' lines';
+  const b = document.getElementById('b'); b.disabled = false; b.textContent = '📋 Copy server code'; })
+ .catch(() => { document.getElementById('v').textContent = 'Couldn\'t load the code. Check your internet and reload.'; });
+document.getElementById('b').onclick = async () => { const m = document.getElementById('m');
+  try{ await navigator.clipboard.writeText(code); m.innerHTML = '<span class="ok">✓ Copied all of it. Now paste it in Cloudflare.</span>'; }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = code; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, code.length); const ok = document.execCommand('copy'); ta.remove();
+    m.innerHTML = ok ? '<span class="ok">✓ Copied all of it. Now paste it in Cloudflare.</span>' : 'Copy was blocked. Reload the page and try again.'; } };
+</script></body></html>
