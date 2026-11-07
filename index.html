@@ -499,6 +499,14 @@ input[type=time]{min-height:38px}
 .muted{font-size:13px}
 .banner,.hint{margin:0 12px 6px;padding:8px 10px;font-size:13px}
 .empty{font-size:13px}
+/* v6.2 layout fix: fill to the very bottom, crisp top */
+html,body{min-height:100%;background:var(--bg)}
+.app{top:0;bottom:0;height:auto}
+.app.kb{bottom:auto;height:var(--app-h,100%)}
+header{background:var(--bg);position:relative;z-index:2;box-shadow:0 1px 0 var(--line)}
+.hd h1{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--text);-webkit-text-fill-color:currentColor;text-shadow:none;filter:none;-webkit-font-smoothing:antialiased}
+header .orb{box-shadow:0 0 8px var(--glow)}
+header .orb::after{box-shadow:0 0 6px var(--accent)}
 </style>
 </head>
 <body>
@@ -2182,7 +2190,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = null;
 const CHANGELOG = [
-  {v:'6.2', at:'2026-11-07T08:15:00-05:00', t:'Smarter answers', items:['Say "no seriously" or "for real" and Nova drops the jokes and gives straight answers. Laugh and she\'s playful again','Instant math: "what\'s 10+10", "12 x 7", "15% of 80"','Questions with one right answer get the answer first','Fixed: "What time should I wake up?" and "What day is Christmas?" no longer get the current time or date','Fixed: answers that start with a number, empty "Done." replies, and code now shows in a code box']},
+  {v:'6.2', at:'2026-11-07T08:15:00-05:00', t:'Smarter answers', items:['Say "no seriously" or "for real" and Nova drops the jokes and gives straight answers. Laugh and she\'s playful again','Instant math: "what\'s 10+10", "12 x 7", "15% of 80"','Questions with one right answer get the answer first','Fixed: "What time should I wake up?" and "What day is Christmas?" no longer get the current time or date','Fixed: answers that start with a number, empty "Done." replies, and code now shows in a code box','Fixed: Nova now fills the whole screen to the bottom, and the top bar is sharp instead of blurry','The ⭐ Starhop button opens the game instantly']},
   {v:'6.1', at:'2026-11-07T03:30:00-05:00', t:'New game: Starhop', items:['Nova\'s main game: a bright platformer that feels nothing like Nova','4 heroes, each with a move: Pip wall-jumps, Bolt hovers, Mochi ground-pounds, Kai double-jumps','3 worlds, 9 levels: Meadow Hills, Sugar Peaks, Cloud Kingdom. Grab stars, find the 3 big stars, bop enemies','On-screen buttons or swipe controls, chiptune music, saves your progress','Your Starhop total shows on the Connect leaderboard']},
   {v:'6.0', at:'2026-11-07T01:10:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
   {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself']},
@@ -2388,7 +2396,7 @@ function grow(){ const t=$('inp'); t.style.height='auto'; t.style.height=Math.mi
 $('inp').addEventListener('input', grow);
 $('inp').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 $('sendBtn').onclick = () => { if(busy){ if(stopCtl && Date.now() - sentAt > 1500) stopCtl.abort(); return; } send(); };
-document.querySelectorAll('#chips .chip:not(#fbChip)').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
+document.querySelectorAll('#chips .chip:not(#fbChip):not(#shChip):not(#runChip)').forEach(c => c.onclick = () => send(c.dataset.q || c.textContent));
 
 // ---------------- tabs & screens ----------------
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -3310,6 +3318,8 @@ const standalone = window.navigator.standalone === true || matchMedia('(display-
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
 $('hintX').onclick = () => { $('installHint').hidden = true; store.set('nova_hint_off', true); };
 function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : window.innerHeight;
+  const kb = !!vv && vv.height < Math.max(window.innerHeight, screen.height * 0.75) - 120;
+  appEl.classList.toggle('kb', kb);
   document.documentElement.style.setProperty('--app-h', h+'px'); window.scrollTo(0,0); log.scrollTop = log.scrollHeight; }
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
