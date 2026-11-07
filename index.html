@@ -1383,6 +1383,8 @@ async function callModelInner(model, body, onText, tc, b, url, T, aborted){
   return {status:200, data:{candidates: parts.length || finishReason ? [{content:{role:'model', parts}, finishReason}] : [], promptFeedback}};
 }
 async function gemini(body, onText){
+  // Google only accepts role + parts. Chat history also keeps a time stamp (t) for the "earlier" divider: never send it.
+  if(Array.isArray(body.contents)) body = Object.assign({}, body, {contents: body.contents.map(c => ({role:c.role, parts:c.parts}))});
   if(!D.key) { if(!D.groqKey) showSetup(); throw {friendly: D.groqKey ? 'No Google key set (using Groq only).' : 'I need my brain key first.'}; }
   if(!D.models || !D.models.length){ try{ await chooseModel(); }catch(e){} }
   const order = [D.model, ...(D.models||[]).filter(m => m !== D.model)].filter(Boolean);
@@ -2191,6 +2193,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = null;
 const CHANGELOG = [
+  {v:'6.3', at:'2026-11-07T08:45:00-05:00', t:'Google brain fixed', items:['Fixed: Nova\'s Google brain was turning down every message and quietly switching to the backup. She\'s back on her main brain, so answers are smarter and faster']},
   {v:'6.2', at:'2026-11-07T08:15:00-05:00', t:'Smarter answers', items:['Say "no seriously" or "for real" and Nova drops the jokes and gives straight answers. Laugh and she\'s playful again','Instant math: "what\'s 10+10", "12 x 7", "15% of 80"','Questions with one right answer get the answer first','Fixed: "What time should I wake up?" and "What day is Christmas?" no longer get the current time or date','Fixed: answers that start with a number, empty "Done." replies, and code now shows in a code box','Fixed: Nova now fills the whole screen to the bottom, and the top bar is sharp instead of blurry','The ⭐ Starhop button opens the game instantly','Feedback and crash reports now go straight to Moon\'s admin page','Starhop now works offline from the first launch']},
   {v:'6.1', at:'2026-11-07T03:30:00-05:00', t:'New game: Starhop', items:['Nova\'s main game: a bright platformer that feels nothing like Nova','4 heroes, each with a move: Pip wall-jumps, Bolt hovers, Mochi ground-pounds, Kai double-jumps','3 worlds, 9 levels: Meadow Hills, Sugar Peaks, Cloud Kingdom. Grab stars, find the 3 big stars, bop enemies','On-screen buttons or swipe controls, chiptune music, saves your progress','Your Starhop total shows on the Connect leaderboard']},
   {v:'6.0', at:'2026-11-07T01:10:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
@@ -3314,7 +3317,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '6.2'; window.__novaVer = VERSION;
+const VERSION = '6.3'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION;
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -3326,6 +3329,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '6.3': 'Update installed: v6.3. My main brain was rejecting every message this morning and I was running on the backup. Fixed. Feedback now goes straight to Moon, too.',
   '6.2': 'Update installed: v6.2. I got sharper overnight: say "no seriously" and I\'ll drop the jokes, simple math is instant, and I put the answer first now. Starhop is still waiting for you.',
   '6.1': 'Update installed: v6.1. Starhop is here: my main game. Four heroes, three worlds, nine levels, and absolutely no neon. Tap ⭐ Starhop or say "play starhop". Your score goes on the Connect leaderboard, so no pressure.',
   '6.0': 'Update installed: v6.0, the big one. Connect is here: add friends with your friend code, chat, post and see who\'s winning at Nova Run. I also got a calmer home screen, notifications when I\'m closed, and a Send button for emails. Check the Connect tab. I\'ll wait.',
