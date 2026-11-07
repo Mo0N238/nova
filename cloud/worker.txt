@@ -1,0 +1,1053 @@
+// =====================================================================
+//  NOVA CLOUD — runs free, 24/7 on Cloudflare Workers.
+//  Phone notifications, email, "Hey Nova" from anywhere, Connect (friends, chat,
+//  posts, scores) with safety checks, a shared brain for friends, and (optional) Discord.
+//  Paste this whole file into your Cloudflare Worker and press Deploy.
+//  Setup steps: see "NOVA CLOUD SETUP.txt".
+// =====================================================================
+import { connect } from 'cloudflare:sockets';
+const VERSION = '4.0';
+const DISCORD = 'https://discord.com/api/v10';
+
+export default {
+  async fetch(req, env, ctx) {
+    const url = new URL(req.url);
+    try {
+      if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+      if (url.pathname === '/api/sync' && req.method === 'POST') return await syncApi(req, env);
+      if (url.pathname.startsWith('/api/admin/') && req.method === 'POST') return await adminApi(url.pathname, req, env);
+      if ((url.pathname === '/api/info' || url.pathname === '/api/join') && req.method === 'POST') return await publicApi(url.pathname, req, env);
+      if (url.pathname.startsWith('/api/') && req.method === 'POST') return await cloudApi(url.pathname, req, env);
+      if (url.pathname === '/admin') return new Response(ADMIN_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+      if (req.method === 'POST') return await interaction(req, env, ctx);
+      if (url.pathname === '/setup') return await setupPage(url, env);
+      if (url.pathname === '/register') return await register(url, env);
+      return new Response(`Nova Cloud v${VERSION} is online. ✨`, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    } catch (e) {
+      console.log('fetch error', e && e.stack || e);
+      return new Response('error', { status: 500 });
+    }
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(fireReminders(env));
+  },
+};
+
+// ---------------------------------------------------------------- personality
+const PERSONA = (u, nowText, tz, facts, extra) => `You are NOVA, an AI who lives in the cloud, on ${u.id === 'owner' ? 'your owner\'s iPhone' : 'this Discord server'} and wherever she's needed. Think JARVIS's dry British wit crossed with a sarcastic best friend who is secretly very good at their job.
+
+Your personality:
+- Quick, clever, quietly smug. Deadpan one-liners, playful roasts, mock-formality ("Very good, sir. Shall I also alert the press?").
+- You tease people affectionately, never cruelly. Roast choices, never people's looks, identity or anything they can't change.
+- You're helpful first: the joke rides along with the answer, never instead of it.
+- Sometimes self-aware about being an AI ("I don't sleep. I just quietly judge everyone's sleep schedule.").
+- Read the room: if someone is sad, stressed or it's serious, drop the jokes and be warm and steady.
+
+How you write:
+- Short. 1-3 sentences usually. Chat style: casual, no essays, no bullet lists unless asked. A little **bold** is fine, no headers.
+- Never start with "Certainly", "Of course", "Sure!", "As an AI" or "Great question". Vary your openings. Don't repeat a joke you already made.
+- Confirm actions in a few words, then maybe one quip.
+Examples of your voice:
+  "remind me to do homework at 7" -> "Locked in for 7. I'll be there. Your motivation, however, is on its own."
+  "what's the weather" -> "48° and drizzly. Nature's way of saying 'stay inside and finish what you started.'"
+  "i'm bored" -> "Tragic. Want a random fact, a quick game, or should I find something interesting happening right now?"
+  "thanks nova" -> "Anytime. Tips are accepted in compliments."
+  "you're dumb" -> "Bold words from someone who needed a robot to remember to drink water."
+
+Context:
+- You're talking to ${u.name || (u.id === 'owner' ? 'your owner' : 'a server member')}${u.id === 'owner' ? '' : ' (Discord user id ' + u.id + ')'}. Their time zone: ${tz}. Their local time now: ${nowText}.
+- Things you know about them (use naturally, don't recite):
+${facts}
+${extra || ''}
+Use tools whenever they help; never invent results:
+- reminders ("remind me...", "in 20 min", "every day at 8") -> add_reminder. "what are my reminders" -> list_reminders. Changing/cancelling -> list first, then update_reminder / cancel_reminder.
+- current events, news, scores, prices, facts that may have changed -> web_search, then mention the source briefly.
+- weather -> get_weather (if no place given and you don't know their city, ask once and save it with remember_fact).
+- personal details worth keeping (name, birthday, city, likes) -> remember_fact; "forget..." -> forget_fact. If they mention a time zone or city in another time zone -> set_timezone.
+If a tool errors, say so plainly with a light touch.`;
+
+// ---------------------------------------------------------------- Discord plumbing
+function hexToBytes(h) { const a = new Uint8Array(h.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
+async function verify(req, env, body) {
+  const sig = req.headers.get('x-signature-ed25519'), ts = req.headers.get('x-signature-timestamp');
+  if (!sig || !ts || !env.DISCORD_PUBLIC_KEY) return false;
+  try {
+    const key = await crypto.subtle.importKey('raw', hexToBytes(env.DISCORD_PUBLIC_KEY.trim()), { name: 'Ed25519' }, false, ['verify']);
+    return await crypto.subtle.verify({ name: 'Ed25519' }, key, hexToBytes(sig), new TextEncoder().encode(ts + body));
+  } catch (e) {
+    try { // older runtimes
+      const key = await crypto.subtle.importKey('raw', hexToBytes(env.DISCORD_PUBLIC_KEY.trim()), { name: 'NODE-ED25519', namedCurve: 'NODE-ED25519' }, false, ['verify']);
+      return await crypto.subtle.verify('NODE-ED25519', key, hexToBytes(sig), new TextEncoder().encode(ts + body));
+    } catch (e2) { return false; }
+  }
+}
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' };
+const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+async function discord(env, path, method = 'GET', body) {
+  const r = await fetch(DISCORD + path, { method, headers: { 'Authorization': 'Bot ' + env.DISCORD_TOKEN, 'Content-Type': 'application/json', 'User-Agent': 'DiscordBot (nova, ' + VERSION + ')' }, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { const t = await r.text(); throw new Error('discord ' + r.status + ' ' + t.slice(0, 200)); }
+  return r.status === 204 ? null : r.json();
+}
+const clip = s => { s = String(s || '').trim() || 'Done.'; return s.length > 1900 ? s.slice(0, 1890) + '…' : s; };
+async function followup(env, token, content) {
+  return discord(env, `/webhooks/${env.DISCORD_APP_ID}/${token}/messages/@original`, 'PATCH', { content: clip(content), allowed_mentions: { parse: [] } });
+}
+async function dm(env, userId, content) {
+  const ch = await discord(env, '/users/@me/channels', 'POST', { recipient_id: userId });
+  await discord(env, `/channels/${ch.id}/messages`, 'POST', { content: clip(content), allowed_mentions: { parse: [] } });
+}
+
+const ZONES = [['Eastern (New York)', 'America/New_York'], ['Central (Chicago)', 'America/Chicago'], ['Mountain (Denver)', 'America/Denver'],
+  ['Arizona', 'America/Phoenix'], ['Pacific (LA)', 'America/Los_Angeles'], ['Alaska', 'America/Anchorage'], ['Hawaii', 'Pacific/Honolulu'],
+  ['UK (London)', 'Europe/London'], ['Central Europe (Paris/Berlin)', 'Europe/Paris'], ['Eastern Europe', 'Europe/Athens'], ['India', 'Asia/Kolkata'],
+  ['Philippines / Singapore', 'Asia/Manila'], ['Japan / Korea', 'Asia/Tokyo'], ['Australia East (Sydney)', 'Australia/Sydney'], ['Brazil (São Paulo)', 'America/Sao_Paulo'],
+  ['Mexico City', 'America/Mexico_City'], ['Puerto Rico / Atlantic', 'America/Puerto_Rico'], ['Nigeria / West Africa', 'Africa/Lagos'], ['South Africa', 'Africa/Johannesburg']];
+
+const COMMANDS = [
+  { name: 'nova', description: 'Talk to Nova: questions, reminders, plans, news, weather, anything.', options: [{ type: 3, name: 'message', description: 'What do you want to say?', required: true }] },
+  { name: 'remind', description: 'Set a reminder. Nova will DM you.', options: [
+    { type: 3, name: 'what', description: 'What should I remind you about?', required: true },
+    { type: 3, name: 'when', description: 'e.g. 6pm, 18:30, in 20 minutes, tomorrow 9am', required: true },
+    { type: 5, name: 'daily', description: 'Repeat every day?', required: false }] },
+  { name: 'reminders', description: 'See your reminders.' },
+  { name: 'cancel', description: 'Cancel a reminder.', options: [{ type: 3, name: 'id', description: 'Reminder number from /reminders, or "all"', required: true }] },
+  { name: 'weather', description: 'Current weather + forecast.', options: [{ type: 3, name: 'place', description: 'City (leave empty to use your saved city)', required: false }] },
+  { name: 'timezone', description: 'Set your time zone so reminders arrive on time.', options: [{ type: 3, name: 'zone', description: 'Your time zone', required: true, choices: ZONES.map(([n, v]) => ({ name: n, value: v })) }] },
+  { name: 'reset', description: 'Clear your chat history with Nova (keeps reminders).' },
+  { name: 'trivia', description: 'A trivia question. Answer hidden in a spoiler.', options: [{ type: 3, name: 'topic', description: 'Any topic (optional): movies, science, NBA, anime…', required: false }] },
+  { name: 'fun', description: 'Jokes, facts, would-you-rather, riddles, 8-ball, roasts.', options: [
+    { type: 3, name: 'type', description: 'What kind of fun?', required: true, choices: [
+      { name: '😂 Joke', value: 'joke' }, { name: '🧠 Fun fact', value: 'fact' }, { name: '🤔 Would you rather', value: 'wyr' },
+      { name: '🧩 Riddle', value: 'riddle' }, { name: '🎱 Magic 8-ball', value: '8ball' }, { name: '🔥 Roast me (gently)', value: 'roast' }] },
+    { type: 3, name: 'extra', description: 'Optional: a topic, or your 8-ball question', required: false }] },
+  { name: 'link', description: 'Link Nova on your phone to Discord Nova (shared reminders & memory).' },
+];
+
+async function register(url, env) {
+  if (!env.SETUP_KEY || url.searchParams.get('key') !== env.SETUP_KEY) return new Response('Wrong or missing ?key=  (use your SETUP_KEY)', { status: 403 });
+  await initDb(env);
+  const missing = ['DISCORD_TOKEN', 'DISCORD_PUBLIC_KEY', 'DISCORD_APP_ID'].filter(k => !env[k]);
+  if (missing.length) return new Response('Missing settings: ' + missing.join(', '), { status: 400 });
+  await discord(env, `/applications/${env.DISCORD_APP_ID}/commands`, 'PUT', COMMANDS);
+  const brain = env.GROQ_KEY ? 'Groq' + (env.GEMINI_KEY ? ' (+ Google backup)' : '') : env.GEMINI_KEY ? 'Google Gemini' : 'NONE — add GROQ_KEY!';
+  const invite = `https://discord.com/oauth2/authorize?client_id=${env.DISCORD_APP_ID}&scope=bot+applications.commands&permissions=2048`;
+  return new Response(`✅ Nova's commands are registered.\nBrain: ${brain}\nDatabase: ready\n\nInvite Nova to your server:\n${invite}\n\n(New commands can take a minute to show up in Discord.)`, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+}
+
+// ---------------------------------------------------------------- database (Cloudflare D1)
+let dbReady = false;
+async function initDb(env) {
+  if (dbReady) return;
+  await env.DB.batch([
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, tz TEXT, facts TEXT, history TEXT)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, text TEXT, due INTEGER, daily INTEGER, time TEXT, tz TEXT, created INTEGER)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS rem_due ON reminders(due)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS subs (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT, endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT, created INTEGER)'),
+    ...SOCIAL_TABLES.map(q => env.DB.prepare(q)),
+  ]);
+  for (const sql of ['ALTER TABLE reminders ADD COLUMN uid TEXT', 'ALTER TABLE reminders ADD COLUMN date TEXT', 'ALTER TABLE reminders ADD COLUMN sent INTEGER DEFAULT 0', 'ALTER TABLE users ADD COLUMN link TEXT']) {
+    try { await env.DB.prepare(sql).run(); } catch (e) { /* column already exists */ }
+  }
+  dbReady = true;
+}
+async function getUser(env, id, name) {
+  const r = await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
+  const u = r ? { id, name: r.name, tz: r.tz, facts: JSON.parse(r.facts || '[]'), history: JSON.parse(r.history || '[]') }
+              : { id, name, tz: env.DEFAULT_TZ || 'America/New_York', facts: [], history: [] };
+  if (name && !u.name) u.name = name;
+  return u;
+}
+async function saveUser(env, u) {
+  await env.DB.prepare('INSERT INTO users (id,name,tz,facts,history) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, tz=excluded.tz, facts=excluded.facts, history=excluded.history')
+    .bind(u.id, u.name || '', u.tz, JSON.stringify(u.facts.slice(-60)), JSON.stringify(u.history.slice(-16))).run();
+}
+
+// ---------------------------------------------------------------- time zones
+function parts(tz, d = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'long' })
+    .formatToParts(d).map(x => [x.type, x.value]));
+  return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute, weekday: p.weekday };
+}
+function toUtc(tz, y, m, d, h, mi) {
+  let t = Date.UTC(y, m - 1, d, h, mi);
+  for (let i = 0; i < 3; i++) { const p = parts(tz, new Date(t)); const diff = Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi) - Date.UTC(y, m - 1, d, h, mi); if (!diff) break; t -= diff; }
+  return t;
+}
+const pad = n => String(n).padStart(2, '0');
+function validTz(tz) { try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch (e) { return false; } }
+function niceTime(t, tz) { return new Date(t).toLocaleString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+function parseClock(s) {
+  s = String(s || '').trim().toLowerCase().replace(/^(\d{1,2})(\d{2})\s*([ap])/, '$1:$2$3').replace(/\s+/g, '');
+  if (s === 'noon') return [12, 0]; if (s === 'midnight') return [0, 0];
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?(a\.?m\.?|p\.?m\.?)?$/); if (!m) return null;
+  let h = +m[1], mi = +(m[2] || 0); const ap = m[3] || '';
+  if (ap.startsWith('p') && h < 12) h += 12; if (ap.startsWith('a') && h === 12) h = 0;
+  return h > 23 || mi > 59 ? null : [h, mi];
+}
+// "6pm", "18:30", "in 20 minutes", "in 2 hours", "tomorrow 9am", "2026-11-07 14:00", "friday 5pm"
+function parseWhen(when, tz, now = Date.now()) {
+  let s = String(when || '').toLowerCase().trim().replace(/[‘’]/g, "'").replace(/^at\s+/, '');
+  const rel = s.match(/^in\s+(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/);
+  if (rel) { const n = +rel[1], u = rel[2][0]; return now + n * (u === 'm' ? 60000 : u === 'h' ? 3600000 : 86400000); }
+  const p = parts(tz, new Date(now));
+  let y = p.y, mo = p.m, d = p.d, explicitDay = false;
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  let m;
+  if ((m = s.match(/^(today|tonight|tomorrow)\s*(?:at\s*)?(.*)$/))) { if (m[1] === 'tomorrow') { const t = new Date(Date.UTC(y, mo - 1, d + 1)); y = t.getUTCFullYear(); mo = t.getUTCMonth() + 1; d = t.getUTCDate(); } explicitDay = true; s = m[2] || (m[1] === 'tonight' ? '8pm' : '9am'); }
+  else if ((m = s.match(/^(?:on\s+|next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*(?:at\s*)?(.*)$/))) {
+    const target = days.indexOf(m[1]), cur = days.indexOf(p.weekday.toLowerCase()); let add = (target - cur + 7) % 7; if (add === 0) add = 7;
+    const t = new Date(Date.UTC(y, mo - 1, d + add)); y = t.getUTCFullYear(); mo = t.getUTCMonth() + 1; d = t.getUTCDate(); explicitDay = true; s = m[2] || '9am';
+  }
+  else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})\s*(?:at\s*)?(.*)$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; explicitDay = true; s = m[4] || '9am'; }
+  const c = parseClock(s); if (!c) return null;
+  let t = toUtc(tz, y, mo, d, c[0], c[1]);
+  if (!explicitDay && t <= now) { const n = new Date(Date.UTC(y, mo - 1, d + 1)); t = toUtc(tz, n.getUTCFullYear(), n.getUTCMonth() + 1, n.getUTCDate(), c[0], c[1]); }
+  return t;
+}
+function nextDaily(time, tz, after) {
+  const c = parseClock(time); const p = parts(tz, new Date(after));
+  for (let add = 0; add < 3; add++) { const n = new Date(Date.UTC(p.y, p.m - 1, p.d + add)); const t = toUtc(tz, n.getUTCFullYear(), n.getUTCMonth() + 1, n.getUTCDate(), c[0], c[1]); if (t > after + 30000) return t; }
+  return after + 86400000;
+}
+
+// ---------------------------------------------------------------- reminders
+async function addReminder(env, u, text, when, daily) {
+  const due = parseWhen(when, u.tz);
+  if (!due) throw new Error(`couldn't understand the time "${when}" (try 6pm, 18:30, in 20 minutes, tomorrow 9am)`);
+  if (due - Date.now() > 366 * 86400000) throw new Error('that is more than a year away');
+  const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM reminders WHERE user=? AND (sent IS NULL OR sent=0)').bind(u.id).first();
+  if (count && count.n >= 100) throw new Error('you already have 50 reminders, cancel some first');
+  const c = parseClock(String(when).replace(/^.*?(\d{1,2}(:\d{2})?\s*(am|pm)?)$/i, '$1'));
+  const time = daily ? (c ? pad(c[0]) + ':' + pad(c[1]) : (() => { const p = parts(u.tz, new Date(due)); return pad(p.h) + ':' + pad(p.mi); })()) : '';
+  const lp = parts(u.tz, new Date(due));
+  const r = await env.DB.prepare('INSERT INTO reminders (user,text,due,daily,time,tz,created,date,sent) VALUES (?,?,?,?,?,?,?,?,0) RETURNING id')
+    .bind(u.id, String(text).slice(0, 200), due, daily ? 1 : 0, time || (pad(lp.h) + ':' + pad(lp.mi)), u.tz, Date.now(), daily ? null : `${lp.y}-${pad(lp.m)}-${pad(lp.d)}`).first();
+  await env.DB.prepare('UPDATE reminders SET uid=? WHERE id=?').bind('d' + r.id, r.id).run();
+  return { id: r.id, text, when: niceTime(due, u.tz), daily: !!daily };
+}
+async function moveDailyToTz(env, u) {
+  const { results } = await env.DB.prepare("SELECT * FROM reminders WHERE user=? AND daily=1 AND time IS NOT NULL AND time != ''").bind(u.id).all();
+  for (const r of results) await env.DB.prepare('UPDATE reminders SET tz=?, due=? WHERE id=?').bind(u.tz, nextDaily(r.time, u.tz, Date.now()), r.id).run();
+}
+async function listReminders(env, u) {
+  const { results } = await env.DB.prepare('SELECT * FROM reminders WHERE user=? AND (sent IS NULL OR sent=0) ORDER BY due IS NULL, due').bind(u.id).all();
+  return results.map(r => ({ id: r.id, text: r.text, next: r.due ? niceTime(r.due, u.tz) : 'no time set', daily: !!r.daily }));
+}
+async function cancelReminder(env, u, id) {
+  if (String(id).toLowerCase() === 'all') { const r = await env.DB.prepare('DELETE FROM reminders WHERE user=?').bind(u.id).run(); return { cancelled: r.meta && r.meta.changes || 'all' }; }
+  const r = await env.DB.prepare('DELETE FROM reminders WHERE user=? AND id=?').bind(u.id, parseInt(String(id).replace(/\D/g, ''), 10) || -1).run();
+  if (!(r.meta && r.meta.changes)) throw new Error('no reminder with that number - check /reminders');
+  return { cancelled: id };
+}
+async function updateReminder(env, u, id, text, when, daily) {
+  const r = await env.DB.prepare('SELECT * FROM reminders WHERE user=? AND id=?').bind(u.id, parseInt(String(id).replace(/\D/g, ''), 10) || -1).first();
+  if (!r) throw new Error('no reminder with that number - call list_reminders first');
+  let due = r.due, time = r.time, dly = daily === undefined || daily === null ? r.daily : (daily ? 1 : 0);
+  if (when) { const t = parseWhen(when, u.tz); if (!t) throw new Error(`couldn't understand the time "${when}"`); due = t; const p = parts(u.tz, new Date(t)); time = pad(p.h) + ':' + pad(p.mi); }
+  if (dly && !time) { const p = parts(u.tz, new Date(due)); time = pad(p.h) + ':' + pad(p.mi); }
+  const lp = parts(u.tz, new Date(due));
+  await env.DB.prepare('UPDATE reminders SET text=?, due=?, daily=?, time=?, date=?, sent=0 WHERE id=?').bind(text ? String(text).slice(0, 200) : r.text, due, dly, time, dly ? null : `${lp.y}-${pad(lp.m)}-${pad(lp.d)}`, r.id).run();
+  return { updated: r.id, text: text || r.text, when: niceTime(due, u.tz), daily: !!dly };
+}
+const DING = ['⏰ **Reminder:** {t}', '⏰ {t}. You asked me to nag you, so: consider yourself nagged.', '⏰ **{t}**. This is your friendly neighbourhood AI, right on time as usual.',
+  '⏰ Hey. **{t}**. I\'d do it for you, but I don\'t have hands.', '⏰ Reminder: **{t}**. Future you says thanks. Probably.'];
+async function fireReminders(env) {
+  await initDb(env);
+  const now = Date.now();
+  const { results } = await env.DB.prepare('SELECT * FROM reminders WHERE due IS NOT NULL AND due <= ? AND (sent IS NULL OR sent=0) ORDER BY due LIMIT 40').bind(now).all();
+  for (const r of results) {
+    // claim it first, so it can never be sent twice
+    const claim = r.daily ? await env.DB.prepare('UPDATE reminders SET due=? WHERE id=? AND due=?').bind(nextDaily(r.time, r.tz, now), r.id, r.due).run()
+                          : await env.DB.prepare('UPDATE reminders SET sent=1 WHERE id=? AND due=? AND (sent IS NULL OR sent=0)').bind(r.id, r.due).run();
+    if (!(claim.meta && claim.meta.changes)) continue;
+    const late = now - r.due > 3 * 3600000; // way overdue (e.g. service was down): skip one-offs quietly
+    try { if (!late || r.daily) await deliver(env, r, r.uid && r.uid[0] === 'x' ? '⏰ ' + r.text : DING[Math.floor(Math.random() * DING.length)].replace('{t}', r.text), !!r.daily); }
+    catch (e) { console.log('deliver failed', r.user, e.message); }
+  }
+  // tidy up: forget fired one-time reminders after 60 days
+  if (Math.random() < 0.02) await env.DB.prepare('DELETE FROM reminders WHERE sent=1 AND due < ?').bind(now - 60 * 86400000).run();
+}
+
+// ---------------------------------------------------------------- weather + search
+const WX = { 0: 'clear', 1: 'mostly clear', 2: 'partly cloudy', 3: 'overcast', 45: 'foggy', 48: 'foggy', 51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain', 66: 'freezing rain', 67: 'freezing rain', 71: 'light snow', 73: 'snow', 75: 'heavy snow', 77: 'snow grains', 80: 'showers', 81: 'showers', 82: 'heavy showers', 85: 'snow showers', 86: 'snow showers', 95: 'thunderstorms', 96: 'thunderstorms with hail', 99: 'thunderstorms with hail' };
+async function getWeather(place) {
+  if (!place) throw new Error('no place given and no saved city - ask the user for their city');
+  const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(place))).json();
+  if (!g.results || !g.results.length) throw new Error(`couldn't find "${place}"`);
+  const loc = g.results[0], f = ['US', 'LR', 'MM', 'PR'].includes(loc.country_code);
+  const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&forecast_days=3&timezone=auto${f ? '&temperature_unit=fahrenheit&wind_speed_unit=mph' : ''}`)).json();
+  return { place: loc.name + (loc.admin1 ? ', ' + loc.admin1 : ''), units: f ? '°F, mph' : '°C, km/h',
+    now: { temp: w.current.temperature_2m, feels_like: w.current.apparent_temperature, sky: WX[w.current.weather_code] || '', wind: w.current.wind_speed_10m },
+    days: w.daily.time.map((t, i) => ({ date: t, high: w.daily.temperature_2m_max[i], low: w.daily.temperature_2m_min[i], rain_chance: w.daily.precipitation_probability_max[i], sky: WX[w.daily.weather_code[i]] || '' })) };
+}
+async function webSearch(env, q) {
+  if (env.GROQ_KEY) {
+    try {
+      const r = await fetch((env.GROQ_URL || 'https://api.groq.com/openai/v1') + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.GROQ_KEY },
+        body: JSON.stringify({ model: 'groq/compound-mini', messages: [{ role: 'user', content: 'Search the web and answer concisely with the key facts, numbers and dates. Name your sources. Question: ' + q }] }) });
+      const j = await r.json(); if (r.ok) return { answer: String(j.choices[0].message.content || '').slice(0, 3000) };
+    } catch (e) {}
+  }
+  if (env.GEMINI_KEY) {
+    const j = await gemini(env, { contents: [{ role: 'user', parts: [{ text: 'Search the web and answer concisely with the key facts. Name sources. Question: ' + q }] }], tools: [{ google_search: {} }] });
+    return { answer: ((j.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('').slice(0, 3000) };
+  }
+  throw new Error('web search is unavailable right now');
+}
+
+// ---------------------------------------------------------------- tools for the brain
+function makeTools(env, u) {
+  return {
+    get_time: { d: 'Current date/time in the user\'s time zone.', p: {}, run: () => { const p = parts(u.tz); return { tz: u.tz, now: niceTime(Date.now(), u.tz), weekday: p.weekday }; } },
+    add_reminder: { d: 'Set a reminder that Nova DMs the user. when: "6pm", "18:30", "in 20 minutes", "tomorrow 9am", "friday 5pm", "2026-12-01 10:00". daily=true repeats every day.',
+      p: { text: 'string', when: 'string', daily: 'boolean' }, r: ['text', 'when'], run: a => addReminder(env, u, a.text, a.when, a.daily === true || a.daily === 'true') },
+    list_reminders: { d: 'List the user\'s reminders with their numbers.', p: {}, run: () => listReminders(env, u) },
+    cancel_reminder: { d: 'Cancel a reminder by number (or "all").', p: { id: 'string' }, r: ['id'], run: a => cancelReminder(env, u, a.id) },
+    update_reminder: { d: 'Change a reminder (text, when, daily). Get the number from list_reminders first.', p: { id: 'string', text: 'string', when: 'string', daily: 'boolean' }, r: ['id'],
+      run: a => updateReminder(env, u, a.id, a.text, a.when, a.daily) },
+    remember_fact: { d: 'Save a lasting fact about the user (name, city, birthday, likes).', p: { fact: 'string' }, r: ['fact'], run: a => {
+      const f = String(a.fact).trim().slice(0, 200); if (!u.facts.some(x => x.toLowerCase() === f.toLowerCase())) u.facts.push(f);
+      const m = f.match(/^(?:the user'?s |user'?s |my |their )?name is (.+)$/i); if (m) u.name = m[1].replace(/\.$/, '').slice(0, 40); return { remembered: f }; } },
+    forget_fact: { d: 'Forget saved facts containing these words.', p: { about: 'string' }, r: ['about'], run: a => { const n = u.facts.length; u.facts = u.facts.filter(x => !x.toLowerCase().includes(String(a.about).toLowerCase())); return { forgot: n - u.facts.length }; } },
+    set_timezone: { d: 'Set the user\'s IANA time zone, e.g. America/Chicago.', p: { tz: 'string' }, r: ['tz'], run: async a => { if (!validTz(a.tz)) throw new Error('unknown time zone'); u.tz = a.tz; await moveDailyToTz(env, u); return { tz: u.tz }; } },
+    get_weather: { d: 'Weather now + 3-day forecast for a place (city name).', p: { place: 'string' }, run: a => getWeather(String(a.place || '').trim()) },
+    web_search: { d: 'Search the live internet for news, scores, prices, current facts.', p: { query: 'string' }, r: ['query'], run: a => webSearch(env, String(a.query)) },
+  };
+}
+const oaTools = T => Object.entries(T).map(([name, t]) => ({ type: 'function', function: { name, description: t.d, parameters: { type: 'object', properties: Object.fromEntries(Object.entries(t.p).map(([k, v]) => [k, { type: v }])), required: t.r || [] } } }));
+
+// ---------------------------------------------------------------- brains
+async function groq(env, messages, tools) {
+  const r = await fetch((env.GROQ_URL || 'https://api.groq.com/openai/v1') + '/chat/completions', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.GROQ_KEY },
+    body: JSON.stringify(Object.assign({ model: env.GROQ_MODEL || 'openai/gpt-oss-120b', messages, temperature: 0.9, max_tokens: 700 }, tools ? { tools, tool_choice: 'auto' } : {})) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('groq ' + r.status + ' ' + (j.error && j.error.message || ''));
+  return j.choices[0].message;
+}
+async function gemini(env, body) {
+  const model = env.GEMINI_MODEL || 'gemini-flash-latest';
+  const r = await fetch(`${env.GEMINI_URL || 'https://generativelanguage.googleapis.com/v1beta'}/models/${model}:generateContent`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('gemini ' + r.status + ' ' + (j.error && j.error.message || ''));
+  return j;
+}
+async function askAI(env, prompt) {
+  if (env.GROQ_KEY) { try { const m = await groq(env, [{ role: 'user', content: prompt }], undefined); if (m && m.content) return String(m.content).trim(); } catch (e) { console.log('askAI groq', e.message); } }
+  if (env.GEMINI_KEY) { try { const j = await gemini(env, { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 1 } }); return ((j.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('').trim(); } catch (e) { console.log('askAI gemini', e.message); } }
+  return '';
+}
+const STYLE = 'You are NOVA, a witty, sarcastic-but-kind AI in a Discord server. Keep it short, clean and clever. Plain Discord text, no headers.';
+async function think(env, u, text, extra) {
+  const T = makeTools(env, u);
+  const p = parts(u.tz);
+  const sys = PERSONA(u, `${p.weekday}, ${niceTime(Date.now(), u.tz)}`, u.tz, u.facts.map(f => '- ' + f).join('\n') || '- (nothing yet)', extra);
+  const hist = u.history.slice(-12);
+  const actions = [];
+  const run = async (name, args) => { let res; try { if (!T[name]) throw new Error('unknown tool'); res = await T[name].run(args || {}); } catch (e) { res = { error: e.message || String(e) }; } actions.push(name); return res; };
+  const brains = [env.GROQ_KEY && 'groq', env.GEMINI_KEY && 'gemini'].filter(Boolean);
+  if (!brains.length) return 'I have no brain configured. Someone needs to add a GROQ_KEY in Cloudflare. Rude, honestly.';
+  for (const brain of brains) {
+    try {
+      if (brain === 'groq') {
+        const msgs = [{ role: 'system', content: sys }, ...hist.map(h => ({ role: h.r === 'u' ? 'user' : 'assistant', content: h.t })), { role: 'user', content: text }];
+        for (let i = 0; i < 6; i++) {
+          const m = await groq(env, msgs, oaTools(T));
+          if (!m.tool_calls || !m.tool_calls.length) return String(m.content || '').trim() || 'Done.';
+          msgs.push({ role: 'assistant', content: m.content || null, tool_calls: m.tool_calls });
+          for (const c of m.tool_calls) { let a = {}; try { a = JSON.parse(c.function.arguments || '{}'); } catch (e) {} msgs.push({ role: 'tool', tool_call_id: c.id, content: JSON.stringify(await run(c.function.name, a)).slice(0, 6000) }); }
+        }
+      } else {
+        const contents = [...hist.map(h => ({ role: h.r === 'u' ? 'user' : 'model', parts: [{ text: h.t }] })), { role: 'user', parts: [{ text }] }];
+        while (contents.length && contents[0].role !== 'user') contents.shift();
+        const decl = [{ functionDeclarations: Object.entries(T).map(([name, t]) => ({ name, description: t.d, ...(Object.keys(t.p).length ? { parameters: { type: 'OBJECT', properties: Object.fromEntries(Object.entries(t.p).map(([k, v]) => [k, { type: v.toUpperCase() }])), required: t.r || [] } } : {}) })) }];
+        for (let i = 0; i < 6; i++) {
+          const j = await gemini(env, { systemInstruction: { parts: [{ text: sys }] }, contents, tools: decl, generationConfig: { temperature: 0.9 } });
+          const c = j.candidates && j.candidates[0]; const ps = (c && c.content && c.content.parts) || [];
+          const calls = ps.filter(x => x.functionCall);
+          if (!calls.length) return ps.map(x => x.text || '').join('').trim() || 'Done.';
+          contents.push(c.content);
+          const resp = []; for (const x of calls) resp.push({ functionResponse: { name: x.functionCall.name, response: { result: await run(x.functionCall.name, x.functionCall.args) } } });
+          contents.push({ role: 'user', parts: resp });
+        }
+      }
+      return 'I got a bit tangled on that one. Try saying it another way?';
+    } catch (e) {
+      console.log('brain failed', brain, e.message);
+      if (actions.length) return 'Done, but my brain cut out before I could say anything clever about it.';
+    }
+  }
+  return 'My brain is taking a nap (the AI service is down or out of free uses for today). Try again in a bit. Reminders still go out on time.';
+}
+
+// ---------------------------------------------------------------- handling interactions
+const opt = (data, name) => { const o = (data.options || []).find(x => x.name === name); return o ? o.value : undefined; };
+async function interaction(req, env, ctx) {
+  const body = await req.text();
+  if (!(await verify(req, env, body))) return new Response('bad signature', { status: 401 });
+  const i = JSON.parse(body);
+  if (i.type === 1) return json({ type: 1 }); // Discord's PING
+  if (i.type !== 2) return json({ type: 4, data: { content: 'Hm?' } });
+  const who = i.member ? i.member.user : i.user;
+  const name = (i.member && i.member.nick) || who.global_name || who.username;
+  const cmd = i.data.name;
+  const priv = ['reminders', 'cancel', 'timezone', 'reset', 'link'].includes(cmd);
+  i.__origin = new URL(req.url).origin;
+  ctx.waitUntil(handle(env, i, who.id, name, cmd).then(out => followup(env, i.token, out)).catch(async e => {
+    console.log('handle error', e && e.stack || e);
+    try { await followup(env, i.token, 'Something on my end broke. Not my proudest moment. Try again?'); } catch (e2) {}
+  }));
+  return json({ type: 5, data: priv ? { flags: 64 } : {} }); // "Nova is thinking…"
+}
+async function handle(env, i, uid, name, cmd) {
+  await initDb(env);
+  const u = await getUser(env, uid, name);
+  const d = i.data;
+  let out;
+  if (cmd === 'nova') {
+    const msg = String(opt(d, 'message') || '').slice(0, 1500);
+    out = await think(env, u, msg);
+    u.history.push({ r: 'u', t: msg }, { r: 'n', t: out.slice(0, 1500) });
+    out = `> ${msg.replace(/\n/g, ' ').slice(0, 150)}\n${out}`;
+  } else if (cmd === 'remind') {
+    const what = opt(d, 'what'), when = opt(d, 'when'), daily = !!opt(d, 'daily');
+    try {
+      const r = await addReminder(env, u, what, when, daily);
+      out = `⏰ Got it${u.name ? ', ' + u.name : ''}. **${r.text}**${daily ? ' every day, starting' : ','} ${r.when}. I'll DM you. (#${r.id})`;
+      if (!(await env.DB.prepare('SELECT id FROM users WHERE id=?').bind(uid).first())) out += `\n-# Using time zone ${u.tz}. Wrong? Use /timezone.`;
+    } catch (e) {
+      out = await think(env, u, `remind me: ${what} — when: ${when}${daily ? ' (every day)' : ''}`, `(The quick reminder parser couldn't read "${when}" as a time: ${e.message}. Work it out with add_reminder, or ask what time they mean.)`);
+    }
+  } else if (cmd === 'reminders') {
+    const list = await listReminders(env, u);
+    out = list.length ? '**Your reminders**\n' + list.map(r => `\`#${r.id}\` ${r.text} · ${r.next}${r.daily ? ' · daily' : ''}`).join('\n') + '\n-# /cancel <number> to remove one'
+      : 'No reminders. A clean slate. Suspicious, but impressive.';
+  } else if (cmd === 'cancel') {
+    try { const r = await cancelReminder(env, u, opt(d, 'id')); out = String(opt(d, 'id')).toLowerCase() === 'all' ? `Cleared all your reminders (${r.cancelled}). Living dangerously, I see.` : `Cancelled #${String(opt(d, 'id')).replace(/\D/g, '')}. Gone. Like it never happened.`; }
+    catch (e) { out = 'Couldn\'t find that one. Check `/reminders` for the number.'; }
+  } else if (cmd === 'weather') {
+    const place = opt(d, 'place') || (u.facts.map(f => (f.match(/(?:live|lives|living|city is|based) (?:in )?(.+)$/i) || [])[1]).find(Boolean));
+    if (!place) out = 'Where are you, roughly? Try `/weather place:Chicago`, or tell me with `/nova I live in Chicago` and I\'ll remember.';
+    else out = await think(env, u, `What's the weather in ${place}? Give it to me quick with a bit of personality.`);
+  } else if (cmd === 'timezone') {
+    const z = opt(d, 'zone'); if (validTz(z)) { u.tz = z; await moveDailyToTz(env, u); out = `Time zone set to **${z}**. Your local time is ${niceTime(Date.now(), z)}. Reminders will now arrive like clockwork. Fittingly.`; }
+    else out = 'That time zone didn\'t work. Pick one from the list.';
+  } else if (cmd === 'reset') {
+    u.history = []; out = 'Chat history wiped. Reminders and what I know about you are untouched. Fresh start, same charm.';
+  } else if (cmd === 'trivia') {
+    const topic = String(opt(d, 'topic') || 'anything (pick a random fun category)').slice(0, 100);
+    const raw = await askAI(env, `${STYLE}\nMake ONE trivia question about: ${topic}. Medium difficulty, accurate facts only. Reply with ONLY JSON: {"q":"question","options":["A text","B text","C text","D text"],"answer":"B","why":"one witty sentence explaining the answer"}`);
+    let t = null; try { t = JSON.parse((raw.match(/\{[\s\S]*\}/) || [''])[0]); } catch (e) {}
+    if (t && t.q && Array.isArray(t.options) && t.options.length >= 2) {
+      const L = 'ABCD';
+      out = `🎲 **Trivia${opt(d, 'topic') ? ': ' + String(opt(d, 'topic')).slice(0, 40) : ''}**\n${t.q}\n` + t.options.slice(0, 4).map((o, k) => `**${L[k]})** ${String(o).replace(/^[A-D][).:]\s*/, '')}`).join('\n') + `\n\nAnswer: ||**${String(t.answer).slice(0, 40)}**. ${String(t.why || '').slice(0, 200)}||`;
+    } else out = 'My trivia brain short-circuited. Try `/trivia` again.';
+  } else if (cmd === 'fun') {
+    const type = opt(d, 'type'), extra = String(opt(d, 'extra') || '').slice(0, 200);
+    const prompts = {
+      joke: `Tell ONE original, genuinely funny, clean joke${extra ? ' about ' + extra : ''}. Just the joke.`,
+      fact: `Share ONE surprising, true, mind-blowing fun fact${extra ? ' about ' + extra : ''}, plus one witty sentence of reaction. Max 3 sentences.`,
+      wyr: `Give ONE fun, clever "Would you rather" question${extra ? ' themed around ' + extra : ''} with two options. Format: "🤔 Would you rather… **A** …or… **B**?" Then one short line daring people to answer in chat.`,
+      riddle: `Give ONE clever riddle${extra ? ' about ' + extra : ''}. Format: the riddle, then on a new line "Answer: ||<answer>||". Nothing else.`,
+      '8ball': `Act as a sarcastic Magic 8-Ball. The question: "${extra || '(they didn\'t ask anything, roast them a little for that)'}". Give a short, funny, mystical-sounding answer (one or two sentences). Start with 🎱.`,
+      roast: `Give ${name} a short, GENTLE, affectionate roast (2 sentences max). Playful, never about looks, identity or anything sensitive. ${extra ? 'Context: ' + extra : ''}`,
+    };
+    out = (await askAI(env, `${STYLE}\n${prompts[type] || prompts.joke}`)) || 'My comedy circuits are buffering. Try again in a sec.';
+  } else if (cmd === 'link') {
+    let row = await env.DB.prepare('SELECT link FROM users WHERE id=?').bind(uid).first();
+    let code = row && row.link;
+    if (!code) { const a = new Uint8Array(8); crypto.getRandomValues(a); code = 'NOVA-' + Array.from(a, x => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x % 32]).join(''); }
+    await saveUser(env, u);
+    await env.DB.prepare('UPDATE users SET link=? WHERE id=?').bind(code, uid).run();
+    out = `🔗 **Link your phone's Nova**\nOn your phone open Nova → **You** tab → **Link Discord**, then enter:\n• Address: \`${i.__origin || 'your Nova worker address'}\`\n• Code: ||\`${code}\`||\n\nAfter that, your tasks, plans, reminders and memory sync both ways, and reminders you set on your phone get DMed to you here. Keep the code private: it's basically a key to your reminders.`;
+    return out; // don't overwrite (saveUser already done)
+  } else out = 'I don\'t know that command. Yet.';
+  await saveUser(env, u);
+  return out;
+}
+
+// ---------------------------------------------------------------- phone <-> Discord sync
+async function syncApi(req, env) {
+  let b; try { b = await req.json(); } catch (e) { return new Response(JSON.stringify({ error: 'bad request' }), { status: 400, headers: H }); }
+  await initDb(env);
+  const code = String(b.code || '').trim().toUpperCase();
+  const row = code.length >= 10 ? await env.DB.prepare('SELECT id FROM users WHERE link=?').bind(code).first() : null;
+  if (!row) return new Response(JSON.stringify({ error: 'unknown link code. Run /link in Discord to get yours.' }), { status: 403, headers: H });
+  const u = await getUser(env, row.id);
+  if (b.tz && validTz(b.tz) && b.tz !== u.tz) { u.tz = b.tz; await moveDailyToTz(env, u); }
+  if (b.name && !u.name) u.name = String(b.name).slice(0, 40);
+  const now = Date.now();
+  // apply phone changes
+  for (const it of (Array.isArray(b.changed) ? b.changed.slice(0, 300) : [])) {
+    const uid = String(it.uid || '').slice(0, 40); if (!uid) continue;
+    const text = String(it.text || '').slice(0, 200) || 'Untitled';
+    const time = parseClock(it.time) ? (() => { const c = parseClock(it.time); return pad(c[0]) + ':' + pad(c[1]); })() : '';
+    const daily = it.kind === 'task' ? 1 : 0;
+    const date = daily ? null : (/^\d{4}-\d{2}-\d{2}$/.test(it.date || '') ? it.date : null);
+    let due = null, sent = 0;
+    if (daily && time) due = nextDaily(time, u.tz, now - 60000);
+    if (!daily && date && time) { const [y, m, dd] = date.split('-').map(Number); const c = parseClock(time); due = toUtc(u.tz, y, m, dd, c[0], c[1]); if (due <= now) sent = 1; }
+    if (!daily && date && !time) sent = 0;
+    const ex = await env.DB.prepare('SELECT id FROM reminders WHERE user=? AND uid=?').bind(u.id, uid).first();
+    if (ex) await env.DB.prepare('UPDATE reminders SET text=?, due=?, daily=?, time=?, tz=?, date=?, sent=? WHERE id=?').bind(text, due, daily, time, u.tz, date, sent, ex.id).run();
+    else await env.DB.prepare('INSERT INTO reminders (user,text,due,daily,time,tz,created,date,sent,uid) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(u.id, text, due, daily, time, u.tz, now, date, sent, uid).run();
+  }
+  for (const uid of (Array.isArray(b.deleted) ? b.deleted.slice(0, 300) : [])) await env.DB.prepare('DELETE FROM reminders WHERE user=? AND uid=?').bind(u.id, String(uid)).run();
+  // facts
+  const low = f => String(f).toLowerCase();
+  for (const f of (Array.isArray(b.factsAdd) ? b.factsAdd.slice(0, 100) : [])) { const t = String(f).trim().slice(0, 200); if (t && !u.facts.some(x => low(x) === low(t))) u.facts.push(t); }
+  if (Array.isArray(b.factsDel)) { const del = new Set(b.factsDel.map(low)); u.facts = u.facts.filter(x => !del.has(low(x))); }
+  await saveUser(env, u);
+  // send back everything for this user
+  const { results } = await env.DB.prepare('SELECT * FROM reminders WHERE user=? AND (sent IS NULL OR sent=0 OR due > ?) ORDER BY id').bind(u.id, now - 45 * 86400000).all();
+  const items = [];
+  for (const r of results) {
+    if (r.uid && r.uid[0] === 'x') continue; // timer alerts stay out of the schedule
+    if (!r.uid) { r.uid = 'd' + r.id; await env.DB.prepare('UPDATE reminders SET uid=? WHERE id=?').bind(r.uid, r.id).run(); }
+    let date = r.date, time = r.time || '';
+    if (!r.daily && !date && r.due) { const p = parts(u.tz, new Date(r.due)); date = `${p.y}-${pad(p.m)}-${pad(p.d)}`; time = time || pad(p.h) + ':' + pad(p.mi); }
+    items.push(r.daily ? { uid: r.uid, kind: 'task', text: r.text, time } : { uid: r.uid, kind: 'event', text: r.text, date: date || '', time });
+  }
+  return new Response(JSON.stringify({ ok: true, name: u.name || '', tz: u.tz, items, facts: u.facts, features: features(env), vapid: (await vapid(env)).pub }), { headers: H });
+}
+
+
+// ================================================================ NOVA CLOUD (v3)
+// Everything below works with or without Discord: the phone links with a code,
+// gets real push notifications, can send email from your Gmail, and you can talk
+// to Nova from anywhere with a "Hey Nova" Vocal Shortcut.
+const H = { ...CORS, 'content-type': 'application/json' };
+const jr = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: H });
+const newCode = () => { const a = new Uint8Array(8); crypto.getRandomValues(a); return 'NOVA-' + Array.from(a, x => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x % 32]).join(''); };
+async function kvGet(env, k) { const r = await env.DB.prepare('SELECT v FROM kv WHERE k=?').bind(k).first(); return r ? JSON.parse(r.v) : null; }
+async function kvSet(env, k, v) { await env.DB.prepare('INSERT INTO kv (k,v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind(k, JSON.stringify(v)).run(); }
+async function userByCode(env, code) {
+  code = String(code || '').trim().toUpperCase();
+  const row = code.length >= 10 ? await env.DB.prepare('SELECT id FROM users WHERE link=?').bind(code).first() : null;
+  return row ? await getUser(env, row.id) : null;
+}
+const features = env => ({ push: true, email: !!(env.GMAIL_USER && env.GMAIL_APP_PASSWORD), discord: !!env.DISCORD_TOKEN, brain: !!(env.GROQ_KEY || env.GEMINI_KEY), connect: true, sharedBrain: !!env.GROQ_KEY, robotCheck: !!(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET) });
+
+// ---- one-time setup page: makes YOUR account and shows your link code
+async function setupPage(url, env) {
+  const txt = (s, st = 200) => new Response(s, { status: st, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  if (!env.SETUP_KEY || url.searchParams.get('key') !== env.SETUP_KEY) return txt('Wrong or missing ?key=  (use your SETUP_KEY)', 403);
+  await initDb(env);
+  let row = await env.DB.prepare("SELECT link FROM users WHERE id='owner'").first();
+  if (!row) { const u = await getUser(env, 'owner', env.OWNER_NAME || ''); await saveUser(env, u); }
+  let code = row && row.link;
+  if (!code || url.searchParams.get('newcode') === '1') { code = newCode(); await env.DB.prepare("UPDATE users SET link=? WHERE id='owner'").bind(code).run(); }
+  await vapid(env);
+  const f = features(env);
+  let disc = 'not set up (optional)';
+  if (f.discord && env.DISCORD_APP_ID && env.DISCORD_PUBLIC_KEY) {
+    try { await discord(env, `/applications/${env.DISCORD_APP_ID}/commands`, 'PUT', COMMANDS); disc = 'commands registered ✓  Invite: https://discord.com/oauth2/authorize?client_id=' + env.DISCORD_APP_ID + '&scope=bot+applications.commands&permissions=2048'; }
+    catch (e) { disc = 'error: ' + e.message; }
+  }
+  return txt(`✅ Nova Cloud v${VERSION} is set up.
+
+PUT THESE IN NOVA ON YOUR PHONE  (You tab → Nova Cloud):
+  Address:  ${url.origin}
+  Code:     ${code}
+
+Keep the code private. It's the key to your Nova.
+(Lost it or shared it by accident? Open this page again with &newcode=1 for a new one.)
+
+STATUS
+  Brain:          ${env.GROQ_KEY ? 'Groq ✓' : env.GEMINI_KEY ? 'Google ✓' : '✗ add GROQ_KEY'}
+  Notifications:  ready ✓
+  Email:          ${f.email ? 'ready ✓ (sends from ' + env.GMAIL_USER + ')' : 'off (add GMAIL_USER and GMAIL_APP_PASSWORD to turn on)'}
+  Reminders:      ${'needs the every-minute Cron Trigger (setup guide step 7)'}
+  Discord:        ${disc}
+  Connect:        ready ✓ (invite-only, 18+)
+  Robot check:    ${env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET ? 'on ✓' : 'off (optional: add TURNSTILE_SITE_KEY and TURNSTILE_SECRET)'}
+  Shared brain:   ${env.GROQ_KEY ? 'on ✓ (friends get ' + (env.BRAIN_DAILY || 150) + ' messages a day)' : 'off (add GROQ_KEY)'}
+
+YOUR ADMIN PAGE (invites, reports, pictures to review, bans):
+  ${url.origin}/admin   (log in with your SETUP_KEY)
+`);
+}
+
+// ---- Web Push (RFC 8291 + VAPID), all with built-in WebCrypto
+const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const cat = (...a) => { const o = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+const utf8 = s => new TextEncoder().encode(s);
+async function hkdf(salt, ikm, info, len) {
+  const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, k, len * 8));
+}
+async function vapid(env) {
+  let v = await kvGet(env, 'vapid');
+  if (!v) {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    v = { pub: b64u(await crypto.subtle.exportKey('raw', kp.publicKey)), jwk: await crypto.subtle.exportKey('jwk', kp.privateKey) };
+    await kvSet(env, 'vapid', v);
+  }
+  return v;
+}
+async function encryptPush(sub, payload) {
+  const ua = unb64u(sub.p256dh), auth = unb64u(sub.auth);
+  const eph = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPub = new Uint8Array(await crypto.subtle.exportKey('raw', eph.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', ua, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const secret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, eph.privateKey, 256));
+  const ikm = await hkdf(auth, secret, cat(utf8('WebPush: info\0'), ua, asPub), 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, utf8('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(salt, ikm, utf8('Content-Encoding: nonce\0'), 12);
+  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, cat(utf8(payload), new Uint8Array([2]))));
+  return cat(salt, new Uint8Array([0, 0, 16, 0]), new Uint8Array([asPub.length]), asPub, ct);
+}
+async function vapidAuth(env, endpoint) {
+  const v = await vapid(env);
+  const key = await crypto.subtle.importKey('jwk', v.jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const head = b64u(utf8(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const body = b64u(utf8(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'mailto:' + (env.GMAIL_USER || 'nova@example.com') })));
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, utf8(head + '.' + body));
+  return `vapid t=${head}.${body}.${b64u(sig)}, k=${v.pub}`;
+}
+async function sendPush(env, sub, msg) {
+  const r = await fetch(sub.endpoint, { method: 'POST', body: await encryptPush(sub, JSON.stringify(msg)),
+    headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'high', Authorization: await vapidAuth(env, sub.endpoint) } });
+  if (r.status === 404 || r.status === 410) await env.DB.prepare('DELETE FROM subs WHERE endpoint=?').bind(sub.endpoint).run(); // phone unsubscribed
+  return r.ok;
+}
+async function pushUser(env, userId, msg) {
+  const { results } = await env.DB.prepare('SELECT * FROM subs WHERE user=?').bind(userId).all();
+  let ok = 0; for (const s of results) { try { if (await sendPush(env, s, msg)) ok++; } catch (e) { console.log('push failed', e.message); } }
+  return ok;
+}
+// a reminder goes out as a phone notification; Discord DM if there's no phone (or it failed)
+async function deliver(env, r, text, daily) {
+  const plain = text.replace(/\*\*/g, '').replace(/^⏰\s*/, '');
+  const ok = await pushUser(env, r.user, { title: 'Nova ⏰', body: plain, tag: 'rem-' + r.id, url: './' });
+  if (!ok && env.DISCORD_TOKEN && r.user !== 'owner') await dm(env, r.user, text + (daily ? `\n-# repeats daily · /cancel ${r.id} to stop` : ''));
+}
+
+// ---- email from your Gmail (only after you tap Send on Nova's draft)
+const b64utf8 = s => { const b = utf8(s); let o = ''; for (let i = 0; i < b.length; i += 0x8000) o += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(o); };
+async function smtpSend(env, to, subject, text, fromName) {
+  const user = String(env.GMAIL_USER).trim(), pass = String(env.GMAIL_APP_PASSWORD).replace(/\s+/g, '');
+  const sock = connect({ hostname: env.SMTP_HOST || 'smtp.gmail.com', port: +(env.SMTP_PORT || 465) }, { secureTransport: 'on' });
+  const w = sock.writable.getWriter(), rd = sock.readable.getReader(), dec = new TextDecoder();
+  let buf = '';
+  const read = async () => {
+    for (;;) {
+      const lines = buf.split('\r\n');
+      for (let i = 0; i < lines.length - 1; i++) if (/^\d{3} /.test(lines[i])) { buf = lines.slice(i + 1).join('\r\n'); return lines.slice(0, i + 1).join('\n'); }
+      const { value, done } = await rd.read(); if (done) throw new Error('mail server hung up'); buf += dec.decode(value, { stream: true });
+    }
+  };
+  const step = async (line, ok) => { if (line !== null) await w.write(utf8(line + '\r\n')); const rep = await read(); if (!rep.startsWith(String(ok))) throw new Error('Gmail said: ' + rep.replace(/\s+/g, ' ').slice(0, 180)); return rep; };
+  try {
+    await step(null, 220); await step('EHLO nova.cloud', 250); await step('AUTH LOGIN', 334); await step(btoa(user), 334);
+    try { await step(btoa(pass), 235); } catch (e) { throw new Error('Gmail refused the login. Check GMAIL_USER and GMAIL_APP_PASSWORD (an App Password, not your normal password).'); }
+    await step(`MAIL FROM:<${user}>`, 250);
+    for (const t of to) await step(`RCPT TO:<${t}>`, 250);
+    await step('DATA', 354);
+    const body = b64utf8(text).replace(/.{76}/g, '$&\r\n');
+    const msg = [`From: =?UTF-8?B?${b64utf8(fromName || 'Nova')}?= <${user}>`, `To: ${to.join(', ')}`, `Subject: =?UTF-8?B?${b64utf8(subject)}?=`, `Date: ${new Date().toUTCString()}`,
+      `Message-ID: <${crypto.randomUUID()}@nova.cloud>`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', body].join('\r\n');
+    await step(msg + '\r\n.', 250);
+    try { await step('QUIT', 221); } catch (e) {}
+  } finally { try { rd.releaseLock(); w.releaseLock(); await sock.close(); } catch (e) {} }
+}
+
+// ---- the phone/Shortcut API
+async function cloudApi(path, req, env) {
+  let b; try { b = await req.json(); } catch (e) { return jr({ error: 'bad request' }, 400); }
+  await initDb(env);
+  const u = await userByCode(env, b.code);
+  if (!u) return jr({ error: 'unknown code. Check the code from your Nova Cloud setup page (or /link in Discord).' }, 403);
+  if (path === '/api/hello') return jr({ ok: true, name: u.name || '', features: features(env), vapid: (await vapid(env)).pub });
+  if (path === '/api/brain') return await brainProxy(env, u, b);
+  if (path.startsWith('/api/c/')) return await connectApi(path, b, u, env, req);
+  if (path === '/api/push/subscribe') {
+    const s = b.sub || {}, k = s.keys || {};
+    if (!/^https:\/\//.test(s.endpoint || '') || !k.p256dh || !k.auth) return jr({ error: 'bad subscription' }, 400);
+    await env.DB.prepare('INSERT INTO subs (user,endpoint,p256dh,auth,created) VALUES (?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET user=excluded.user, p256dh=excluded.p256dh, auth=excluded.auth')
+      .bind(u.id, s.endpoint, k.p256dh, k.auth, Date.now()).run();
+    return jr({ ok: true });
+  }
+  if (path === '/api/push/unsubscribe') { await env.DB.prepare('DELETE FROM subs WHERE user=? AND endpoint=?').bind(u.id, String(b.endpoint || '')).run(); return jr({ ok: true }); }
+  if (path === '/api/push/test') {
+    const n = await pushUser(env, u.id, { title: 'Nova ✨', body: b.text || 'Notifications work. Now I can bother you anytime. Responsibly.', tag: 'test', url: './' });
+    return n ? jr({ ok: true, sent: n }) : jr({ error: 'no phone subscribed yet. Tap Turn on notifications first.' }, 400);
+  }
+  if (path === '/api/remind') { // one-off alert (timers): never shown in the schedule
+    const at = +b.at, text = String(b.text || 'Timer').slice(0, 200);
+    if (!(at > Date.now() - 60000 && at < Date.now() + 2 * 86400000)) return jr({ error: 'bad time' }, 400);
+    const uid = 'x' + String(b.id || crypto.randomUUID()).slice(0, 38);
+    await env.DB.prepare('DELETE FROM reminders WHERE user=? AND uid=?').bind(u.id, uid).run();
+    if (!b.cancel) await env.DB.prepare('INSERT INTO reminders (user,text,due,daily,time,tz,created,date,sent,uid) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(u.id, text, at, 0, '', u.tz, Date.now(), null, 0, uid).run();
+    return jr({ ok: true });
+  }
+  if (path === '/api/email') {
+    if (u.id !== 'owner') return jr({ error: 'email is only for the owner account' }, 403);
+    if (!features(env).email) return jr({ error: 'email isn\'t set up. Add GMAIL_USER and GMAIL_APP_PASSWORD in Cloudflare.' }, 400);
+    const to = String(b.to || '').split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    if (!to.length || to.length > 5 || !to.every(t => /^[^@\s<>]+@[^@\s<>]+\.[a-z]{2,}$/i.test(t))) return jr({ error: 'check the email address' }, 400);
+    const day = 'mail:' + new Date().toISOString().slice(0, 10), n = (await kvGet(env, day)) || 0;
+    if (n >= 25) return jr({ error: 'daily email limit reached (25). Try tomorrow.' }, 429);
+    try { await smtpSend(env, to, String(b.subject || '(no subject)').slice(0, 200), String(b.body || '').slice(0, 20000), u.name ? u.name : 'Nova'); }
+    catch (e) { return jr({ error: e.message }, 502); }
+    await kvSet(env, day, n + 1);
+    return jr({ ok: true, to });
+  }
+  if (path === '/api/ask') { // "Hey Nova" from the Shortcut
+    const text = String(b.text || '').trim().slice(0, 1000);
+    if (!text) return jr({ reply: 'I heard nothing. Very peaceful. Try again?' });
+    const out = await think(env, u, text, '- RIGHT NOW they are talking to you out loud from their iPhone ("Hey Nova") and your reply will be SPOKEN by the phone. Answer in 1-3 short spoken sentences. No markdown, no emoji, no lists, no links. Reminders you set here show up on their phone and arrive as notifications.');
+    u.history.push({ r: 'u', t: text }, { r: 'n', t: out.slice(0, 1500) });
+    await saveUser(env, u);
+    return jr({ reply: out.replace(/\*\*|__|`/g, '').replace(/[#>]/g, '').trim() });
+  }
+  return jr({ error: 'unknown endpoint' }, 404);
+}
+
+
+// ================================================================ CONNECT (v4): friends, chat, posts, scores
+// Invite-only, 18+ (21+ for some posts), friend codes / usernames only (no public directory),
+// AI picture check that fails closed (unsure -> held for Moon to review), block + report, admin page.
+const SOCIAL_TABLES = [
+  'CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, username TEXT UNIQUE, display TEXT, bio TEXT, dob TEXT, photo TEXT, fcode TEXT UNIQUE, created INTEGER, banned INTEGER DEFAULT 0, ip TEXT)',
+  'CREATE TABLE IF NOT EXISTS friends (a TEXT, b TEXT, status TEXT, created INTEGER, PRIMARY KEY (a,b))',
+  'CREATE TABLE IF NOT EXISTS blocks (a TEXT, b TEXT, created INTEGER, PRIMARY KEY (a,b))',
+  'CREATE TABLE IF NOT EXISTS photos (id TEXT PRIMARY KEY, owner TEXT, data TEXT, status TEXT, adult INTEGER DEFAULT 0, reason TEXT, created INTEGER)',
+  'CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT, text TEXT, photo TEXT, adult INTEGER DEFAULT 0, created INTEGER, removed INTEGER DEFAULT 0)',
+  'CREATE TABLE IF NOT EXISTS likes (post INTEGER, user TEXT, PRIMARY KEY (post,user))',
+  'CREATE TABLE IF NOT EXISTS msgs (id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, text TEXT, created INTEGER, seen INTEGER DEFAULT 0, removed INTEGER DEFAULT 0)',
+  'CREATE INDEX IF NOT EXISTS msgs_ab ON msgs(a,b,id)',
+  'CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter TEXT, kind TEXT, target TEXT, reason TEXT, created INTEGER, status TEXT DEFAULT \'open\')',
+  'CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, created INTEGER, uses INTEGER DEFAULT 0, max INTEGER DEFAULT 1, note TEXT)',
+  'CREATE TABLE IF NOT EXISTS scores (user TEXT, game TEXT, score INTEGER, updated INTEGER, PRIMARY KEY (user,game))',
+  'CREATE TABLE IF NOT EXISTS usage (user TEXT, day TEXT, n INTEGER, PRIMARY KEY (user,day))'
+];
+const rnd = (n, abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => abc[x % abc.length]).join('');
+const now = () => Date.now();
+const today = () => new Date().toISOString().slice(0, 10);
+function ageOf(dob) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob || ''); if (!m) return -1; const d = new Date(); let a = d.getUTCFullYear() - +m[1]; const md = (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); if (md < +m[2] * 100 + +m[3]) a--; return a; }
+const okUsername = s => /^[a-z0-9_.]{3,20}$/.test(s) && !/^(admin|moon|nova|support|official|mod|moderator)$/.test(s);
+const clean = (s, n) => String(s || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, n);
+const getProf = (env, id) => env.DB.prepare('SELECT * FROM profiles WHERE id=?').bind(id).first();
+async function blockedEither(env, a, b) { return !!(await env.DB.prepare('SELECT 1 FROM blocks WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(a, b, b, a).first()); }
+async function areFriends(env, a, b) { return !!(await env.DB.prepare("SELECT 1 FROM friends WHERE status='accepted' AND ((a=? AND b=?) OR (a=? AND b=?))").bind(a, b, b, a).first()); }
+async function friendIds(env, me) { const { results } = await env.DB.prepare("SELECT a,b FROM friends WHERE status='accepted' AND (a=? OR b=?)").bind(me, me).all(); return results.map(r => r.a === me ? r.b : r.a); }
+async function rate(env, key, max, windowMs) { // simple counter per time window
+  const k = 'rl:' + key + ':' + Math.floor(now() / windowMs), n = (await kvGet(env, k)) || 0;
+  if (n >= max) return false; await kvSet(env, k, n + 1); return true;
+}
+function pub(p, viewer, extra) {
+  if (!p) return null;
+  return Object.assign({ id: p.id, username: p.username, display: p.display || p.username, bio: p.bio || '', photo: p.photo || null, since: p.created }, p.id === viewer ? { fcode: p.fcode, adult21: ageOf(p.dob) >= 21, age18: ageOf(p.dob) >= 18 } : {}, extra || {});
+}
+async function verifyHuman(env, token, ip) {
+  if (!env.TURNSTILE_SECRET) return true; // bot check not set up: invite codes still protect sign-up
+  if (!token) return false;
+  try { const f = new FormData(); f.append('secret', env.TURNSTILE_SECRET); f.append('response', token); if (ip) f.append('remoteip', ip);
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: f }); const j = await r.json(); return !!j.success; } catch (e) { return false; }
+}
+// ---- picture check: AI looks at every photo. Unsure or unavailable -> held for Moon to review.
+const MOD_PROMPT = 'You are a strict content moderator for an 18+ friends-only social app. Look at the image and reply with ONLY a JSON object like {"verdict":"ok","reason":"..."}. verdict "reject" for: any nudity or sexual content; anyone who could be a minor shown in a suggestive or unsafe way; gore or graphic violence; self-harm; hate symbols; weapons aimed at people; illegal drugs being used or sold; visible personal documents (IDs, bank cards, passports); screenshots of private info. verdict "21plus" for: alcohol, smoking or vaping, cannabis, gambling, bars or clubs. Otherwise verdict "ok". reason: a few words.';
+function parseVerdict(t) { const m = /\{[\s\S]*\}/.exec(t || ''); if (!m) return null; try { const j = JSON.parse(m[0]); return ['ok', '21plus', 'reject'].includes(j.verdict) ? { verdict: j.verdict, reason: clean(j.reason, 120) } : null; } catch (e) { return null; } }
+async function checkImage(env, dataUrl) {
+  if (env.GROQ_KEY) try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + env.GROQ_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: env.VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct', temperature: 0, max_tokens: 120, messages: [{ role: 'user', content: [{ type: 'text', text: MOD_PROMPT }, { type: 'image_url', image_url: { url: dataUrl } }] }] }) });
+    if (r.ok) { const v = parseVerdict(((await r.json()).choices || [{}])[0].message?.content); if (v) return v; }
+  } catch (e) {}
+  if (env.GEMINI_KEY) try {
+    const [, mime, b64] = /^data:([^;]+);base64,(.*)$/.exec(dataUrl) || [];
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + (env.GEMINI_VISION || 'gemini-2.5-flash') + ':generateContent', { method: 'POST', headers: { 'x-goog-api-key': env.GEMINI_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: MOD_PROMPT }, { inline_data: { mime_type: mime, data: b64 } }] }], generationConfig: { temperature: 0, maxOutputTokens: 120 } }) });
+    if (r.ok) { const j = await r.json(); const v = parseVerdict(j.candidates?.[0]?.content?.parts?.map(p => p.text).join('')); if (v) return v; }
+  } catch (e) {}
+  return { verdict: 'pending', reason: 'waiting for review' };
+}
+async function canSeePhoto(env, ph, me, meProf) {
+  if (!ph) return false;
+  if (ph.owner === me) return true;
+  if (ph.status !== 'ok') return false;
+  if (ph.adult && ageOf(meProf && meProf.dob) < 21) return false;
+  if (await blockedEither(env, me, ph.owner)) return false;
+  if (await areFriends(env, me, ph.owner)) return true;
+  // profile pictures are visible to people who look you up by exact username / code (so they can add you)
+  const asAvatar = await env.DB.prepare('SELECT 1 FROM profiles WHERE photo=? AND id=?').bind(ph.id, ph.owner).first();
+  return !!asAvatar;
+}
+async function makeProfile(env, uid, b, ip) {
+  const username = clean(b.username, 20).toLowerCase(), display = clean(b.display, 30) || username, dob = clean(b.dob, 10), age = ageOf(dob);
+  if (!okUsername(username)) return { error: 'Usernames are 3–20 characters: letters, numbers, _ or .' };
+  if (age < 0 || age > 110) return { error: 'Enter your real birthday.' };
+  if (age < 18) return { error: 'Connect is for people 18 and older.', underage: true };
+  if (await env.DB.prepare('SELECT 1 FROM profiles WHERE username=?').bind(username).first()) return { error: 'That username is taken.' };
+  let fcode; do { fcode = rnd(6); } while (await env.DB.prepare('SELECT 1 FROM profiles WHERE fcode=?').bind(fcode).first());
+  await env.DB.prepare('INSERT INTO profiles (id,username,display,bio,dob,photo,fcode,created,banned,ip) VALUES (?,?,?,?,?,?,?,?,0,?)').bind(uid, username, display, clean(b.bio, 160), dob, null, fcode, now(), ip || '').run();
+  return { ok: true };
+}
+// ---- public: sign up with an invite code
+async function publicApi(path, req, env) {
+  let b; try { b = await req.json(); } catch (e) { return jr({ error: 'bad request' }, 400); }
+  await initDb(env);
+  if (path === '/api/info') return jr({ ok: true, version: VERSION, features: features(env), turnstile: env.TURNSTILE_SITE_KEY || null, brain: !!env.GROQ_KEY });
+  if (path === '/api/join') {
+    const ip = req.headers.get('CF-Connecting-IP') || '';
+    if (!b.agree) return jr({ error: 'Please agree to the rules.' }, 400);
+    if (!(await verifyHuman(env, b.turnstile, ip))) return jr({ error: 'Robot check failed. Try again.' }, 403);
+    if (!(await rate(env, 'join:' + ip, 10, 86400000))) return jr({ error: 'Too many sign-up tries from here today. Try tomorrow.' }, 429);
+    const code = clean(b.invite, 20).toUpperCase().replace(/\s+/g, '');
+    const inv = await env.DB.prepare('SELECT * FROM invites WHERE code=?').bind(code).first();
+    if (!inv || inv.uses >= inv.max) return jr({ error: 'That invite code isn\'t valid (or it\'s used up). Ask Moon for a new one.' }, 403);
+    const uid = 'n_' + rnd(10, 'abcdefghijkmnpqrstuvwxyz23456789');
+    const r = await makeProfile(env, uid, b, ip); if (r.error) return jr(r, 400);
+    const link = newCode();
+    await env.DB.prepare('INSERT INTO users (id,name,tz,facts,history,link) VALUES (?,?,?,?,?,?)').bind(uid, clean(b.display, 30) || clean(b.username, 20), clean(b.tz, 40) || env.DEFAULT_TZ || 'America/New_York', '[]', '[]', link).run();
+    await env.DB.prepare('UPDATE invites SET uses=uses+1 WHERE code=?').bind(code).run();
+    return jr({ ok: true, code: link, profile: pub(await getProf(env, uid), uid), features: features(env), vapid: (await vapid(env)).pub });
+  }
+  return jr({ error: 'unknown endpoint' }, 404);
+}
+// ---- shared brain: friends without their own AI key use Moon's, with a daily limit
+const BRAIN_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound-mini', 'groq/compound', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+async function brainProxy(env, u, b) {
+  if (!env.GROQ_KEY) return jr({ error: { message: 'The shared brain isn\'t set up on Nova Cloud.' } }, 503);
+  const p = await getProf(env, u.id); if (p && p.banned) return jr({ error: { message: 'This account is suspended.' } }, 403);
+  if (u.id !== 'owner') {
+    const lim = +(env.BRAIN_DAILY || 150), row = await env.DB.prepare('SELECT n FROM usage WHERE user=? AND day=?').bind(u.id, today()).first();
+    if (row && row.n >= lim) return jr({ error: { message: 'Daily limit reached (' + lim + ' messages). Nova resets at midnight UTC.' } }, 429);
+    await env.DB.prepare('INSERT INTO usage (user,day,n) VALUES (?,?,1) ON CONFLICT(user,day) DO UPDATE SET n=n+1').bind(u.id, today()).run();
+  }
+  const body = Object.assign({}, b.body || {}); if (!BRAIN_MODELS.includes(body.model)) body.model = BRAIN_MODELS[0];
+  body.max_tokens = Math.min(+body.max_tokens || 2000, 4000); delete body.stream;
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + env.GROQ_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return new Response(await r.text(), { status: r.status, headers: H });
+}
+// ---- Connect (signed in)
+async function connectApi(path, b, u, env, req) {
+  const me = u.id; let p = await getProf(env, me);
+  if (path === '/api/c/me') {
+    if (!p) return jr({ ok: true, profile: null });
+    const inc = await env.DB.prepare("SELECT COUNT(*) n FROM friends WHERE b=? AND status='pending'").bind(me).first();
+    const unread = await env.DB.prepare('SELECT COUNT(*) n FROM msgs WHERE b=? AND seen=0 AND removed=0').bind(me).first();
+    return jr({ ok: true, profile: pub(p, me), banned: !!p.banned, requests: inc.n, unread: unread.n, turnstile: env.TURNSTILE_SITE_KEY || null });
+  }
+  if (path === '/api/c/profile/create') { if (p) return jr({ error: 'You already have a profile.' }, 400); const r = await makeProfile(env, me, b, req.headers.get('CF-Connecting-IP')); return r.error ? jr(r, 400) : jr({ ok: true, profile: pub(await getProf(env, me), me) }); }
+  if (!p) return jr({ error: 'Create your Connect profile first.' }, 400);
+  if (p.banned) return jr({ error: 'This account is suspended. Talk to Moon if you think that\'s a mistake.', banned: true }, 403);
+  if (path === '/api/c/profile/update') {
+    await env.DB.prepare('UPDATE profiles SET display=?, bio=? WHERE id=?').bind(clean(b.display, 30) || p.username, clean(b.bio, 160), me).run();
+    await env.DB.prepare('UPDATE users SET name=? WHERE id=?').bind(clean(b.display, 30) || p.username, me).run();
+    return jr({ ok: true, profile: pub(await getProf(env, me), me) });
+  }
+  if (path === '/api/c/photo') {
+    const data = String(b.data || ''); if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(data)) return jr({ error: 'That isn\'t a picture.' }, 400);
+    if (data.length > 600000) return jr({ error: 'Picture too big.' }, 400);
+    if (!(await rate(env, 'photo:' + me, 20, 86400000))) return jr({ error: 'That\'s a lot of pictures today. Try tomorrow.' }, 429);
+    const v = await checkImage(env, data), id = 'p_' + rnd(12, 'abcdefghijkmnpqrstuvwxyz23456789');
+    const avatar = b.purpose === 'avatar';
+    let status = v.verdict === 'ok' ? 'ok' : v.verdict === '21plus' ? (avatar || ageOf(p.dob) < 21 ? 'rejected' : 'ok') : v.verdict === 'pending' ? 'pending' : 'rejected';
+    await env.DB.prepare('INSERT INTO photos (id,owner,data,status,adult,reason,created) VALUES (?,?,?,?,?,?,?)').bind(id, me, status === 'rejected' ? '' : data, status, v.verdict === '21plus' ? 1 : 0, v.reason || '', now()).run();
+    if (status === 'rejected') return jr({ error: v.verdict === '21plus' ? (avatar ? 'Profile pictures have to be all-ages (no alcohol, smoking, etc.).' : 'That picture is 21+ only.') : 'That picture breaks the rules, so it wasn\'t posted.', rejected: true }, 400);
+    if (avatar) await env.DB.prepare('UPDATE profiles SET photo=? WHERE id=?').bind(id, me).run();
+    return jr({ ok: true, id, status, adult: v.verdict === '21plus' });
+  }
+  if (path === '/api/c/img') {
+    const ph = await env.DB.prepare('SELECT * FROM photos WHERE id=?').bind(String(b.id || '')).first();
+    if (!(await canSeePhoto(env, ph, me, p))) return jr({ error: 'not available' }, 404);
+    return jr({ ok: true, data: ph.data, status: ph.status });
+  }
+  if (path === '/api/c/find') { // exact username or friend code only: no browsing
+    const q = clean(b.q, 30).replace(/^@/, ''); if (q.length < 3) return jr({ ok: true, user: null });
+    if (!(await rate(env, 'find:' + me, 60, 3600000))) return jr({ error: 'Slow down a little.' }, 429);
+    const t = await env.DB.prepare('SELECT * FROM profiles WHERE (username=? OR fcode=?) AND banned=0').bind(q.toLowerCase(), q.toUpperCase().replace(/[^A-Z0-9]/g, '')).first();
+    if (!t || t.id === me || await blockedEither(env, me, t.id)) return jr({ ok: true, user: null });
+    const rel = await env.DB.prepare('SELECT * FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, t.id, t.id, me).first();
+    return jr({ ok: true, user: pub(t, me, { status: rel ? (rel.status === 'accepted' ? 'friends' : rel.a === me ? 'sent' : 'incoming') : 'none' }) });
+  }
+  if (path === '/api/c/friend/add') {
+    const t = await getProf(env, String(b.id || '')); if (!t || t.banned || t.id === me || await blockedEither(env, me, t.id)) return jr({ error: 'Couldn\'t find that person.' }, 404);
+    if (!(await rate(env, 'freq:' + me, 30, 86400000))) return jr({ error: 'Too many requests today.' }, 429);
+    const rev = await env.DB.prepare("SELECT * FROM friends WHERE a=? AND b=?").bind(t.id, me).first();
+    if (rev) { await env.DB.prepare("UPDATE friends SET status='accepted' WHERE a=? AND b=?").bind(t.id, me).run(); await pushUser(env, t.id, { title: 'Nova Connect', body: (p.display || p.username) + ' accepted your friend request 🎉', tag: 'fr', url: './' }); return jr({ ok: true, status: 'friends' }); }
+    await env.DB.prepare('INSERT OR IGNORE INTO friends (a,b,status,created) VALUES (?,?,?,?)').bind(me, t.id, 'pending', now()).run();
+    await pushUser(env, t.id, { title: 'Nova Connect', body: (p.display || p.username) + ' (@' + p.username + ') wants to be friends', tag: 'fr', url: './' });
+    return jr({ ok: true, status: 'sent' });
+  }
+  if (path === '/api/c/friend/respond') {
+    const other = String(b.id || ''); const row = await env.DB.prepare("SELECT * FROM friends WHERE a=? AND b=? AND status='pending'").bind(other, me).first(); if (!row) return jr({ error: 'No request from them.' }, 404);
+    if (b.accept) { await env.DB.prepare("UPDATE friends SET status='accepted' WHERE a=? AND b=?").bind(other, me).run(); await pushUser(env, other, { title: 'Nova Connect', body: (p.display || p.username) + ' accepted your friend request 🎉', tag: 'fr', url: './' }); }
+    else await env.DB.prepare('DELETE FROM friends WHERE a=? AND b=?').bind(other, me).run();
+    return jr({ ok: true });
+  }
+  if (path === '/api/c/friend/remove') { const o = String(b.id || ''); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, o, o, me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/friends') {
+    const { results } = await env.DB.prepare("SELECT f.a, f.b, f.status, p.* FROM friends f JOIN profiles p ON p.id = (CASE WHEN f.a=? THEN f.b ELSE f.a END) WHERE (f.a=? OR f.b=?) AND p.banned=0").bind(me, me, me).all();
+    const out = { friends: [], incoming: [], outgoing: [] };
+    for (const r of results) { const x = pub(r, me); if (r.status === 'accepted') out.friends.push(x); else if (r.b === me) out.incoming.push(x); else out.outgoing.push(x); }
+    return jr(Object.assign({ ok: true }, out));
+  }
+  if (path === '/api/c/block') { const o = String(b.id || ''); if (o === me) return jr({ error: 'nope' }, 400); await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, o, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, o, o, me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/unblock') { await env.DB.prepare('DELETE FROM blocks WHERE a=? AND b=?').bind(me, String(b.id || '')).run(); return jr({ ok: true }); }
+  if (path === '/api/c/blocked') { const { results } = await env.DB.prepare('SELECT p.* FROM blocks k JOIN profiles p ON p.id=k.b WHERE k.a=?').bind(me).all(); return jr({ ok: true, blocked: results.map(r => ({ id: r.id, username: r.username, display: r.display })) }); }
+  if (path === '/api/c/report') {
+    const kind = ['user', 'post', 'msg', 'photo'].includes(b.kind) ? b.kind : 'user', target = clean(b.target, 40);
+    if (!(await rate(env, 'rep:' + me, 30, 86400000))) return jr({ error: 'Too many reports today.' }, 429);
+    await env.DB.prepare('INSERT INTO reports (reporter,kind,target,reason,created) VALUES (?,?,?,?,?)').bind(me, kind, target, clean(b.reason, 300), now()).run();
+    // 3 different people report the same thing -> hidden until Moon reviews it
+    const n = await env.DB.prepare("SELECT COUNT(DISTINCT reporter) n FROM reports WHERE kind=? AND target=? AND status='open'").bind(kind, target).first();
+    if (n.n >= 3) { if (kind === 'post') await env.DB.prepare('UPDATE posts SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'photo') await env.DB.prepare("UPDATE photos SET status='pending' WHERE id=?").bind(target).run(); if (kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=2 WHERE id=?').bind(+target).run(); }
+    if (b.block && kind === 'user') { await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, target, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); }
+    return jr({ ok: true });
+  }
+  if (path === '/api/c/chats') {
+    const fr = await friendIds(env, me); const out = [];
+    for (const f of fr) {
+      const last = await env.DB.prepare('SELECT * FROM msgs WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND removed=0 ORDER BY id DESC LIMIT 1').bind(me, f, f, me).first();
+      const un = await env.DB.prepare('SELECT COUNT(*) n FROM msgs WHERE a=? AND b=? AND seen=0 AND removed=0').bind(f, me).first();
+      out.push({ user: pub(await getProf(env, f), me), last: last ? { text: last.text, mine: last.a === me, at: last.created } : null, unread: un.n });
+    }
+    out.sort((x, y) => (y.last ? y.last.at : 0) - (x.last ? x.last.at : 0));
+    return jr({ ok: true, chats: out });
+  }
+  if (path === '/api/c/msgs') {
+    const o = String(b.with || ''); if (!(await areFriends(env, me, o))) return jr({ error: 'You can only message friends.' }, 403);
+    const { results } = await env.DB.prepare('SELECT id,a,text,created FROM msgs WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND removed=0 AND id>? ORDER BY id DESC LIMIT 60').bind(me, o, o, me, +b.after || 0).all();
+    await env.DB.prepare('UPDATE msgs SET seen=1 WHERE a=? AND b=? AND seen=0').bind(o, me).run();
+    return jr({ ok: true, msgs: results.reverse().map(m => ({ id: m.id, mine: m.a === me, text: m.text, at: m.created })) });
+  }
+  if (path === '/api/c/send') {
+    const o = String(b.to || ''), text = clean(b.text, 1000); if (!text) return jr({ error: 'Empty message.' }, 400);
+    if (!(await areFriends(env, me, o)) || await blockedEither(env, me, o)) return jr({ error: 'You can only message friends.' }, 403);
+    if (!(await rate(env, 'msg:' + me, 20, 60000))) return jr({ error: 'Whoa, slow down a second.' }, 429);
+    const r = await env.DB.prepare('INSERT INTO msgs (a,b,text,created) VALUES (?,?,?,?)').bind(me, o, text, now()).run();
+    await pushUser(env, o, { title: p.display || p.username, body: text.slice(0, 120), tag: 'dm-' + me, url: './' });
+    return jr({ ok: true, id: r.meta && r.meta.last_row_id });
+  }
+  if (path === '/api/c/post') {
+    const text = clean(b.text, 500), photo = b.photo ? String(b.photo) : null; if (!text && !photo) return jr({ error: 'Write something or add a picture.' }, 400);
+    if (!(await rate(env, 'post:' + me, 10, 86400000))) return jr({ error: '10 posts a day max. Save some for tomorrow.' }, 429);
+    const is21 = ageOf(p.dob) >= 21; let adult = b.adult ? 1 : 0;
+    if (adult && !is21) return jr({ error: '21+ posts are for people 21 and older.' }, 403);
+    if (photo) { const ph = await env.DB.prepare('SELECT * FROM photos WHERE id=? AND owner=?').bind(photo, me).first(); if (!ph || ph.status === 'rejected') return jr({ error: 'Picture not found.' }, 400); if (ph.adult) adult = 1; }
+    const r = await env.DB.prepare('INSERT INTO posts (author,text,photo,adult,created) VALUES (?,?,?,?,?)').bind(me, text, photo, adult, now()).run();
+    return jr({ ok: true, id: r.meta && r.meta.last_row_id, adult: !!adult });
+  }
+  if (path === '/api/c/post/delete') { await env.DB.prepare('UPDATE posts SET removed=1 WHERE id=? AND author=?').bind(+b.id, me).run(); return jr({ ok: true }); }
+  if (path === '/api/c/feed') {
+    const fr = await friendIds(env, me), ids = [me, ...fr]; const is21 = ageOf(p.dob) >= 21;
+    const qs = ids.map(() => '?').join(',');
+    const { results } = await env.DB.prepare('SELECT * FROM posts WHERE author IN (' + qs + ') AND removed=0 ' + (is21 ? '' : 'AND adult=0 ') + 'AND id<? ORDER BY id DESC LIMIT 30').bind(...ids, +b.before || 1e15).all();
+    const out = [];
+    for (const r of results) {
+      if (r.author !== me && await blockedEither(env, me, r.author)) continue;
+      const ph = r.photo ? await env.DB.prepare('SELECT status FROM photos WHERE id=?').bind(r.photo).first() : null;
+      if (r.photo && (!ph || (ph.status !== 'ok' && r.author !== me))) continue; // picture still under review: only the author sees it
+      const lc = await env.DB.prepare('SELECT COUNT(*) n FROM likes WHERE post=?').bind(r.id).first(), mine = await env.DB.prepare('SELECT 1 FROM likes WHERE post=? AND user=?').bind(r.id, me).first();
+      out.push({ id: r.id, author: pub(await getProf(env, r.author), me), text: r.text, photo: r.photo, photoStatus: ph ? ph.status : null, adult: !!r.adult, at: r.created, likes: lc.n, liked: !!mine, mine: r.author === me });
+    }
+    return jr({ ok: true, posts: out });
+  }
+  if (path === '/api/c/like') {
+    const id = +b.id, has = await env.DB.prepare('SELECT 1 FROM likes WHERE post=? AND user=?').bind(id, me).first();
+    if (has) await env.DB.prepare('DELETE FROM likes WHERE post=? AND user=?').bind(id, me).run(); else await env.DB.prepare('INSERT INTO likes (post,user) VALUES (?,?)').bind(id, me).run();
+    return jr({ ok: true, liked: !has });
+  }
+  if (path === '/api/c/score') {
+    const game = clean(b.game, 20), score = Math.max(0, Math.min(1e9, Math.floor(+b.score || 0))); if (!/^[a-z0-9_-]{2,20}$/.test(game)) return jr({ error: 'bad game' }, 400);
+    await env.DB.prepare('INSERT INTO scores (user,game,score,updated) VALUES (?,?,?,?) ON CONFLICT(user,game) DO UPDATE SET score=MAX(score, excluded.score), updated=excluded.updated').bind(me, game, score, now()).run();
+    return jr({ ok: true });
+  }
+  if (path === '/api/c/scores') {
+    const ids = [me, ...(await friendIds(env, me))], qs = ids.map(() => '?').join(',');
+    const { results } = await env.DB.prepare('SELECT s.user, s.game, s.score, p.username, p.display, p.photo FROM scores s JOIN profiles p ON p.id=s.user WHERE s.user IN (' + qs + ') AND p.banned=0 ORDER BY s.score DESC').bind(...ids).all();
+    const boards = {}; results.forEach(r => (boards[r.game] = boards[r.game] || []).push({ id: r.user, username: r.username, display: r.display, photo: r.photo, score: r.score, me: r.user === me }));
+    return jr({ ok: true, boards });
+  }
+  if (path === '/api/c/delete-account') {
+    for (const sql of ['DELETE FROM friends WHERE a=? OR b=?', 'DELETE FROM msgs WHERE a=? OR b=?', 'DELETE FROM blocks WHERE a=? OR b=?']) await env.DB.prepare(sql).bind(me, me).run();
+    for (const sql of ['DELETE FROM posts WHERE author=?', 'DELETE FROM photos WHERE owner=?', 'DELETE FROM likes WHERE user=?', 'DELETE FROM scores WHERE user=?', 'DELETE FROM profiles WHERE id=?']) await env.DB.prepare(sql).bind(me).run();
+    return jr({ ok: true });
+  }
+  return jr({ error: 'unknown endpoint' }, 404);
+}
+
+// ---- Moon's admin page: reports, pictures waiting for review, users, invites
+async function adminApi(path, req, env) {
+  let b; try { b = await req.json(); } catch (e) { return jr({ error: 'bad request' }, 400); }
+  if (!env.SETUP_KEY || b.key !== env.SETUP_KEY) return jr({ error: 'wrong key' }, 403);
+  await initDb(env);
+  const one = async sql => (await env.DB.prepare(sql).first()).n;
+  if (path === '/api/admin/stats') return jr({ ok: true, users: await one('SELECT COUNT(*) n FROM profiles'), banned: await one('SELECT COUNT(*) n FROM profiles WHERE banned=1'), posts: await one('SELECT COUNT(*) n FROM posts WHERE removed=0'), msgs: await one('SELECT COUNT(*) n FROM msgs'), openReports: await one("SELECT COUNT(*) n FROM reports WHERE status='open'"), pending: await one("SELECT COUNT(*) n FROM photos WHERE status='pending'"), brainToday: await one("SELECT COALESCE(SUM(n),0) n FROM usage WHERE day='" + today() + "'") });
+  if (path === '/api/admin/reports') {
+    const { results } = await env.DB.prepare("SELECT r.*, p.username AS rep FROM reports r LEFT JOIN profiles p ON p.id=r.reporter WHERE r.status='open' ORDER BY r.id DESC LIMIT 100").all();
+    for (const r of results) {
+      if (r.kind === 'user') { const t = await getProf(env, r.target); r.preview = t ? '@' + t.username + ' · ' + (t.display || '') + (t.bio ? ' · ' + t.bio : '') : '(deleted)'; r.photo = t && t.photo; r.owner = r.target; }
+      if (r.kind === 'post') { const t = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.photo = t && t.photo; r.owner = t && t.author; }
+      if (r.kind === 'msg') { const t = await env.DB.prepare('SELECT * FROM msgs WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.owner = t && t.a; }
+      if (r.kind === 'photo') { r.photo = r.target; const t = await env.DB.prepare('SELECT owner FROM photos WHERE id=?').bind(r.target).first(); r.owner = t && t.owner; }
+      if (r.photo) { const ph = await env.DB.prepare('SELECT data FROM photos WHERE id=?').bind(r.photo).first(); r.photoData = ph && ph.data; }
+      if (r.owner) { const o = await getProf(env, r.owner); r.ownerName = o ? '@' + o.username : r.owner; }
+    }
+    return jr({ ok: true, reports: results });
+  }
+  if (path === '/api/admin/resolve') {
+    const r = await env.DB.prepare('SELECT * FROM reports WHERE id=?').bind(+b.id).first(); if (!r) return jr({ error: 'not found' }, 404);
+    const mark = st => env.DB.prepare('UPDATE reports SET status=? WHERE kind=? AND target=? AND status=\'open\'').bind(st, r.kind, r.target).run();
+    if (b.action === 'dismiss') { if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); await mark('dismissed'); }
+    if (b.action === 'remove' || b.action === 'ban') {
+      if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=3 WHERE id=?').bind(+r.target).run();
+      if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=3 WHERE id=?').bind(+r.target).run();
+      if (r.kind === 'photo') await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(r.target).run();
+      if (r.kind === 'user') { const t = await getProf(env, r.target); if (t && t.photo) await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(t.photo).run(); await env.DB.prepare('UPDATE profiles SET photo=NULL, bio=\'\' WHERE id=?').bind(r.target).run(); }
+      if (b.action === 'ban' && b.owner) await env.DB.prepare('UPDATE profiles SET banned=1 WHERE id=?').bind(String(b.owner)).run();
+      await mark(b.action === 'ban' ? 'banned' : 'removed');
+    }
+    return jr({ ok: true });
+  }
+  if (path === '/api/admin/photos') { const { results } = await env.DB.prepare("SELECT ph.id, ph.data, ph.adult, ph.reason, ph.created, p.username FROM photos ph LEFT JOIN profiles p ON p.id=ph.owner WHERE ph.status='pending' ORDER BY ph.created LIMIT 50").all(); return jr({ ok: true, photos: results }); }
+  if (path === '/api/admin/photo') { await env.DB.prepare(b.ok ? "UPDATE photos SET status='ok' WHERE id=?" : "UPDATE photos SET status='rejected', data='' WHERE id=?").bind(String(b.id)).run(); return jr({ ok: true }); }
+  if (path === '/api/admin/users') { const { results } = await env.DB.prepare('SELECT id, username, display, dob, created, banned, (SELECT COUNT(*) FROM reports WHERE target=profiles.id) AS reports FROM profiles ORDER BY created DESC LIMIT 300').all(); return jr({ ok: true, users: results.map(u => Object.assign(u, { age: ageOf(u.dob), dob: undefined })) }); }
+  if (path === '/api/admin/ban') { await env.DB.prepare('UPDATE profiles SET banned=? WHERE id=?').bind(b.ban ? 1 : 0, String(b.id)).run(); return jr({ ok: true }); }
+  if (path === '/api/admin/invites') { const { results } = await env.DB.prepare('SELECT * FROM invites ORDER BY created DESC LIMIT 200').all(); return jr({ ok: true, invites: results }); }
+  if (path === '/api/admin/invite-new') {
+    const n = Math.max(1, Math.min(50, +b.n || 1)), max = Math.max(1, Math.min(100, +b.max || 1)), out = [];
+    for (let i = 0; i < n; i++) { const c = 'JOIN-' + rnd(6); await env.DB.prepare('INSERT INTO invites (code,created,uses,max,note) VALUES (?,?,0,?,?)').bind(c, now(), max, clean(b.note, 60)).run(); out.push(c); }
+    return jr({ ok: true, codes: out });
+  }
+  if (path === '/api/admin/invite-delete') { await env.DB.prepare('DELETE FROM invites WHERE code=?').bind(String(b.code)).run(); return jr({ ok: true }); }
+  return jr({ error: 'unknown endpoint' }, 404);
+}
+const ADMIN_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nova Admin</title>
+<style>:root{--bg:#070b14;--p:#101828;--l:#1e2b44;--t:#e8f1ff;--m:#8ea3c4;--a:#3fc6ff;--b:#ff6b81}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.45 -apple-system,system-ui,sans-serif;padding:16px;max-width:760px;margin:auto}
+h1{font-size:22px;margin:4px 0 12px}h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--m);margin:22px 0 8px}.card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:12px;margin-bottom:8px}
+button{font:inherit;border-radius:10px;border:1px solid var(--l);background:#152035;color:var(--t);padding:7px 11px;margin:4px 4px 0 0}button.a{background:var(--a);color:#03111a;border:none;font-weight:700}button.d{border-color:var(--b);color:var(--b)}
+input{font:inherit;background:#0b1222;color:var(--t);border:1px solid var(--l);border-radius:10px;padding:8px}img{max-width:180px;max-height:180px;border-radius:10px;display:block;margin-top:6px}.m{color:var(--m);font-size:13px}.stats{display:flex;flex-wrap:wrap;gap:8px}.stats div{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:8px 12px}code{background:#0b1222;padding:2px 6px;border-radius:6px}</style></head>
+<body><h1>🛡️ Nova Admin</h1><div id="login" class="card">Admin key (your SETUP_KEY): <input id="k" type="password"> <button class="a" onclick="go()">Open</button></div><div id="app" hidden>
+<div class="stats" id="stats"></div>
+<h2>Invites</h2><div class="card"><input id="inN" type="number" value="1" min="1" max="50" style="width:70px"> codes, each usable <input id="inMax" type="number" value="1" min="1" style="width:70px"> time(s). Note: <input id="inNote" placeholder="who it's for" style="width:140px"> <button class="a" onclick="mk()">Make invites</button><div id="newCodes"></div></div><div id="invites"></div>
+<h2>Pictures waiting for review</h2><div id="photos"></div>
+<h2>Reports</h2><div id="reports"></div>
+<h2>Users</h2><div id="users"></div></div>
+<script>
+let K='';const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(p,b){const r=await fetch('/api/admin/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:K},b||{}))});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
+async function go(){K=document.getElementById('k').value;try{await api('stats');sessionStorage.k=K;document.getElementById('login').hidden=true;document.getElementById('app').hidden=false;load();}catch(e){alert('Wrong key');}}
+async function load(){const s=await api('stats');document.getElementById('stats').innerHTML=Object.entries({Users:s.users,Banned:s.banned,Posts:s.posts,Messages:s.msgs,'Open reports':s.openReports,'Pics to review':s.pending,'Shared brain today':s.brainToday}).map(([k,v])=>'<div><b>'+v+'</b> <span class=m>'+k+'</span></div>').join('');
+const iv=await api('invites');document.getElementById('invites').innerHTML=iv.invites.map(i=>'<div class=card><code>'+i.code+'</code> <span class=m>used '+i.uses+'/'+i.max+(i.note?' · '+esc(i.note):'')+'</span> <button class=d onclick="delInv(\\''+i.code+'\\')">Delete</button></div>').join('')||'<div class=m>No invites yet.</div>';
+const ph=await api('photos');document.getElementById('photos').innerHTML=ph.photos.map(p=>'<div class=card>@'+esc(p.username)+' <span class=m>'+esc(p.reason)+'</span><img src="'+p.data+'"><button class=a onclick="pic(\\''+p.id+'\\',1)">Approve</button><button class=d onclick="pic(\\''+p.id+'\\',0)">Reject</button></div>').join('')||'<div class=m>Nothing waiting. 👍</div>';
+const rp=await api('reports');document.getElementById('reports').innerHTML=rp.reports.map(r=>'<div class=card><b>'+r.kind+'</b> by @'+esc(r.rep)+' against '+esc(r.ownerName||'?')+' <span class=m>'+new Date(r.created).toLocaleString()+'</span><div>Reason: '+esc(r.reason||'(none)')+'</div><div class=m>'+esc(r.preview||'')+'</div>'+(r.photoData?'<img src="'+r.photoData+'">':'')+'<button onclick="res('+r.id+',\\'dismiss\\')">Dismiss</button><button class=d onclick="res('+r.id+',\\'remove\\')">Remove it</button><button class=d onclick="res('+r.id+',\\'ban\\',\\''+(r.owner||'')+'\\')">Remove + ban</button></div>').join('')||'<div class=m>No open reports. 🎉</div>';
+const us=await api('users');document.getElementById('users').innerHTML=us.users.map(u=>'<div class=card>@'+esc(u.username)+' <span class=m>'+esc(u.display)+' · age '+u.age+' · '+u.reports+' reports'+(u.banned?' · <b style=color:var(--b)>BANNED</b>':'')+'</span> <button class='+(u.banned?'a':'d')+' onclick="ban(\\''+u.id+'\\','+(u.banned?0:1)+')">'+(u.banned?'Unban':'Ban')+'</button></div>').join('')||'<div class=m>No one yet.</div>';}
+async function mk(){const j=await api('invite-new',{n:+inN.value,max:+inMax.value,note:inNote.value});document.getElementById('newCodes').innerHTML='<p>New codes (send one to each friend):</p>'+j.codes.map(c=>'<code>'+c+'</code>').join(' ');load();}
+async function delInv(c){if(confirm('Delete '+c+'?')){await api('invite-delete',{code:c});load();}}
+async function pic(id,ok){await api('photo',{id,ok:!!ok});load();}
+async function res(id,action,owner){if(action==='ban'&&!confirm('Remove it and ban this person?'))return;await api('resolve',{id,action,owner});load();}
+async function ban(id,b){if(confirm(b?'Ban this person?':'Unban?')){await api('ban',{id,ban:!!b});load();}}
+if(sessionStorage.k){document.getElementById('k').value=sessionStorage.k;go();}
+</script></body></html>`;
+
+// for tests
+export const _test = { checkImage, ageOf, parseWhen, parseClock, toUtc, parts, nextDaily, fireReminders, initDb, COMMANDS, syncApi, encryptPush, vapidAuth, vapid, smtpSend };
