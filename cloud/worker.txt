@@ -6,7 +6,7 @@
 //  Setup steps: see "NOVA CLOUD SETUP.txt".
 // =====================================================================
 import { connect } from 'cloudflare:sockets';
-const VERSION = '4.0';
+const VERSION = '4.1';
 const DISCORD = 'https://discord.com/api/v10';
 
 export default {
@@ -16,7 +16,7 @@ export default {
       if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
       if (url.pathname === '/api/sync' && req.method === 'POST') return await syncApi(req, env);
       if (url.pathname.startsWith('/api/admin/') && req.method === 'POST') return await adminApi(url.pathname, req, env);
-      if ((url.pathname === '/api/info' || url.pathname === '/api/join') && req.method === 'POST') return await publicApi(url.pathname, req, env);
+      if ((url.pathname === '/api/info' || url.pathname === '/api/join' || url.pathname === '/api/feedback') && req.method === 'POST') return await publicApi(url.pathname, req, env);
       if (url.pathname.startsWith('/api/') && req.method === 'POST') return await cloudApi(url.pathname, req, env);
       if (url.pathname === '/admin') return new Response(ADMIN_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
       if (req.method === 'POST') return await interaction(req, env, ctx);
@@ -725,7 +725,8 @@ const SOCIAL_TABLES = [
   'CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter TEXT, kind TEXT, target TEXT, reason TEXT, created INTEGER, status TEXT DEFAULT \'open\')',
   'CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, created INTEGER, uses INTEGER DEFAULT 0, max INTEGER DEFAULT 1, note TEXT)',
   'CREATE TABLE IF NOT EXISTS scores (user TEXT, game TEXT, score INTEGER, updated INTEGER, PRIMARY KEY (user,game))',
-  'CREATE TABLE IF NOT EXISTS usage (user TEXT, day TEXT, n INTEGER, PRIMARY KEY (user,day))'
+  'CREATE TABLE IF NOT EXISTS usage (user TEXT, day TEXT, n INTEGER, PRIMARY KEY (user,day))',
+  'CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, text TEXT, created INTEGER, done INTEGER DEFAULT 0)'
 ];
 const rnd = (n, abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => abc[x % abc.length]).join('');
 const now = () => Date.now();
@@ -794,6 +795,13 @@ async function publicApi(path, req, env) {
   let b; try { b = await req.json(); } catch (e) { return jr({ error: 'bad request' }, 400); }
   await initDb(env);
   if (path === '/api/info') return jr({ ok: true, version: VERSION, features: features(env), turnstile: env.TURNSTILE_SITE_KEY || null, brain: !!env.GROQ_KEY });
+  if (path === '/api/feedback') { // testers' feedback + crash reports -> Moon's admin page (no phone number in the app)
+    const ip = req.headers.get('CF-Connecting-IP') || '';
+    const text = clean(b.text, 8000); if (!text) return jr({ error: 'empty' }, 400);
+    if (!(await rate(env, 'fb:' + ip, 40, 86400000))) return jr({ error: 'Too many reports from here today.' }, 429);
+    await env.DB.prepare('INSERT INTO feedback (title,text,created) VALUES (?,?,?)').bind(clean(b.title, 120) || 'Nova feedback', text, now()).run();
+    return jr({ ok: true });
+  }
   if (path === '/api/join') {
     const ip = req.headers.get('CF-Connecting-IP') || '';
     if (!b.agree) return jr({ error: 'Please agree to the rules.' }, 400);
@@ -981,7 +989,9 @@ async function adminApi(path, req, env) {
   if (!env.SETUP_KEY || b.key !== env.SETUP_KEY) return jr({ error: 'wrong key' }, 403);
   await initDb(env);
   const one = async sql => (await env.DB.prepare(sql).first()).n;
-  if (path === '/api/admin/stats') return jr({ ok: true, users: await one('SELECT COUNT(*) n FROM profiles'), banned: await one('SELECT COUNT(*) n FROM profiles WHERE banned=1'), posts: await one('SELECT COUNT(*) n FROM posts WHERE removed=0'), msgs: await one('SELECT COUNT(*) n FROM msgs'), openReports: await one("SELECT COUNT(*) n FROM reports WHERE status='open'"), pending: await one("SELECT COUNT(*) n FROM photos WHERE status='pending'"), brainToday: await one("SELECT COALESCE(SUM(n),0) n FROM usage WHERE day='" + today() + "'") });
+  if (path === '/api/admin/stats') return jr({ ok: true, users: await one('SELECT COUNT(*) n FROM profiles'), banned: await one('SELECT COUNT(*) n FROM profiles WHERE banned=1'), posts: await one('SELECT COUNT(*) n FROM posts WHERE removed=0'), msgs: await one('SELECT COUNT(*) n FROM msgs'), openReports: await one("SELECT COUNT(*) n FROM reports WHERE status='open'"), pending: await one("SELECT COUNT(*) n FROM photos WHERE status='pending'"), brainToday: await one("SELECT COALESCE(SUM(n),0) n FROM usage WHERE day='" + today() + "'"), feedback: await one('SELECT COUNT(*) n FROM feedback WHERE done=0') });
+  if (path === '/api/admin/feedback') { const { results } = await env.DB.prepare('SELECT * FROM feedback WHERE done=0 ORDER BY created DESC LIMIT 100').all(); return jr({ ok: true, feedback: results }); }
+  if (path === '/api/admin/feedback-done') { await env.DB.prepare('UPDATE feedback SET done=1 WHERE id=?').bind(+b.id).run(); return jr({ ok: true }); }
   if (path === '/api/admin/reports') {
     const { results } = await env.DB.prepare("SELECT r.*, p.username AS rep FROM reports r LEFT JOIN profiles p ON p.id=r.reporter WHERE r.status='open' ORDER BY r.id DESC LIMIT 100").all();
     for (const r of results) {
@@ -1028,6 +1038,7 @@ button{font:inherit;border-radius:10px;border:1px solid var(--l);background:#152
 input{font:inherit;background:#0b1222;color:var(--t);border:1px solid var(--l);border-radius:10px;padding:8px}img{max-width:180px;max-height:180px;border-radius:10px;display:block;margin-top:6px}.m{color:var(--m);font-size:13px}.stats{display:flex;flex-wrap:wrap;gap:8px}.stats div{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:8px 12px}code{background:#0b1222;padding:2px 6px;border-radius:6px}</style></head>
 <body><h1>🛡️ Nova Admin</h1><div id="login" class="card">Admin key (your SETUP_KEY): <input id="k" type="password"> <button class="a" onclick="go()">Open</button></div><div id="app" hidden>
 <div class="stats" id="stats"></div>
+<h2>Feedback &amp; crash reports</h2><div id="feedback"></div>
 <h2>Invites</h2><div class="card"><input id="inN" type="number" value="1" min="1" max="50" style="width:70px"> codes, each usable <input id="inMax" type="number" value="1" min="1" style="width:70px"> time(s). Note: <input id="inNote" placeholder="who it's for" style="width:140px"> <button class="a" onclick="mk()">Make invites</button><div id="newCodes"></div></div><div id="invites"></div>
 <h2>Pictures waiting for review</h2><div id="photos"></div>
 <h2>Reports</h2><div id="reports"></div>
@@ -1036,12 +1047,14 @@ input{font:inherit;background:#0b1222;color:var(--t);border:1px solid var(--l);b
 let K='';const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(p,b){const r=await fetch('/api/admin/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:K},b||{}))});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
 async function go(){K=document.getElementById('k').value;try{await api('stats');sessionStorage.k=K;document.getElementById('login').hidden=true;document.getElementById('app').hidden=false;load();}catch(e){alert('Wrong key');}}
-async function load(){const s=await api('stats');document.getElementById('stats').innerHTML=Object.entries({Users:s.users,Banned:s.banned,Posts:s.posts,Messages:s.msgs,'Open reports':s.openReports,'Pics to review':s.pending,'Shared brain today':s.brainToday}).map(([k,v])=>'<div><b>'+v+'</b> <span class=m>'+k+'</span></div>').join('');
+async function load(){const s=await api('stats');document.getElementById('stats').innerHTML=Object.entries({Users:s.users,Banned:s.banned,Posts:s.posts,Messages:s.msgs,'Open reports':s.openReports,'Pics to review':s.pending,'Shared brain today':s.brainToday,Feedback:s.feedback}).map(([k,v])=>'<div><b>'+v+'</b> <span class=m>'+k+'</span></div>').join('');
+const fb=await api('feedback');document.getElementById('feedback').innerHTML=fb.feedback.map(f=>'<div class=card><b>'+esc(f.title)+'</b> <span class=m>'+new Date(f.created).toLocaleString()+'</span><pre style="white-space:pre-wrap;font:13px/1.4 ui-monospace,monospace;margin:8px 0 0">'+esc(f.text)+'</pre><button onclick="fbDone('+f.id+')">Done ✓</button></div>').join('')||'<div class=m>No new feedback.</div>';
 const iv=await api('invites');document.getElementById('invites').innerHTML=iv.invites.map(i=>'<div class=card><code>'+i.code+'</code> <span class=m>used '+i.uses+'/'+i.max+(i.note?' · '+esc(i.note):'')+'</span> <button class=d onclick="delInv(\\''+i.code+'\\')">Delete</button></div>').join('')||'<div class=m>No invites yet.</div>';
 const ph=await api('photos');document.getElementById('photos').innerHTML=ph.photos.map(p=>'<div class=card>@'+esc(p.username)+' <span class=m>'+esc(p.reason)+'</span><img src="'+p.data+'"><button class=a onclick="pic(\\''+p.id+'\\',1)">Approve</button><button class=d onclick="pic(\\''+p.id+'\\',0)">Reject</button></div>').join('')||'<div class=m>Nothing waiting. 👍</div>';
 const rp=await api('reports');document.getElementById('reports').innerHTML=rp.reports.map(r=>'<div class=card><b>'+r.kind+'</b> by @'+esc(r.rep)+' against '+esc(r.ownerName||'?')+' <span class=m>'+new Date(r.created).toLocaleString()+'</span><div>Reason: '+esc(r.reason||'(none)')+'</div><div class=m>'+esc(r.preview||'')+'</div>'+(r.photoData?'<img src="'+r.photoData+'">':'')+'<button onclick="res('+r.id+',\\'dismiss\\')">Dismiss</button><button class=d onclick="res('+r.id+',\\'remove\\')">Remove it</button><button class=d onclick="res('+r.id+',\\'ban\\',\\''+(r.owner||'')+'\\')">Remove + ban</button></div>').join('')||'<div class=m>No open reports. 🎉</div>';
 const us=await api('users');document.getElementById('users').innerHTML=us.users.map(u=>'<div class=card>@'+esc(u.username)+' <span class=m>'+esc(u.display)+' · age '+u.age+' · '+u.reports+' reports'+(u.banned?' · <b style=color:var(--b)>BANNED</b>':'')+'</span> <button class='+(u.banned?'a':'d')+' onclick="ban(\\''+u.id+'\\','+(u.banned?0:1)+')">'+(u.banned?'Unban':'Ban')+'</button></div>').join('')||'<div class=m>No one yet.</div>';}
 async function mk(){const j=await api('invite-new',{n:+inN.value,max:+inMax.value,note:inNote.value});document.getElementById('newCodes').innerHTML='<p>New codes (send one to each friend):</p>'+j.codes.map(c=>'<code>'+c+'</code>').join(' ');load();}
+async function fbDone(id){await api('feedback-done',{id});load();}
 async function delInv(c){if(confirm('Delete '+c+'?')){await api('invite-delete',{code:c});load();}}
 async function pic(id,ok){await api('photo',{id,ok:!!ok});load();}
 async function res(id,action,owner){if(action==='ban'&&!confirm('Remove it and ban this person?'))return;await api('resolve',{id,action,owner});load();}
