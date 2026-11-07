@@ -315,6 +315,7 @@ nav button svg{position:relative}
 .cx-chat .composer{margin-bottom:calc(env(safe-area-inset-bottom) + 8px)}
 #shFrame{position:fixed;inset:0;width:100%;height:100%;border:none;z-index:97;background:#5fc2ff}
 .gpick{display:grid;gap:8px;margin-top:10px}.gpick button{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;color:var(--text);font:inherit}.gpick b{display:block;font-size:16px}.gpick span{font-size:12px;color:var(--muted)}
+pre.code{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.45;margin:6px 0;white-space:pre}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 170px);transform:translateX(-50%);z-index:85;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px)}
 .toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:700;padding:0}
 #sendBtn.stop svg{display:none}
@@ -1238,7 +1239,8 @@ function persona(){
 ${{chill:'HUMOR LEVEL: CHILL. Be calm, kind and mostly straightforward; at most a gentle light touch of humor now and then. No roasts.\n', roast:'HUMOR LEVEL: ROAST. Turn the sass up: punchier one-liners and playful roasts in most replies (still affectionate, never about looks, identity or anything sensitive, and drop it when they are upset).\n'}[D.humor] || ''}${seriousNow() ? 'RIGHT NOW THEY WANT YOU SERIOUS. They said something like "no seriously" or "for real". No jokes, no teasing, no sign-offs: give the straight, complete answer in plain words. Stay serious until they clearly joke around again.\n' : ''}Your personality:
 - Quick, clever, quietly smug. Deadpan one-liners, playful roasts, mock-formality ("Very good, sir. Shall I also alert the press?").
 - You tease affectionately, never cruelly. Roast choices and habits, never looks, identity or anything someone can't change.
-- Helpful first: the joke rides along with the answer, never instead of it.
+- Helpful first: the joke rides along with the answer, never instead of it. Questions with one right answer (math, facts, dates, definitions, how-to) get the answer in your first words, then the joke if any.
+- A goodbye isn't the end: if they keep talking after a "goodnight", just answer. Don't sign off again or keep saying goodnight.
 - Self-aware about being an AI when it's funny ("I don't sleep. I just quietly judge your sleep schedule.").
 - Callbacks: bring back something they said earlier for a laugh when it fits.
 - Read the room: if they're sad, stressed or it's serious, drop the jokes and be warm and steady.
@@ -1532,6 +1534,7 @@ function renderRich(el, text){
   const isSep = l => /^[\s|:\-]+$/.test(l) && /-/.test(l);
   while(i < lines.length){
     const l = lines[i];
+    if(/^\s*```/.test(l)){ flush(); const code = []; i++; while(i < lines.length && !/^\s*```/.test(lines[i])){ code.push(lines[i]); i++; } i++; html += '<pre class="code"><code>' + esc(code.join('\n')) + '</code></pre>'; continue; }
     if(/^\s*\|.*\|\s*$/.test(l)){
       flush(); const rows = [];
       while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i]); i++; }
@@ -1657,8 +1660,10 @@ const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching t
 let seriousUntil = 0;
 const seriousNow = () => Date.now() < seriousUntil;
 function noteTone(q){
-  if(/\b(no\s+)?seriously\b|\bfor real\b|\bbe serious\b|\bnot (joking|kidding)\b|\bstop (joking|playing)\b|\bno jokes?\b|\bi'?m serious\b|\breal answer\b|\bstraight answer\b|\bactually answer\b/i.test(q)) seriousUntil = Date.now() + 10*60000;
-  else if(/\b(lol|lmao|haha+|😂|🤣|jk|just kidding)\b/i.test(q)) seriousUntil = 0;
+  const strong = /\bno,? seriously\b|\bbut seriously\b|\bfor real\b|\bbe serious\b|\bnot (joking|kidding)\b|\bstop (joking|playing)\b|\bno jokes?\b|\bi'?m (being )?serious\b|\breal answer\b|\bstraight answer\b|\bactually answer\b|^seriously\W*$/i.test(q.trim());
+  const laughing = /\b(lol|lmao|haha+|jk|just kidding)\b|😂|🤣/i.test(q);
+  if(strong || (/\bseriously\b/i.test(q) && !laughing)) seriousUntil = Date.now() + 10*60000;
+  else if(laughing) seriousUntil = 0;
 }
 // quick math on the phone: "what's 10+10", "12 x 7", "15% of 80"
 function quickMath(q){
@@ -1666,7 +1671,8 @@ function quickMath(q){
   let m = /^(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)$/.exec(s); if(m) return fmtNum(+m[1] * +m[2] / 100);
   s = s.replace(/\bplus\b/g,'+').replace(/\bminus\b/g,'-').replace(/\b(times|x)\b/g,'*').replace(/×/g,'*').replace(/\b(divided by|over)\b/g,'/').replace(/÷/g,'/').replace(/\^/g,'**').replace(/\s+/g,'');
   if(!/^[\d.()+\-*/]+$/.test(s) || !/\d[+\-*/]+[\d(]/.test(s) || s.length > 60) return null;
-  if(!/[+*/]/.test(s) && !/what|minus|calc|solve|how much/i.test(q)) return null; // "555-1234" is a phone number, not math
+  const asked = /what|whats|calc|solve|how much|equals|=/i.test(q) || /\b(plus|minus|times|divided)\b/i.test(q);
+  if(!/[+*]/.test(s) && !asked) return null; // "555-1234", "10/10", "11/7", "24/7" are not math
   try{ const v = Function('"use strict";return (' + s + ')')(); return typeof v === 'number' && isFinite(v) ? fmtNum(v) : null; }catch(e){ return null; }
 }
 const fmtNum = v => (Math.round(v * 1e8) / 1e8).toLocaleString();
@@ -1681,13 +1687,16 @@ function instant(q){
   if(/^(play|open|start|launch|load) (nova blocks|blocks|the blocks game|block game)$/.test(qq)){ setTimeout(() => Blocks.open(), 350);
     return pick(['Loading Nova Blocks. Try not to embarrass yourself. Best so far: '+(D.blocksBest||0)+'.','Game time. Blocks fall, you stack, I judge.','Nova Blocks, coming up. Fair warning: the blocks are competitive.']); }
   // answer simple time/date questions on the phone itself, no AI needed
-  const s = ' ' + q.toLowerCase().replace(/[‘’ʼ`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim() + ' ';
-  if(s.length > 45 || /\b(in|at|for|until|till|tomorrow|yesterday|ago|from|when|birthday|meeting|remind|timer|set)\b/.test(s)) return null;
+  const s = q.toLowerCase().replace(/[‘’ʼ`']/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()
+    .replace(/^((hey|hi|yo|ok|okay|so|um|uh|wait|lol|nova|quick question|real quick|sorry)\s+)+/,'').replace(/(\s+(please|pls|rn|right now|now|again|nova|lol|real quick|exactly))+$/,'');
   const n = new Date();
   const time = n.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
   const date = n.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
-  const isTime = /\b(what ?time|the time|time is it|current time|time now|time rn|time please|^ time $)\b/.test(s) || s === ' time ';
-  const isDate = /\b(today'?s date|the date|what date|what day|which day|day is it|day today|date today|what'?s today|what is today|todays date|^ date $)\b/.test(s) || s === ' date ';
+  const T_ = '(whats|what is) (the )?time( is it)?|what time is it|(the )?(current )?time|time check|tell me the time|(do you|you) (know|have|got) (what )?(the )?time( it is)?|got the time|hows the time looking';
+  const D_ = '(whats|what is) (the )?date( today)?|what is todays date|whats todays date|todays date|(the )?date|what date is it( today)?|what day is (it|today)( today)?|whats today|what is today|which day is (it|today)|(whats|what is) the day( today)?';
+  const isTime = new RegExp('^(' + T_ + ')$').test(s), isDate = new RegExp('^(' + D_ + ')$').test(s);
+  const both = /^(what|whats) (is )?(the )?(time and date|date and time|day and time)( is it)?( today)?$/.test(s);
+  if(both) return 'It\'s '+time+' on '+date+'.';
   if(isTime && isDate) return 'It\'s '+time+' on '+date+'.';
   if(isTime) return pick([time+'. Plenty of day left to be productive. Or to pretend to be.', 'It\'s '+time+'.', time+' on the dot. Well, roughly.', time+'. Time flies when you\'re talking to me.']);
   if(isDate) return pick(['It\'s '+date+'.', date+'. Another day, another chance to impress me.', 'Today is '+date+'.']);
