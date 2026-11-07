@@ -25,3 +25,5 @@ Nova is a personal AI assistant for iPhone: think JARVIS's dry wit crossed with 
 Testing Nova? Use 👎 on a reply or 💬 Feedback in the app. It goes straight to Moon.
 
 Built by Moon.
+
+© 2026 Moon. All rights reserved. See [LICENSE](LICENSE). No copying, reuse or redistribution without permission.

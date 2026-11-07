@@ -4,6 +4,7 @@
 //  posts, scores) with safety checks, a shared brain for friends, and (optional) Discord.
 //  Paste this whole file into your Cloudflare Worker and press Deploy.
 //  Setup steps: see "NOVA CLOUD SETUP.txt".
+//  © 2026 Moon. All rights reserved. No copying, reuse or redistribution without permission.
 // =====================================================================
 import { connect } from 'cloudflare:sockets';
 const VERSION = '4.1';

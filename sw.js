@@ -1,3 +1,4 @@
+// © 2026 Moon. All rights reserved. See LICENSE.
 // Keeps Nova's app screen on the phone so she opens instantly, even offline.
 const CACHE = 'nova-v4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'starhop.html'];
