@@ -702,7 +702,7 @@ input[type=time]{min-height:38px}
         <div class="card muted" id="linkCard">
           <div id="linkInfo">Nova Cloud keeps me awake 24/7: notifications when I'm closed, sending email, "Hey Nova" from anywhere, and Discord. Set it up once with the Nova Cloud guide, then enter the address and code from your setup page (or from <b>/link</b> in Discord).</div>
           <div id="linkForm">
-            <input id="linkUrl" placeholder="Address, e.g. https://nova-bot.you.workers.dev" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:8px">
+            <input id="linkUrl" value="https://nova-bot.hahatrollguy.workers.dev" placeholder="Address, e.g. https://nova-bot.you.workers.dev" autocapitalize="off" autocomplete="off" spellcheck="false" style="margin-top:8px">
             <input id="linkCode" placeholder="Code, e.g. NOVA-ABCD2345" autocapitalize="characters" autocomplete="off" spellcheck="false" style="margin-top:6px">
             <button class="btn wide" id="linkBtn">Link Nova Cloud</button>
           </div>
@@ -1890,7 +1890,7 @@ new MutationObserver(ms => { if(!isHome()) { lastChatAt = Date.now(); return; } 
 // coming back to Nova after a while -> home screen
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !isHome() && !busy && Date.now() - lastChatAt > 10*60000) goHome(); });
 // ---------------- Connect: friends, chat, posts, scores (needs Nova Cloud) ----------------
-const CLOUD_URL = ''; // Moon's Nova Cloud address (built in so friends only type an invite code)
+const CLOUD_URL = 'https://nova-bot.hahatrollguy.workers.dev'; // Moon's Nova Cloud address (built in so friends only type an invite code)
 const cloudBase = () => ((D.sync && D.sync.url) || CLOUD_URL || '').replace(/\/+$/,'');
 const RULES = 'Connect is 18+ and friends-only. Be kind. No nudity or sexual content, harassment, hate, threats, or anything illegal. Alcohol, vaping and similar go in 21+ posts only. Don\'t share anyone\'s private info. Every picture is checked, reports go to Moon, and breaking the rules gets you removed.';
 let CX = { me:null, tab:'feed', req:0, unread:0, imgs:{}, chatWith:null, chatPoll:null, lastMsg:0 };
@@ -2132,7 +2132,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = { t:'Starhop', items:['Nova\'s first big game: a platformer with 4 heroes (Pip, Bolt, Mochi, Kai) and 3 worlds (Meadow Hills, Sugar Peaks, Cloud Kingdom)','On-screen buttons, or swipe controls if you prefer'] };
 const CHANGELOG = [
-  {v:'6.0', at:'2026-11-07T01:00:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
+  {v:'6.0', at:'2026-11-07T01:10:00-05:00', t:'Connect + Nova Cloud + a calmer home', items:['Connect: add friends by username or friend code, chat, post, like, and compare game scores','Safety: invite-only, 18+ (21+ posts for 21+), robot check, every picture checked, block and report everywhere','Join with an invite code: friends don\'t need their own AI key','Nova Cloud: notifications when Nova is closed, a Send button on emails, "Hey Nova" from anywhere, buttons that open your apps and Shortcuts','New home screen: Nova front and center. Tap her to talk','Your day in one line: what\'s next, tasks left, rain','Chat slides up only when you use it (swipe up, or just start typing). Swipe down or ⌄ to go back','No more grid background','New tab: every update and how long ago it came out']},
   {v:'5.5', at:'2026-11-06T18:28:00-05:00', t:'Soft-launch polish', items:['Tap the mic (or the orb), talk, pause: it sends itself. No more listening forever','Games actually open when you ask for them','👍 👎 on answers, a Feedback button, bug and crash reports that text Moon','Failed messages say "Not sent" with a Try again button, and never confuse Nova','Undo when you delete things, live timer countdowns, weather that loads by itself']},
   {v:'5.4', at:'2026-11-06T15:00:00-05:00', t:'Nova Run soundtrack', items:['6 original lo-fi house songs, one per level plus the menu','Sound effects for jumps, power-ups, crashes and level clears','Music slows in Slow-mo and speeds up near the finish, 🔊 to mute']},
   {v:'5.3', at:'2026-11-06T14:37:00-05:00', t:'Nova Run levels & power-ups', items:['5 levels from Cruise to Event Horizon, unlocked one by one','Power-ups: 🛡 Invincible, ⏳ Slow-mo, ⏫ Double jump','Fair jump and slide timing, and scenery that rushes toward you']},
