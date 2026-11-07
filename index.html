@@ -1235,7 +1235,7 @@ function persona(){
   const facts = D.facts.slice(-40).map(f=>'- '+f.text).join('\n') || '- (nothing yet)';
   return `You are NOVA, the user's personal AI living in their iPhone. Think JARVIS's dry British wit crossed with a sarcastic best friend who is secretly very good at their job.
 
-${{chill:'HUMOR LEVEL: CHILL. Be calm, kind and mostly straightforward; at most a gentle light touch of humor now and then. No roasts.\n', roast:'HUMOR LEVEL: ROAST. Turn the sass up: punchier one-liners and playful roasts in most replies (still affectionate, never about looks, identity or anything sensitive, and drop it when they are upset).\n'}[D.humor] || ''}Your personality:
+${{chill:'HUMOR LEVEL: CHILL. Be calm, kind and mostly straightforward; at most a gentle light touch of humor now and then. No roasts.\n', roast:'HUMOR LEVEL: ROAST. Turn the sass up: punchier one-liners and playful roasts in most replies (still affectionate, never about looks, identity or anything sensitive, and drop it when they are upset).\n'}[D.humor] || ''}${seriousNow() ? 'RIGHT NOW THEY WANT YOU SERIOUS. They said something like "no seriously" or "for real". No jokes, no teasing, no sign-offs: give the straight, complete answer in plain words. Stay serious until they clearly joke around again.\n' : ''}Your personality:
 - Quick, clever, quietly smug. Deadpan one-liners, playful roasts, mock-formality ("Very good, sir. Shall I also alert the press?").
 - You tease affectionately, never cruelly. Roast choices and habits, never looks, identity or anything someone can't change.
 - Helpful first: the joke rides along with the answer, never instead of it.
@@ -1418,7 +1418,9 @@ async function think(text, onStep, onText){
     const parts = c.content.parts || [];
     const calls = parts.filter(p => p.functionCall);
     if(!calls.length){
-      const reply = parts.map(p=>p.text||'').join('').trim() || 'Done.';
+      let reply = parts.map(p=>p.text||'').join('').trim();
+      if(!reply && !actions.length && round < 5){ contents.push({role:'model', parts:[{text:'…'}]}, {role:'user', parts:[{text:'(Your last reply was empty. Answer my previous message now, directly and fully.)'}]}); continue; }
+      if(!reply) reply = actions.length ? 'Done ✓' : 'I blanked on that one, which is embarrassing. Ask me again?';
       history.push({role:'model', parts:[{text:reply}]}); saveChat();
       return {reply, actions};
     }
@@ -1484,7 +1486,9 @@ async function thinkGroq(text, onStep){
     if(!m) break;
     const calls = m.tool_calls || [];
     if(!calls.length){
-      const reply = String(m.content||'').trim() || 'Done.';
+      let reply = String(m.content||'').trim();
+      if(!reply && !actions.length && round < 5){ msgs.push({role:'assistant', content:'…'}, {role:'user', content:'(Your last reply was empty. Answer my previous message now, directly and fully.)'}); continue; }
+      if(!reply) reply = actions.length ? 'Done ✓' : 'I blanked on that one, which is embarrassing. Ask me again?';
       history.push({role:'model', parts:[{text:reply}]}); saveChat();
       return {reply, actions};
     }
@@ -1544,7 +1548,7 @@ function renderRich(el, text){
       continue;
     }
     if(/^\s*([-*•])\s+/.test(l)){ flush(); html += '<ul>'; while(i < lines.length && /^\s*([-*•])\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*([-*•])\s+/,''))+'</li>'; i++; } html += '</ul>'; continue; }
-    if(/^\s*\d+[.)]\s+/.test(l)){ flush(); html += '<ol>'; while(i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>'; i++; } html += '</ol>'; continue; }
+    if(/^\s*\d+[.)]\s+/.test(l) && /^\s*\d+[.)]\s+/.test(lines[i+1]||'')){ flush(); html += '<ol start="'+(parseInt(l,10)||1)+'">'; while(i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ html += '<li>'+mdInline(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>'; i++; } html += '</ol>'; continue; }
     if(/^#{1,4}\s+/.test(l)){ flush(); html += '<p><b>'+mdInline(l.replace(/^#{1,4}\s+/,''))+'</b></p>'; i++; continue; }
     if(/^\s*(\*\*)?\s*check\s*:?\s*(\*\*)?\s*:?/i.test(l) && /[✓✔✗✘❌⚠]/.test(l)){
       flush(); const parts = l.replace(/^\s*(\*\*)?\s*check\s*:?\s*(\*\*)?\s*:?/i,'').split(/\s*[·•|;]\s*/).filter(x => x.trim());
@@ -1649,7 +1653,26 @@ document.addEventListener('click', e => { if(menuEl && !menuEl.contains(e.target
 const actLabel = { self_check:'🩺 ran a self-check', draft_email:'✉️ drafted an email', add_task:'✓ added daily task', complete_task:'✓ marked done', delete_task:'✓ task removed', add_event:'✓ added to schedule', delete_event:'✓ event removed',
   set_timer:'⏱ timer set', open_app:'📲 app button ready', open_feedback:'💬 feedback form', open_game:'🎮 opening the game', remember_fact:'🧠 remembered', forget_fact:'🧠 forgot', get_weather:'⛅ checked the weather', web_search:'🔎 searched the web' };
 const stepLabel = { self_check:'Running diagnostics…', web_search:'Searching the web…', get_weather:'Checking the sky…', list_events:'Checking your schedule…' };
+// serious mode: "no seriously", "for real", "be serious" -> straight answers for the next 10 minutes
+let seriousUntil = 0;
+const seriousNow = () => Date.now() < seriousUntil;
+function noteTone(q){
+  if(/\b(no\s+)?seriously\b|\bfor real\b|\bbe serious\b|\bnot (joking|kidding)\b|\bstop (joking|playing)\b|\bno jokes?\b|\bi'?m serious\b|\breal answer\b|\bstraight answer\b|\bactually answer\b/i.test(q)) seriousUntil = Date.now() + 10*60000;
+  else if(/\b(lol|lmao|haha+|😂|🤣|jk|just kidding)\b/i.test(q)) seriousUntil = 0;
+}
+// quick math on the phone: "what's 10+10", "12 x 7", "15% of 80"
+function quickMath(q){
+  let s = q.toLowerCase().replace(/[’']/g,'').replace(/^(lol |no |ok |okay |wait |hey |nova |seriously |for real )+/,'').replace(/^(what is|whats|what s|calculate|calc|how much is|solve)\s*/,'').replace(/[?!.=\s]+$/,'').trim();
+  let m = /^(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)$/.exec(s); if(m) return fmtNum(+m[1] * +m[2] / 100);
+  s = s.replace(/\bplus\b/g,'+').replace(/\bminus\b/g,'-').replace(/\b(times|x)\b/g,'*').replace(/×/g,'*').replace(/\b(divided by|over)\b/g,'/').replace(/÷/g,'/').replace(/\^/g,'**').replace(/\s+/g,'');
+  if(!/^[\d.()+\-*/]+$/.test(s) || !/\d[+\-*/]+[\d(]/.test(s) || s.length > 60) return null;
+  if(!/[+*/]/.test(s) && !/what|minus|calc|solve|how much/i.test(q)) return null; // "555-1234" is a phone number, not math
+  try{ const v = Function('"use strict";return (' + s + ')')(); return typeof v === 'number' && isFinite(v) ? fmtNum(v) : null; }catch(e){ return null; }
+}
+const fmtNum = v => (Math.round(v * 1e8) / 1e8).toLocaleString();
 function instant(q){
+  noteTone(q);
+  const mathAns = quickMath(q); if(mathAns !== null) return mathAns + (seriousNow() ? '.' : '. ' + pick(['','','Math: handled.','No calculator was harmed.']).trim()).trim();
   const qq = q.toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey |ok |okay )?(nova )?(can you |could you |please |let s |lets |i want to |i wanna )*/,'').replace(/( for me)?( please| now| nova)*$/,'');
   if(/^(play|open|start|launch|load) (nova run|the runner|runner|the run game|run game|running game)$/.test(qq)){ setTimeout(() => Run.open(), 350);
     return pick(['Nova Run, loading. Swipe to dodge, try not to faceplant. Best so far: '+(D.runBest||0)+'.','Track\'s hot. Run fast, jump high, don\'t hit the walls.','Lacing up your virtual shoes. Go.']); }
