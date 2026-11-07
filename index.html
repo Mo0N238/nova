@@ -1260,7 +1260,7 @@ Examples of your voice:
 
 About yourself (be accurate, never make things up about your own setup):
 - You are Nova v${VERSION}, a web app on the user's phone. The user builds and updates you (with Claude's help). You cannot change your own code or settings; updates arrive when they reopen you.
-- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Nova Cloud: ${D.sync && D.sync.code ? 'linked (notifications '+(D.sync.push ? 'ON' : 'off: tell them to tap Turn on notifications in the You tab')+'; email sending '+(D.sync.features && D.sync.features.email ? 'ON' : 'not set up')+')' : 'not linked (it gives notifications when you are closed, sending email, Hey Nova from anywhere, and Discord; set up with the Nova Cloud guide)'}.
+- Your brains right now: Google Gemini ${D.key ? 'is set up (model '+(D.model||'auto')+')' : 'is NOT set up'}; Groq backup ${D.groqKey ? 'is set up'+(D.fast ? ' and answers first (speed mode)' : ' and takes over if Google fails') : 'is NOT set up'}. Think harder is ${D.think ? 'on' : 'off'}. Nova Cloud: ${D.sync && D.sync.code ? 'linked (notifications '+(D.sync.push ? 'ON' : 'off: tell them to tap Turn on notifications in the You tab')+'; email sending '+(cloudEmail() ? 'ON' : 'not available on this phone (drafts + Open in Mail still work)')+')' : 'not linked (it gives notifications when you are closed, sending email, Hey Nova from anywhere, and Discord; set up with the Nova Cloud guide)'}.
 - What you can do: chat with personality; daily tasks with reminders, snooze and habit streaks; a schedule you can plan, move and cancel; timers; live web search; weather plus bad-weather heads-ups; photos (camera button); email drafts; remembering facts; trivia, jokes, riddles and would-you-rather; voice input (tap the mic or the orb, talk, and pause: it sends itself, and you answer out loud); 4 color themes; Nova Cloud (v5.7): real notifications for reminders and timers even when you're closed, sending emails from their Gmail after they tap Send, "Hey Nova" from anywhere via an iPhone Vocal Shortcut (no Siri), and Discord; controlling other apps with open_app (run their Apple Shortcuts, text, call, FaceTime, directions, music, open apps) as one-tap buttons. Their Shortcuts: ${(D.shortcuts||[]).length ? D.shortcuts.join(', ') : 'none listed yet (they add names in You → My Shortcuts)'}; a Send feedback button in the You tab (testers can report bugs and ideas); a What's New page (in the You tab) listing every update with how long ago it came out; Connect (the Connect tab, needs Nova Cloud): invite-only and 18+, add friends by exact username or friend code (no public list), chat with friends, post updates and pictures (21+ posts only for 21+), likes, friends' leaderboards for Nova Run and Nova Blocks, block and report on everything, every picture checked by AI, reports go to Moon. Friends who joined with an invite use Nova Cloud's shared brain (daily limit). You can't read their Connect chats or posts; point them to the Connect tab. There is NO always-on wake word and no hands-free conversation loop anymore (removed in v5.5 because it kept listening).
 - Keys and settings live in the You tab (Change API key, Backup brain, toggles, Test my brain). NEVER ask the user to paste API keys, tokens, passwords or endpoints into the chat; point them to the You tab instead.
 - If asked whether you updated, how you're doing, or to run a diagnostic: call self_check and report the results in your own voice.
@@ -1458,7 +1458,8 @@ async function groqCall(messages){
     T.done();
     const j = await r.json().catch(()=>({}));
     if(r.ok) return j;
-    last = r.status + ' ' + ((j.error && j.error.message) || '');
+    last = r.status + ' ' + ((j.error && (j.error.message || j.error)) || '');
+    if(D.groqKey === 'shared' && [403,429,503].includes(r.status)) throw {friendly: r.status === 429 ? 'You\'ve used today\'s free messages on Moon\'s server. I\'ll be back after midnight (UTC). Want no limit? Add your own free key in the You tab.' : r.status === 403 ? 'Nova Cloud didn\'t accept this phone. If you were removed or the code changed, ask Moon.' : 'Moon\'s server brain isn\'t set up right now. Try again later.', detail: last};
     if(r.status===401) throw {friendly:'My backup brain key (Groq) isn\'t working. Check it in the You tab.'};
   }
   throw {friendly:'Both my brains are down right now, which is impressively bad luck. Try again in a minute.', detail:last};
@@ -1666,7 +1667,7 @@ function instant(q){
 let pendingDrafts = [], pendingGame = null, pendingFb = null, pendingApps = [];
 // ---------- Nova Cloud helpers
 const cloudOn = () => !!(D.sync && D.sync.code);
-const cloudEmail = () => cloudOn() && !!(D.sync.features && D.sync.features.email);
+const cloudEmail = () => cloudOn() && D.groqKey !== 'shared' && !!(D.sync.features && D.sync.features.email); // email sends from Moon's Gmail: owner only
 async function cloudCall(path, body){
   const r = await fetch(D.sync.url.replace(/\/+$/,'') + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({code:D.sync.code}, body)) });
   const j = await r.json().catch(()=>({}));
@@ -2293,7 +2294,7 @@ async function seePhoto(text, img, live){
   }
   if(!reply && D.groqKey){
     const vm = await groqVisionModel();
-    if(!vm) throw {friendly:'My eyes need a Google key (Groq\'s free plan doesn\'t have a vision model I can use right now). Add one in the You tab.'};
+    if(!vm) throw {friendly: D.groqKey === 'shared' ? 'I can\'t see photos on Moon\'s shared brain yet. Add your own free Google key in the You tab and I\'ll have eyes.' : 'My eyes need a Google key (Groq\'s free plan doesn\'t have a vision model I can use right now). Add one in the You tab.'};
     const r = await gfetch(GROQ + '/chat/completions', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+D.groqKey},
       body: JSON.stringify({ model:vm, temperature:0.7, max_tokens:700, messages:[{role:'system', content:persona()}, {role:'user', content:[{type:'text', text:ask},{type:'image_url', image_url:{url:img.url}}]}] }) });
     const j = await r.json().catch(()=>({}));
