@@ -524,12 +524,10 @@ input[type=time]{min-height:38px}
 .banner,.hint{margin:0 12px 6px;padding:8px 10px;font-size:13px}
 .empty{font-size:13px}
 /* v6.2 layout fix: fill to the very bottom, crisp top */
-html,body{min-height:100%;background:var(--bg)}
+html{min-height:100%;background:#090e19}body{min-height:100%;background:var(--bg)}
 .app{top:0;bottom:0;height:auto}
 .app.kb{bottom:auto;height:var(--app-h,100%)}
-html.tallfix,html.tallfix body{height:var(--full-h)}
-html.tallfix .app:not(.kb){bottom:auto;height:var(--full-h)}
-html.tallfix #shFrame{bottom:auto;height:var(--full-h)}
+
 header{background:var(--bg);position:relative;z-index:2;box-shadow:0 1px 0 var(--line)}
 .hd h1{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--text);-webkit-text-fill-color:currentColor;text-shadow:none;filter:none;-webkit-font-smoothing:antialiased}
 header .orb{box-shadow:0 0 8px var(--glow)}
@@ -1993,9 +1991,9 @@ function openStarhop(){
   if($('shFrame')) return;
   const f = document.createElement('div'); f.id = 'shFrame'; // a stretched box (fills to the very bottom on iPhone), with the game inside
   const fr = document.createElement('iframe'); fr.src = 'starhop.html'; fr.allow = 'autoplay'; fr.title = 'Starhop'; f.appendChild(fr);
-  document.body.appendChild(f); try{ NovaMusic.stop(); }catch(e){}
+  document.body.appendChild(f); document.documentElement.style.background = '#ff9a5c'; try{ NovaMusic.stop(); }catch(e){}
 }
-addEventListener('message', e => { if(!e.data || !e.data.starhop) return; if(e.data.starhop === 'close'){ const f = $('shFrame'); if(f) f.remove(); try{ pushScores(); }catch(x){} } if(e.data.starhop === 'score'){ try{ pushScores(); }catch(x){} } });
+addEventListener('message', e => { if(!e.data || !e.data.starhop) return; if(e.data.starhop === 'close'){ const f = $('shFrame'); if(f) f.remove(); document.documentElement.style.background = ''; try{ pushScores(); }catch(x){} } if(e.data.starhop === 'score'){ try{ pushScores(); }catch(x){} } });
 document.addEventListener('visibilitychange', () => { const f = $('shFrame'); if(document.hidden && f) try{ f.querySelector('iframe').contentWindow.postMessage({starhop:'pause'}, '*'); }catch(e){} });
 $('hpMore').onclick = () => { goChat(); setTimeout(() => $('chips').scrollTo({left:0}), 50); };
 document.querySelectorAll('#hpills .chip[data-q]').forEach(c => c.onclick = () => send(c.dataset.q));
@@ -2368,7 +2366,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = null;
 const CHANGELOG = [
-  {v:'6.5', at:'2026-11-07T18:55:00-05:00', t:'Fixes', items:['Fixed: "my brain cut out" replies after checking the weather or your tasks. Nova now always finishes the answer','Fixed: black strip at the bottom of the screen on iPhone','Starhop: the view follows your hero up on big jumps, so Kai never leaves the screen']},
+  {v:'6.5', at:'2026-11-07T18:55:00-05:00', t:'Fixes', items:['Fixed: "my brain cut out" replies after checking the weather or your tasks. Nova now always finishes the answer','The very bottom of the screen now matches the tab bar instead of a black strip','Starhop: the view follows your hero up on big jumps, so Kai never leaves the screen']},
   {v:'6.4', at:'2026-11-07T18:30:00-05:00', t:'Feed, follows and more', items:['New Feed tab: posts from your friends and everyone you follow','Follow anyone by their username, no approval needed','Friends, Followers and Following counts on every profile','Comment on posts, and repost them with your own thought','Crop and zoom your profile photo, or fit the whole picture','Add a profile banner','Block right from a post, comment or chat message, not just report']},
   {v:'6.3', at:'2026-11-07T08:45:00-05:00', t:'Google brain fixed', items:['Fixed: Nova\'s Google brain was turning down every message and quietly switching to the backup. She\'s back on her main brain, so answers are smarter and faster']},
   {v:'6.2', at:'2026-11-07T08:15:00-05:00', t:'Smarter answers', items:['Say "no seriously" or "for real" and Nova drops the jokes and gives straight answers. Laugh and she\'s playful again','Instant math: "what\'s 10+10", "12 x 7", "15% of 80"','Questions with one right answer get the answer first','Fixed: "What time should I wake up?" and "What day is Christmas?" no longer get the current time or date','Fixed: answers that start with a number, empty "Done." replies, and code now shows in a code box','Fixed: Nova now fills the whole screen to the bottom, and the top bar is sharp instead of blurry','The ⭐ Starhop button opens the game instantly','Feedback and crash reports now go straight to Moon\'s admin page','Starhop now works offline from the first launch']},
@@ -3503,16 +3501,12 @@ $('hintX').onclick = () => { $('installHint').hidden = true; store.set('nova_hin
 function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : window.innerHeight;
   const kb = !!vv && vv.height < Math.max(window.innerHeight, screen.height * 0.75) - 120;
   appEl.classList.toggle('kb', kb);
-  // iPhone home-screen apps sometimes report a screen shorter than it really is (leaves a black strip at the bottom): size to the real screen
-  const standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-  const real = innerWidth < innerHeight ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height), short = real - innerHeight;
-  const tall = !!standalone && !kb && short > 8 && short < 140;
-  document.documentElement.classList.toggle('tallfix', tall); if(tall) document.documentElement.style.setProperty('--full-h', real + 'px');
+
   document.documentElement.style.setProperty('--app-h', h+'px'); window.scrollTo(0,0); log.scrollTop = log.scrollHeight; }
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
-  '6.5': 'Update installed: v6.5. No more "brain cut out" replies, I fill the whole screen now, and Starhop keeps Kai on screen on big jumps.',
+  '6.5': 'Update installed: v6.5. No more "brain cut out" replies, the bottom edge matches the tab bar now, and Starhop keeps Kai on screen on big jumps.',
   '6.4': 'Update installed: v6.4. Big one: Feed has its own tab, you can follow people, comment, repost, crop your profile photo and add a banner. Go show off.',
   '6.3': 'Update installed: v6.3. My main brain was rejecting every message this morning and I was running on the backup. Fixed. Feedback now goes straight to Moon, too.',
   '6.2': 'Update installed: v6.2. I got sharper overnight: say "no seriously" and I\'ll drop the jokes, simple math is instant, and I put the answer first now. Starhop is still waiting for you.',
