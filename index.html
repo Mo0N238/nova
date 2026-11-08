@@ -524,8 +524,10 @@ input[type=time]{min-height:38px}
 .banner,.hint{margin:0 12px 6px;padding:8px 10px;font-size:13px}
 .empty{font-size:13px}
 /* v6.2 layout fix: fill to the very bottom, crisp top */
-html{min-height:100%;background:#090e19}
-html.shortvp nav{padding-bottom:2px}body{min-height:100%;background:var(--bg)}
+html{min-height:100%;background:var(--bg)}
+html.shortvp nav{padding-bottom:2px}
+/* the tab bar is the same solid color as the strip iOS paints below it: one seamless bottom, no darker box */
+nav{background:var(--bg) !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}body{min-height:100%;background:var(--bg)}
 .app{top:0;bottom:0;height:auto}
 .app.kb{bottom:auto;height:var(--app-h,100%)}
 
@@ -1992,9 +1994,9 @@ function openStarhop(){
   if($('shFrame')) return;
   const f = document.createElement('div'); f.id = 'shFrame'; // a stretched box (fills to the very bottom on iPhone), with the game inside
   const fr = document.createElement('iframe'); fr.src = 'starhop.html'; fr.allow = 'autoplay'; fr.title = 'Starhop'; f.appendChild(fr);
-  document.body.appendChild(f); document.documentElement.style.background = '#ff9a5c'; try{ NovaMusic.stop(); }catch(e){}
+  document.body.appendChild(f); document.documentElement.style.background = document.body.style.background = '#ff9a5c'; try{ NovaMusic.stop(); }catch(e){}
 }
-addEventListener('message', e => { if(!e.data || !e.data.starhop) return; if(e.data.starhop === 'close'){ const f = $('shFrame'); if(f) f.remove(); document.documentElement.style.background = ''; try{ pushScores(); }catch(x){} } if(e.data.starhop === 'score'){ try{ pushScores(); }catch(x){} } });
+addEventListener('message', e => { if(!e.data || !e.data.starhop) return; if(e.data.starhop === 'close'){ const f = $('shFrame'); if(f) f.remove(); document.documentElement.style.background = document.body.style.background = ''; try{ pushScores(); }catch(x){} } if(e.data.starhop === 'score'){ try{ pushScores(); }catch(x){} } });
 document.addEventListener('visibilitychange', () => { const f = $('shFrame'); if(document.hidden && f) try{ f.querySelector('iframe').contentWindow.postMessage({starhop:'pause'}, '*'); }catch(e){} });
 $('hpMore').onclick = () => { goChat(); setTimeout(() => $('chips').scrollTo({left:0}), 50); };
 document.querySelectorAll('#hpills .chip[data-q]').forEach(c => c.onclick = () => send(c.dataset.q));
