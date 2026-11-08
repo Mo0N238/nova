@@ -7,7 +7,7 @@
 //  © 2026 Moon. All rights reserved. No copying, reuse or redistribution without permission.
 // =====================================================================
 import { connect } from 'cloudflare:sockets';
-const VERSION = '4.2';
+const VERSION = '4.3';
 const DISCORD = 'https://discord.com/api/v10';
 
 export default {
@@ -733,7 +733,11 @@ const SOCIAL_TABLES = [
   'CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, text TEXT, created INTEGER, done INTEGER DEFAULT 0)',
   'CREATE TABLE IF NOT EXISTS follows (a TEXT, b TEXT, created INTEGER, PRIMARY KEY (a,b))',
   'CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post INTEGER, author TEXT, text TEXT, created INTEGER, removed INTEGER DEFAULT 0)',
-  'CREATE INDEX IF NOT EXISTS com_post ON comments(post)'
+  'CREATE INDEX IF NOT EXISTS com_post ON comments(post)',
+  'CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, owner TEXT, created INTEGER)',
+  'CREATE TABLE IF NOT EXISTS gmembers (g INTEGER, user TEXT, joined INTEGER, last_read INTEGER DEFAULT 0, PRIMARY KEY (g,user))',
+  'CREATE TABLE IF NOT EXISTS gmsgs (id INTEGER PRIMARY KEY AUTOINCREMENT, g INTEGER, author TEXT, text TEXT, created INTEGER, removed INTEGER DEFAULT 0)',
+  'CREATE INDEX IF NOT EXISTS gm_g ON gmsgs(g)'
 ];
 const rnd = (n, abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => abc[x % abc.length]).join('');
 const now = () => Date.now();
@@ -896,6 +900,7 @@ async function connectApi(path, b, u, env, req) {
     if (!p) return jr({ ok: true, profile: null });
     const inc = await env.DB.prepare("SELECT COUNT(*) n FROM friends WHERE b=? AND status='pending'").bind(me).first();
     const unread = await env.DB.prepare('SELECT COUNT(*) n FROM msgs WHERE b=? AND seen=0 AND removed=0').bind(me).first();
+    try { const gu = await env.DB.prepare('SELECT COUNT(*) n FROM gmsgs x JOIN gmembers m ON m.g=x.g AND m.user=? WHERE x.id>m.last_read AND x.author<>? AND x.removed=0').bind(me, me).first(); unread.n += gu.n; } catch (e) {}
     return jr({ ok: true, profile: pub(p, me, await counts(env, me)), banned: !!p.banned, requests: inc.n, unread: unread.n, turnstile: env.TURNSTILE_SITE_KEY || null });
   }
   if (path === '/api/c/profile/create') { if (p) return jr({ error: 'You already have a profile.' }, 400); const r = await makeProfile(env, me, b, req.headers.get('CF-Connecting-IP')); return r.error ? jr(r, 400) : jr({ ok: true, profile: pub(await getProf(env, me), me) }); }
@@ -976,12 +981,12 @@ async function connectApi(path, b, u, env, req) {
   if (path === '/api/c/unblock') { await env.DB.prepare('DELETE FROM blocks WHERE a=? AND b=?').bind(me, String(b.id || '')).run(); return jr({ ok: true }); }
   if (path === '/api/c/blocked') { const { results } = await env.DB.prepare('SELECT p.* FROM blocks k JOIN profiles p ON p.id=k.b WHERE k.a=?').bind(me).all(); return jr({ ok: true, blocked: results.map(r => ({ id: r.id, username: r.username, display: r.display })) }); }
   if (path === '/api/c/report') {
-    const kind = ['user', 'post', 'msg', 'photo', 'comment'].includes(b.kind) ? b.kind : 'user', target = clean(b.target, 40);
+    const kind = ['user', 'post', 'msg', 'photo', 'comment', 'gmsg'].includes(b.kind) ? b.kind : 'user', target = clean(b.target, 40);
     if (!(await rate(env, 'rep:' + me, 30, 86400000))) return jr({ error: 'Too many reports today.' }, 429);
     await env.DB.prepare('INSERT INTO reports (reporter,kind,target,reason,created) VALUES (?,?,?,?,?)').bind(me, kind, target, clean(b.reason, 300), now()).run();
     // 3 different people report the same thing -> hidden until Moon reviews it
     const n = await env.DB.prepare("SELECT COUNT(DISTINCT reporter) n FROM reports WHERE kind=? AND target=? AND status='open'").bind(kind, target).first();
-    if (n.n >= 3) { if (kind === 'post') await env.DB.prepare('UPDATE posts SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'photo') await env.DB.prepare("UPDATE photos SET status='pending' WHERE id=?").bind(target).run(); if (kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=2 WHERE id=?').bind(+target).run(); }
+    if (n.n >= 3) { if (kind === 'post') await env.DB.prepare('UPDATE posts SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'photo') await env.DB.prepare("UPDATE photos SET status='pending' WHERE id=?").bind(target).run(); if (kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=2 WHERE id=?').bind(+target).run(); if (kind === 'gmsg') await env.DB.prepare('UPDATE gmsgs SET removed=2 WHERE id=?').bind(+target).run(); }
     if (b.block && kind === 'user') { await env.DB.prepare('INSERT OR IGNORE INTO blocks (a,b,created) VALUES (?,?,?)').bind(me, target, now()).run(); await env.DB.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); await env.DB.prepare('DELETE FROM follows WHERE (a=? AND b=?) OR (a=? AND b=?)').bind(me, target, target, me).run(); }
     return jr({ ok: true });
   }
@@ -1008,6 +1013,74 @@ async function connectApi(path, b, u, env, req) {
     const r = await env.DB.prepare('INSERT INTO msgs (a,b,text,created) VALUES (?,?,?,?)').bind(me, o, text, now()).run();
     await pushUser(env, o, { title: p.display || p.username, body: text.slice(0, 120), tag: 'dm-' + me, url: './' });
     return jr({ ok: true, id: r.meta && r.meta.last_row_id });
+  }
+  // ---- group chats (friends only, up to 20 people)
+  const isMember = async gid => !!(await env.DB.prepare('SELECT 1 FROM gmembers WHERE g=? AND user=?').bind(+gid, me).first());
+  const gMembers = async gid => (await env.DB.prepare('SELECT p.* FROM gmembers m JOIN profiles p ON p.id=m.user WHERE m.g=? AND p.banned=0 ORDER BY m.joined').bind(+gid).all()).results;
+  if (path === '/api/c/groups') {
+    const { results } = await env.DB.prepare('SELECT g.*, m.last_read FROM groups g JOIN gmembers m ON m.g=g.id WHERE m.user=?').bind(me).all(); const out = [];
+    for (const g of results) {
+      const last = await env.DB.prepare('SELECT * FROM gmsgs WHERE g=? AND removed=0 ORDER BY id DESC LIMIT 1').bind(g.id).first();
+      const un = await env.DB.prepare('SELECT COUNT(*) n FROM gmsgs WHERE g=? AND id>? AND author<>? AND removed=0').bind(g.id, g.last_read || 0, me).first();
+      const mem = await gMembers(g.id); const la = last && await getProf(env, last.author);
+      out.push({ id: g.id, name: g.name, members: mem.slice(0, 4).map(x => pub(x, me)), count: mem.length, unread: un.n, last: last ? { text: last.text, mine: last.author === me, by: la ? (la.display || la.username) : '', at: last.created } : null, at: last ? last.created : g.created });
+    }
+    out.sort((x, y) => y.at - x.at); return jr({ ok: true, groups: out });
+  }
+  if (path === '/api/c/group/create') {
+    const name = clean(b.name, 40) || 'Group chat'; const ids = [...new Set((Array.isArray(b.members) ? b.members : []).map(String))].filter(x => x !== me).slice(0, 19);
+    if (ids.length < 2) return jr({ error: 'Pick at least 2 friends.' }, 400);
+    for (const id of ids) if (!(await areFriends(env, me, id)) || await blockedEither(env, me, id)) return jr({ error: 'You can only add friends to a group.' }, 403);
+    if (!(await rate(env, 'grp:' + me, 10, 86400000))) return jr({ error: 'That\'s a lot of new groups today.' }, 429);
+    const r = await env.DB.prepare('INSERT INTO groups (name,owner,created) VALUES (?,?,?)').bind(name, me, now()).run(); const gid = r.meta.last_row_id;
+    for (const id of [me, ...ids]) await env.DB.prepare('INSERT OR IGNORE INTO gmembers (g,user,joined) VALUES (?,?,?)').bind(gid, id, now()).run();
+    for (const id of ids) await pushUser(env, id, { title: name, body: (p.display || p.username) + ' added you to a group chat', tag: 'g' + gid, url: './' });
+    return jr({ ok: true, id: gid });
+  }
+  if (path === '/api/c/group/info') {
+    if (!(await isMember(b.id))) return jr({ error: 'You\'re not in that group.' }, 403);
+    const g = await env.DB.prepare('SELECT * FROM groups WHERE id=?').bind(+b.id).first();
+    return jr({ ok: true, group: { id: g.id, name: g.name, owner: g.owner === me, members: (await gMembers(g.id)).map(x => pub(x, me, { owner: x.id === g.owner })) } });
+  }
+  if (path === '/api/c/group/msgs') {
+    if (!(await isMember(b.id))) return jr({ error: 'You\'re not in that group.' }, 403);
+    const { results } = await env.DB.prepare('SELECT * FROM gmsgs WHERE g=? AND removed=0 AND id>? ORDER BY id DESC LIMIT 80').bind(+b.id, +b.after || 0).all(); const out = []; const cache = {};
+    for (const m of results.reverse()) { if (m.author !== me && await blockedEither(env, me, m.author)) continue;
+      const a = cache[m.author] || (cache[m.author] = await getProf(env, m.author)); if (!a || a.banned) continue;
+      out.push({ id: m.id, mine: m.author === me, text: m.text, at: m.created, author: pub(a, me) }); }
+    if (results.length) await env.DB.prepare('UPDATE gmembers SET last_read=? WHERE g=? AND user=?').bind(results[results.length - 1].id, +b.id, me).run();
+    return jr({ ok: true, msgs: out });
+  }
+  if (path === '/api/c/group/send') {
+    if (!(await isMember(b.id))) return jr({ error: 'You\'re not in that group.' }, 403);
+    const text = clean(b.text, 1000); if (!text) return jr({ error: 'Empty message.' }, 400);
+    if (!(await rate(env, 'msg:' + me, 20, 60000))) return jr({ error: 'Whoa, slow down a second.' }, 429);
+    const g = await env.DB.prepare('SELECT * FROM groups WHERE id=?').bind(+b.id).first();
+    const r = await env.DB.prepare('INSERT INTO gmsgs (g,author,text,created) VALUES (?,?,?,?)').bind(g.id, me, text, now()).run();
+    await env.DB.prepare('UPDATE gmembers SET last_read=? WHERE g=? AND user=?').bind(r.meta.last_row_id, g.id, me).run();
+    for (const m of await gMembers(g.id)) if (m.id !== me && !(await blockedEither(env, me, m.id))) await pushUser(env, m.id, { title: g.name, body: (p.display || p.username) + ': ' + text.slice(0, 110), tag: 'g' + g.id, url: './' });
+    return jr({ ok: true, id: r.meta.last_row_id });
+  }
+  if (path === '/api/c/group/add') {
+    if (!(await isMember(b.id))) return jr({ error: 'You\'re not in that group.' }, 403);
+    const id = String(b.user || ''); if (!(await areFriends(env, me, id)) || await blockedEither(env, me, id)) return jr({ error: 'You can only add your friends.' }, 403);
+    const n = await env.DB.prepare('SELECT COUNT(*) n FROM gmembers WHERE g=?').bind(+b.id).first(); if (n.n >= 20) return jr({ error: 'Groups max out at 20 people.' }, 400);
+    await env.DB.prepare('INSERT OR IGNORE INTO gmembers (g,user,joined,last_read) VALUES (?,?,?,(SELECT COALESCE(MAX(id),0) FROM gmsgs WHERE g=?))').bind(+b.id, id, now(), +b.id).run();
+    const g = await env.DB.prepare('SELECT * FROM groups WHERE id=?').bind(+b.id).first();
+    await pushUser(env, id, { title: g.name, body: (p.display || p.username) + ' added you to a group chat', tag: 'g' + g.id, url: './' });
+    return jr({ ok: true });
+  }
+  if (path === '/api/c/group/rename') { if (!(await isMember(b.id))) return jr({ error: 'You\'re not in that group.' }, 403); const name = clean(b.name, 40); if (!name) return jr({ error: 'Give it a name.' }, 400); await env.DB.prepare('UPDATE groups SET name=? WHERE id=?').bind(name, +b.id).run(); return jr({ ok: true }); }
+  if (path === '/api/c/group/leave') {
+    await env.DB.prepare('DELETE FROM gmembers WHERE g=? AND user=?').bind(+b.id, me).run();
+    const n = await env.DB.prepare('SELECT COUNT(*) n FROM gmembers WHERE g=?').bind(+b.id).first();
+    if (!n.n) { await env.DB.prepare('DELETE FROM gmsgs WHERE g=?').bind(+b.id).run(); await env.DB.prepare('DELETE FROM groups WHERE id=?').bind(+b.id).run(); }
+    else await env.DB.prepare('UPDATE groups SET owner=(SELECT user FROM gmembers WHERE g=? ORDER BY joined LIMIT 1) WHERE id=? AND owner=?').bind(+b.id, +b.id, me).run();
+    return jr({ ok: true });
+  }
+  if (path === '/api/c/group/remove') { // the group's creator can remove someone
+    const g = await env.DB.prepare('SELECT * FROM groups WHERE id=?').bind(+b.id).first(); if (!g || g.owner !== me) return jr({ error: 'Only the group\'s creator can remove people.' }, 403);
+    await env.DB.prepare('DELETE FROM gmembers WHERE g=? AND user=?').bind(g.id, String(b.user || '')).run(); return jr({ ok: true });
   }
   if (path === '/api/c/post') {
     const text = clean(b.text, 500), photo = b.photo ? String(b.photo) : null; if (!text && !photo) return jr({ error: 'Write something or add a picture.' }, 400);
@@ -1082,6 +1155,7 @@ async function connectApi(path, b, u, env, req) {
   if (path === '/api/c/delete-account') {
     for (const sql of ['DELETE FROM friends WHERE a=? OR b=?', 'DELETE FROM msgs WHERE a=? OR b=?', 'DELETE FROM blocks WHERE a=? OR b=?', 'DELETE FROM follows WHERE a=? OR b=?']) await env.DB.prepare(sql).bind(me, me).run();
     await env.DB.prepare('DELETE FROM comments WHERE author=?').bind(me).run();
+    await env.DB.prepare('DELETE FROM gmembers WHERE user=?').bind(me).run();
     for (const sql of ['DELETE FROM posts WHERE author=?', 'DELETE FROM photos WHERE owner=?', 'DELETE FROM likes WHERE user=?', 'DELETE FROM scores WHERE user=?', 'DELETE FROM profiles WHERE id=?']) await env.DB.prepare(sql).bind(me).run();
     return jr({ ok: true });
   }
@@ -1104,6 +1178,7 @@ async function adminApi(path, req, env) {
       if (r.kind === 'post') { const t = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.photo = t && t.photo; r.owner = t && t.author; }
       if (r.kind === 'msg') { const t = await env.DB.prepare('SELECT * FROM msgs WHERE id=?').bind(+r.target).first(); r.preview = t ? t.text : '(deleted)'; r.owner = t && t.a; }
       if (r.kind === 'comment') { const t = await env.DB.prepare('SELECT * FROM comments WHERE id=?').bind(+r.target).first(); r.preview = t ? 'Comment: ' + t.text : '(deleted)'; r.owner = t && t.author; }
+      if (r.kind === 'gmsg') { const t = await env.DB.prepare('SELECT * FROM gmsgs WHERE id=?').bind(+r.target).first(); r.preview = t ? 'Group message: ' + t.text : '(deleted)'; r.owner = t && t.author; }
       if (r.kind === 'photo') { r.photo = r.target; const t = await env.DB.prepare('SELECT owner FROM photos WHERE id=?').bind(r.target).first(); r.owner = t && t.owner; }
       if (r.photo) { const ph = await env.DB.prepare('SELECT data FROM photos WHERE id=?').bind(r.photo).first(); r.photoData = ph && ph.data; }
       if (r.owner) { const o = await getProf(env, r.owner); r.ownerName = o ? '@' + o.username : r.owner; }
@@ -1113,11 +1188,12 @@ async function adminApi(path, req, env) {
   if (path === '/api/admin/resolve') {
     const r = await env.DB.prepare('SELECT * FROM reports WHERE id=?').bind(+b.id).first(); if (!r) return jr({ error: 'not found' }, 404);
     const mark = st => env.DB.prepare('UPDATE reports SET status=? WHERE kind=? AND target=? AND status=\'open\'').bind(st, r.kind, r.target).run();
-    if (b.action === 'dismiss') { if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); await mark('dismissed'); }
+    if (b.action === 'dismiss') { if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); if (r.kind === 'gmsg') await env.DB.prepare('UPDATE gmsgs SET removed=0 WHERE id=? AND removed=2').bind(+r.target).run(); await mark('dismissed'); }
     if (b.action === 'remove' || b.action === 'ban') {
       if (r.kind === 'post') await env.DB.prepare('UPDATE posts SET removed=3 WHERE id=?').bind(+r.target).run();
       if (r.kind === 'msg') await env.DB.prepare('UPDATE msgs SET removed=3 WHERE id=?').bind(+r.target).run();
       if (r.kind === 'comment') await env.DB.prepare('UPDATE comments SET removed=3 WHERE id=?').bind(+r.target).run();
+      if (r.kind === 'gmsg') await env.DB.prepare('UPDATE gmsgs SET removed=3 WHERE id=?').bind(+r.target).run();
       if (r.kind === 'photo') await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(r.target).run();
       if (r.kind === 'user') { const t = await getProf(env, r.target); for (const ph of [t && t.photo, t && t.banner]) if (ph) await env.DB.prepare("UPDATE photos SET status='rejected', data='' WHERE id=?").bind(ph).run(); await env.DB.prepare('UPDATE profiles SET photo=NULL, banner=NULL, bio=\'\' WHERE id=?').bind(r.target).run(); }
       if (b.action === 'ban' && b.owner) await env.DB.prepare('UPDATE profiles SET banned=1 WHERE id=?').bind(String(b.owner)).run();

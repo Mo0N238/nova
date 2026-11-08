@@ -320,6 +320,8 @@ nav button svg{position:relative}
 .cx-cm .cx-cb{flex:1;min-width:0}.cx-cm .cx-cb div{white-space:pre-wrap;word-break:break-word}
 .cx-cms{max-height:50vh;overflow:auto;margin:6px 0 10px}
 .acts .btn{width:100%;margin-top:8px}
+.cx-gav{display:flex;width:52px;flex:none}.cx-gav .cx-av:nth-child(2){margin-left:-12px;margin-top:14px;box-shadow:0 0 0 2px var(--panel)}
+.cx-gname{font-size:12px;color:var(--muted);margin:10px 0 2px 6px}
 .cx-compose textarea{width:100%;min-height:60px}.cx-compose .row{align-items:center;gap:8px;margin-top:6px}
 .cx-21{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}.cx-21 input{width:18px;height:18px;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--accent)}
 .cx-cprev{margin-top:8px;display:flex;gap:10px;align-items:center;font-size:12px}.cx-cprev img{width:64px;height:64px;object-fit:cover;border-radius:10px}
@@ -2342,14 +2344,69 @@ async function paneFriends(el){
 }
 async function paneChats(el){
   el.innerHTML = '<div class="muted" style="padding:10px">Loading…</div>';
-  const j = await cx('chats'); el.innerHTML = '';
-  if(!j.chats.length){ el.innerHTML = '<div class="card muted">Chats with your friends show up here. Add a friend first.</div>'; return; }
+  const j = await cx('chats'); let gj = {groups:[]}; try{ gj = await cx('groups'); }catch(e){}
+  el.innerHTML = '<button class="btn wide ghost" id="cxNewG" style="margin-bottom:10px">👥 New group chat</button>';
+  $('cxNewG').onclick = () => newGroupSheet(j.chats.map(c => c.user));
+  if(gj.groups.length){ const gc = document.createElement('div'); gc.className = 'card';
+    gj.groups.forEach(g => { const r = document.createElement('div'); r.className = 'cx-row cx-chatrow'; r.innerHTML = '<span class="cx-gav"></span><div class="cx-rn"><b></b><div class="muted" style="font-size:13px"></div></div>' + (g.unread ? '<i class="cx-un">' + g.unread + '</i>' : '');
+      const av = r.querySelector('.cx-gav'); g.members.filter(m => !CX.me || m.id !== CX.me.id).slice(0, 2).forEach(m => av.appendChild(avatar(m, 30)));
+      r.querySelector('b').textContent = g.name + ' · ' + g.count;
+      r.querySelector('.muted').textContent = g.last ? (g.last.mine ? 'You' : g.last.by) + ': ' + g.last.text.slice(0, 50) + ' · ' + timeAgo(g.last.at) : 'New group. Say hi 👋';
+      r.onclick = () => openGroup(g); gc.appendChild(r); });
+    el.appendChild(gc); }
+  if(!j.chats.length){ el.insertAdjacentHTML('beforeend', '<div class="card muted">Chats with your friends show up here. Add a friend first.</div>'); return; }
   const c = document.createElement('div'); c.className = 'card';
   j.chats.forEach(ch => { const r = document.createElement('div'); r.className = 'cx-row cx-chatrow'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:13px"></div></div>' + (ch.unread ? '<i class="cx-un">' + ch.unread + '</i>' : '');
     r.querySelector('span').appendChild(avatar(ch.user, 44)); r.querySelector('b').textContent = ch.user.display;
     r.querySelector('.muted').textContent = ch.last ? (ch.last.mine ? 'You: ' : '') + ch.last.text.slice(0, 60) + ' · ' + timeAgo(ch.last.at) : 'Say hi 👋';
     r.onclick = () => openChat(ch.user); c.appendChild(r); });
   el.appendChild(c);
+}
+function newGroupSheet(friends){
+  if(friends.length < 2) return toast('You need at least 2 friends to make a group.');
+  const bg = sheet('<h3>👥 New group chat</h3><input class="g-name" maxlength="40" placeholder="Group name (e.g. The Crew)"><div class="muted sub" style="margin-top:10px">Pick friends (2 to 19):</div><div class="cx-list g-pick" style="max-height:40vh;overflow:auto"></div><div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" data-x>Cancel</button><button class="btn" style="flex:2" data-go>Create group</button></div>');
+  const box = bg.querySelector('.g-pick'), picked = new Set();
+  friends.forEach(u => { const r = document.createElement('label'); r.className = 'cx-row'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:12px"></div></div><input type="checkbox" style="width:24px;height:24px">';
+    r.querySelector('span').appendChild(avatar(u, 36)); r.querySelector('b').textContent = u.display; r.querySelector('.muted').textContent = '@' + u.username;
+    r.querySelector('input').onchange = e => { e.target.checked ? picked.add(u.id) : picked.delete(u.id); }; box.appendChild(r); });
+  bg.querySelector('[data-go]').onclick = async () => { if(picked.size < 2) return toast('Pick at least 2 friends.');
+    try{ const j = await cx('group/create', {name:bg.querySelector('.g-name').value, members:[...picked]}); bg.remove(); openGroup({id:j.id, name:bg.querySelector('.g-name').value.trim() || 'Group chat'}); }catch(e){ toast(e.message); } };
+}
+async function groupInfo(g, onChange, close){
+  let j; try{ j = await cx('group/info', {id:g.id}); }catch(e){ return toast(e.message); }
+  const G = j.group, bg = sheet('<h3></h3><div class="muted sub"></div><div class="cx-list" style="max-height:40vh;overflow:auto;margin-top:8px"></div><div class="acts"></div><button class="btn ghost wide" data-x style="margin-top:10px">Done</button>');
+  bg.querySelector('h3').textContent = G.name; bg.querySelector('.sub').textContent = G.members.length + ' people';
+  const l = bg.querySelector('.cx-list');
+  G.members.forEach(u => { const r = document.createElement('div'); r.className = 'cx-row'; r.innerHTML = '<span></span><div class="cx-rn"><b></b><div class="muted" style="font-size:12px"></div></div>';
+    r.querySelector('span').appendChild(avatar(u, 34)); r.querySelector('b').textContent = u.display + (u.id === CX.me.id ? ' (you)' : ''); r.querySelector('.muted').textContent = '@' + u.username + (u.owner ? ' · created the group' : '');
+    if(u.id !== CX.me.id){ r.querySelector('.cx-rn').onclick = () => { bg.remove(); profileSheet(u); };
+      if(G.owner){ const x = document.createElement('button'); x.className = 'btn sm ghost'; x.textContent = 'Remove'; x.onclick = async () => { await cx('group/remove', {id:G.id, user:u.id}); r.remove(); }; r.appendChild(x); } }
+    l.appendChild(r); });
+  const a = bg.querySelector('.acts'), add = (t, f, cls) => { const b = document.createElement('button'); b.className = 'btn ' + (cls || 'ghost'); b.textContent = t; b.onclick = f; a.appendChild(b); };
+  add('➕ Add a friend', async () => { const fr = (await cx('chats')).chats.map(c => c.user).filter(u => !G.members.some(m => m.id === u.id));
+    if(!fr.length) return toast('All your friends are already in here.');
+    bg.remove(); actionSheet('Add to ' + G.name, fr.map(u => [u.display + ' (@' + u.username + ')', async () => { try{ await cx('group/add', {id:G.id, user:u.id}); toast('Added @' + u.username); }catch(e){ toast(e.message); } }])); });
+  add('✏️ Rename group', async () => { const n = prompt('New group name', G.name); if(!n) return; try{ await cx('group/rename', {id:G.id, name:n}); g.name = n; onChange(n); bg.remove(); }catch(e){ toast(e.message); } });
+  add('🚪 Leave group', async () => { if(!confirm('Leave ' + G.name + '?')) return; await cx('group/leave', {id:G.id}); bg.remove(); toast('You left ' + G.name); close(); }, 'ghost danger');
+}
+async function openGroup(g){
+  let last = 0; const bg = document.createElement('div'); bg.className = 'cx-chat';
+  bg.innerHTML = '<div class="cx-chd"><button class="cx-back" aria-label="Back">‹</button><span class="cx-chav">👥</span><b></b><button class="cx-more" aria-label="Group info">⋯</button></div><div class="cx-msgs"></div><div class="composer"><textarea rows="1" placeholder="Message the group…" maxlength="1000"></textarea><button class="btn icon" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>';
+  const title = bg.querySelector('b'); title.textContent = g.name; const box = bg.querySelector('.cx-msgs'), ta = bg.querySelector('textarea');
+  const close = () => { clearInterval(CX.chatPoll); bg.remove(); renderConnect(); };
+  bg.querySelector('.cx-back').onclick = close;
+  bg.querySelector('.cx-more').onclick = () => groupInfo(g, n => { title.textContent = n; }, close);
+  let prevAuthor = null;
+  const add = m => { if(!m.mine && m.author.id !== prevAuthor){ const n = document.createElement('div'); n.className = 'cx-gname'; n.textContent = m.author.display; box.appendChild(n); } prevAuthor = m.mine ? null : m.author.id;
+    const d = document.createElement('div'); d.className = 'msg ' + (m.mine ? 'me' : 'nova'); d.textContent = m.text; d.dataset.time = new Date(m.at).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+    if(!m.mine){ const u = m.author, menu = () => actionSheet('Message from @' + u.username, [['👤 View profile', () => profileSheet(u)], ['⛔ Block @' + u.username, () => blockUser(u, () => {}), 'ghost danger'], ['🚩 Report message', () => reportSheet('gmsg', m.id, '@' + u.username, {owner:u.id})]]);
+      let t; d.addEventListener('touchstart', () => { t = setTimeout(menu, 600); }, {passive:true}); d.addEventListener('touchend', () => clearTimeout(t)); d.addEventListener('touchmove', () => clearTimeout(t), {passive:true}); d.oncontextmenu = e => { e.preventDefault(); menu(); }; }
+    box.appendChild(d); };
+  const pull = async () => { try{ const j = await cx('group/msgs', {id:g.id, after:last}); if(j.msgs.length){ j.msgs.forEach(add); last = j.msgs[j.msgs.length-1].id; box.scrollTop = box.scrollHeight; } }catch(e){ if(/not in that group/.test(e.message)){ toast('You\'re not in that group anymore.'); close(); } } };
+  const sendIt = async () => { const t = ta.value.trim(); if(!t) return; ta.value = ''; try{ await cx('group/send', {id:g.id, text:t}); await pull(); }catch(e){ ta.value = t; toast(e.message); } };
+  bg.querySelector('.composer .btn').onclick = sendIt;
+  ta.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendIt(); } });
+  document.body.appendChild(bg); await pull(); clearInterval(CX.chatPoll); CX.chatPoll = setInterval(() => { if(!document.hidden) pull(); }, 3500);
 }
 const GAMES = [['starhop','⭐ Starhop'],['novarun','🏃 Nova Run'],['novablocks','🧩 Nova Blocks']];
 async function paneScores(el){
@@ -2377,6 +2434,7 @@ $('newBack').onclick = () => document.querySelector('nav button[data-v="me"]').c
 // at: exact time when known; day: date only (older versions where only the day is known)
 const SOON = null;
 const CHANGELOG = [
+  {v:'6.7', at:'2026-11-07T23:45:00-05:00', t:'Group chats', items:['New: group chats with your friends (up to 20 people) in Connect → Chats','See who sent each message, add friends, rename the group or leave anytime','Long-press any group message to view their profile, block or report']},
   {v:'6.6', at:'2026-11-07T19:40:00-05:00', t:'Meet Nova', items:['Nova has a face! Her character now lives inside the orb','New app icon with Nova on it (re-add Nova to your Home Screen to see it)','Feed, Connect and the bottom bar look cleaner on iPhone']},
   {v:'6.5', at:'2026-11-07T18:55:00-05:00', t:'Fixes', items:['Fixed: "my brain cut out" replies after checking the weather or your tasks. Nova now always finishes the answer','The very bottom of the screen now matches the tab bar instead of a black strip','Starhop: the view follows your hero up on big jumps, so Kai never leaves the screen']},
   {v:'6.4', at:'2026-11-07T18:30:00-05:00', t:'Feed, follows and more', items:['New Feed tab: posts from your friends and everyone you follow','Follow anyone by their username, no approval needed','Friends, Followers and Following counts on every profile','Comment on posts, and repost them with your own thought','Crop and zoom your profile photo, or fit the whole picture','Add a profile banner','Block right from a post, comment or chat message, not just report']},
@@ -3505,7 +3563,7 @@ const Run = (() => {
 $('runChip').onclick = () => Run.open();
 
 // ---------------- boot ----------------
-const VERSION = '6.6'; window.__novaVer = VERSION;
+const VERSION = '6.7'; window.__novaVer = VERSION;
 $('ver').textContent = 'Nova v'+VERSION+' · © 2026 Moon. All rights reserved.';
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if(!standalone && /iPhone|iPad/.test(navigator.userAgent) && !store.get('nova_hint_off', false)) $('installHint').hidden = false;
@@ -3522,6 +3580,7 @@ function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : win
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
 window.addEventListener('resize', fit); fit();
 const WHATS_NEW = {
+  '6.7': 'Update installed: v6.7. Group chats are here: Connect → Chats → New group chat. Go start some drama. Responsibly.',
   '6.6': 'Update installed: v6.6. I have a face now. Headset and all. Be honest, it\'s a good look.',
   '6.5': 'Update installed: v6.5. No more "brain cut out" replies, the bottom edge matches the tab bar now, and Starhop keeps Kai on screen on big jumps.',
   '6.4': 'Update installed: v6.4. Big one: Feed has its own tab, you can follow people, comment, repost, crop your profile photo and add a banner. Go show off.',
