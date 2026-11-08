@@ -524,7 +524,8 @@ input[type=time]{min-height:38px}
 .banner,.hint{margin:0 12px 6px;padding:8px 10px;font-size:13px}
 .empty{font-size:13px}
 /* v6.2 layout fix: fill to the very bottom, crisp top */
-html{min-height:100%;background:#090e19}body{min-height:100%;background:var(--bg)}
+html{min-height:100%;background:#090e19}
+html.shortvp nav{padding-bottom:2px}body{min-height:100%;background:var(--bg)}
 .app{top:0;bottom:0;height:auto}
 .app.kb{bottom:auto;height:var(--app-h,100%)}
 
@@ -3501,6 +3502,10 @@ $('hintX').onclick = () => { $('installHint').hidden = true; store.set('nova_hin
 function fit(){ const vv = window.visualViewport; const h = vv ? vv.height : window.innerHeight;
   const kb = !!vv && vv.height < Math.max(window.innerHeight, screen.height * 0.75) - 120;
   appEl.classList.toggle('kb', kb);
+  // iPhone home-screen app bug (iOS 26): the screen already stops above the home bar, so don't add home-bar space again (tab bar sits at the bottom)
+  const standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  const real = innerWidth < innerHeight ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  document.documentElement.classList.toggle('shortvp', !!standalone && !kb && real - window.innerHeight > 20);
 
   document.documentElement.style.setProperty('--app-h', h+'px'); window.scrollTo(0,0); log.scrollTop = log.scrollHeight; }
 if(window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
